@@ -1,16 +1,17 @@
 {
   "name": "auto-research-shorts",
   "version": "1.0.0",
-  "description": "Auto Research Shorts - ferramenta do canal Zuefy",
+  "description": "Ferramenta de pesquisa de vídeos para o canal Zuefy",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "youtubei.js": "^10.5.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18.0.0"
   }
 }
