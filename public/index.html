@@ -251,22 +251,40 @@ copyBtn.addEventListener('click',function(){
 
 function captureFrame(video,time){
   return new Promise(function(resolve,reject){
-    var to=setTimeout(function(){reject(new Error('timeout'));},10000);
-    function onSeeked(){
-      clearTimeout(to);
-      video.removeEventListener('seeked',onSeeked);
+    var globalTo=setTimeout(function(){reject(new Error('timeout'));},10000);
+    var done=false,fallbackTo;
+    function capture(){
+      if(done)return;done=true;
+      clearTimeout(globalTo);clearTimeout(fallbackTo);
+      video.removeEventListener('seeked',capture);
       canvas.width=video.videoWidth;canvas.height=video.videoHeight;
       ctx.drawImage(video,0,0);
       canvas.toBlob(function(b){resolve(b);},'image/png');
     }
-    video.addEventListener('seeked',onSeeked);
+    video.addEventListener('seeked',capture);
     video.currentTime=time;
+    // Fallback: se seeked nao disparar (ex: video ja esta nessa posicao), captura em 500ms
+    fallbackTo=setTimeout(capture,500);
   });
 }
-function openLens(blob,idx){
-  var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='frame_'+String(idx+1).padStart(3,'0')+'.png';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  setTimeout(function(){URL.revokeObjectURL(u);window.open('https://lens.google.com/upload','_blank');},600);
+function showLensToast(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #4a9eff;color:#4a9eff;padding:12px 22px;border-radius:10px;font-family:\'JetBrains Mono\',monospace;font-size:13px;z-index:9999;max-width:90vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5);';
+  t.textContent=msg;document.body.appendChild(t);
+  setTimeout(function(){t.style.transition='opacity .5s';t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},500);},3000);
+}
+async function openLens(blob,idx){
+  try{
+    await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+    window.open('https://lens.google.com/upload','_blank');
+    showLensToast('\u2705 Imagem copiada! Cole com Ctrl+V no Google Lens');
+  }catch(e){
+    var u=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=u;a.download='frame_'+String(idx+1).padStart(3,'0')+'.png';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(u);window.open('https://lens.google.com/upload','_blank');},600);
+    showLensToast('\u2B07\uFE0F Frame baixado! Arraste para o Google Lens');
+  }
 }
 
 extractBtn.addEventListener('click',async function(){
