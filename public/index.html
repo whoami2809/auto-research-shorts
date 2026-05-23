@@ -430,39 +430,81 @@ async function fetchDownloadInfo(url){
   }
 }
 
-async function doDownload(url, fmt, vid, source, btn){
-  var label=fmt.label||'video';
+// ─── Cobalt browser-side download ─────────────────────────────────────────────
+// Instâncias cobalt com CORS habilitado (chamadas direto do navegador)
+var _cobaltInstances = null;
+var _cobaltTs = 0;
+
+async function getCobaltInstances(){
+  if(_cobaltInstances&&Date.now()-_cobaltTs<20*60*1000)return _cobaltInstances;
+  var FALLBACKS=[
+    'https://cobalt.canine.tools',
+    'https://cobalt.api.beedev.win',
+    'https://co.wuk.sh',
+    'https://cobalt.owo.ac',
+  ];
+  try{
+    var r=await fetch('https://instances.cobalt.best/api',{signal:AbortSignal.timeout(5000)});
+    var data=await r.json();
+    var list=data.filter(function(i){return i.online&&i.info&&i.info.cors&&!i.info.auth;})
+                 .map(function(i){return i.protocol+'://'+i.api;});
+    if(list.length>0){_cobaltInstances=list;_cobaltTs=Date.now();return list;}
+  }catch(e){}
+  _cobaltInstances=FALLBACKS;_cobaltTs=Date.now();
+  return FALLBACKS;
+}
+
+async function cobaltDownloadBrowser(url,quality,mode,audioFormat){
+  var instances=await getCobaltInstances();
+  var body={
+    url:url,
+    videoQuality:quality==='max'?'max':(quality||'720'),
+    downloadMode:mode||'auto',
+    audioFormat:audioFormat||'mp3',
+    filenameStyle:'pretty',
+  };
+  var errors=[];
+  for(var i=0;i<Math.min(instances.length,6);i++){
+    var inst=instances[i];
+    try{
+      var r=await fetch(inst+'/',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify(body),
+        signal:AbortSignal.timeout(15000),
+      });
+      if(!r.ok){errors.push(inst+': HTTP '+r.status);continue;}
+      var d=await r.json();
+      if((d.status==='tunnel'||d.status==='redirect'||d.status==='stream')&&d.url)return d.url;
+      if(d.status==='picker'&&d.picker&&d.picker[0])return d.picker[0].url;
+      errors.push(inst+': status='+d.status);
+    }catch(e){errors.push(inst+': '+e.message.slice(0,60));}
+  }
+  throw new Error('Cobalt falhou: '+errors.slice(0,2).join(' | '));
+}
+
+async function doDownload(url,fmt,vid,source,btn){
   btn.disabled=true;
-  btn.innerHTML='\u23f3 Processando '+label+'...';
-  showStatus('Processando '+label+'...');
+  var origHtml=btn.innerHTML;
+  btn.innerHTML='\u23f3 '+esc(fmt.label||'')+'...';
+  showStatus('Processando download...');
 
   try{
-    // Monta query
-    var qs='url='+encodeURIComponent(url)+'&k='+encodeURIComponent(fmt.k)+'&mode='+(fmt.mode||'auto')+'&audioFormat='+(fmt.audioFormat||'mp3');
-
-    var res=await fetch('/api/video-link?'+qs,{signal:AbortSignal.timeout(90000)});
-    var data=await res.json();
-
-    if(!res.ok||!data.url)throw new Error(data.error||'Sem URL de download');
-
-    // Aciona download direto
-    var a=document.createElement('a');
-    a.href=data.url;
-    a.download='video';
-    a.style.display='none';
-    a.target='_blank';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-
-    showToast('\u2705 Download iniciado!','var(--success)');
-    hideStatus();
+    var dlUrl=await cobaltDownloadBrowser(url,fmt.k.replace('-mute',''),fmt.mode||'auto',fmt.audioFormat||'mp3');
+    // Abre em nova aba — cobalt envia Content-Disposition:attachment, o browser baixa
+    window.open(dlUrl,'_blank');
+    showToast('\u2705 Download abrindo em nova aba!','var(--success)');
   }catch(e){
-    showToast('\u26a0\uFE0F '+e.message,'var(--danger)');
-    hideStatus();
+    console.warn('[doDownload]',e.message);
+    // Fallback final: copia URL e abre cobalt.tools
+    try{await navigator.clipboard.writeText(url);}catch(ce){}
+    window.open('https://cobalt.tools/','_blank');
+    showToast('\u26a0\uFE0F Automático falhou. Link copiado! Cole no cobalt.tools que abriu.','var(--warn)');
   }
 
-  // Restaura botão
+  hideStatus();
   btn.disabled=false;
-  btn.innerHTML=(fmt.label||'?')+(fmt.size&&fmt.size!='~'?'<span style="opacity:.55;font-size:11px;margin-left:6px;">'+fmt.size+'</span>':'');
+  btn.innerHTML=origHtml;
 }
 
 // ─── Tradução ─────────────────────────────────────────────────────────────────
