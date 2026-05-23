@@ -49,6 +49,14 @@ textarea:focus{border-color:var(--accent);}
 .btn-sec:hover{border-color:var(--accent);color:var(--accent);}
 .notice{background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.2);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--blue);margin-bottom:14px;line-height:1.7;}
 .notice-warn{background:rgba(255,140,0,.06);border:1px solid rgba(255,140,0,.2);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--accent2);margin-bottom:12px;line-height:1.7;}
+.notice-success{background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--success);margin-bottom:12px;line-height:1.7;}
+/* Botão Whisper */
+.btn-whisper{width:100%;padding:14px;background:linear-gradient(135deg,rgba(74,158,255,.12),rgba(74,158,255,.04));border:1px solid rgba(74,158,255,.35);border-radius:10px;color:var(--blue);font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;transition:all .2s;}
+.btn-whisper:disabled{opacity:.35;cursor:not-allowed;}
+.btn-whisper:not([disabled]):hover{background:linear-gradient(135deg,rgba(74,158,255,.22),rgba(74,158,255,.1));border-color:var(--blue);}
+/* Status Whisper */
+.whisper-status{display:none;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--blue);margin:10px 0;padding:12px 14px;background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.2);border-radius:8px;line-height:1.6;}
+.manual-label{margin-top:14px;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;}
 .controls-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
 .control-group{display:flex;flex-direction:column;gap:6px;}
 .ctrl-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
@@ -91,7 +99,7 @@ canvas{display:none;}
       <div class="mode-toggle active" id="togTranscricao">
         <div class="mode-check">✓</div>
         <span class="mode-icon">📝</span>
-        <div class="mode-text"><div class="mode-name">Transcrição</div><div class="mode-desc">automática</div></div>
+        <div class="mode-text"><div class="mode-name">Transcrição</div><div class="mode-desc">automática + IA local</div></div>
       </div>
       <div class="mode-toggle active" id="togFrames">
         <div class="mode-check">✓</div>
@@ -101,7 +109,7 @@ canvas{display:none;}
     </div>
   </div>
 
-  <!-- Status -->
+  <!-- Status global -->
   <div class="status-bar" id="statusBar">
     <div class="status-dot"></div>
     <span id="statusText">Processando...</span>
@@ -161,33 +169,33 @@ canvas{display:none;}
 <canvas id="canvas"></canvas>
 
 <script>
-// Elementos
-const urlInput    = document.getElementById('urlInput');
-const fetchBtn    = document.getElementById('fetchBtn');
-const statusBar   = document.getElementById('statusBar');
-const statusText  = document.getElementById('statusText');
-const copyBtn     = document.getElementById('copyBtn');
-const framesGrid  = document.getElementById('framesGrid');
-const zipBtn      = document.getElementById('zipBtn');
-const extractBtn  = document.getElementById('extractBtn');
-const loadVideoBtn= document.getElementById('loadVideoBtn');
-const videoFile   = document.getElementById('videoFile');
-const loadedName  = document.getElementById('loadedName');
-const canvas      = document.getElementById('canvas');
-const ctx         = canvas.getContext('2d');
+// ─── Elementos ────────────────────────────────────────────────────────────────
+var urlInput    = document.getElementById('urlInput');
+var fetchBtn    = document.getElementById('fetchBtn');
+var statusBar   = document.getElementById('statusBar');
+var statusText  = document.getElementById('statusText');
+var copyBtn     = document.getElementById('copyBtn');
+var framesGrid  = document.getElementById('framesGrid');
+var zipBtn      = document.getElementById('zipBtn');
+var extractBtn  = document.getElementById('extractBtn');
+var loadVideoBtn= document.getElementById('loadVideoBtn');
+var videoFile   = document.getElementById('videoFile');
+var loadedName  = document.getElementById('loadedName');
+var canvas      = document.getElementById('canvas');
+var ctx         = canvas.getContext('2d');
 
-let currentVideoFile = null;
-let extractedFrames  = [];
-let transcriptText   = '';
+var currentVideoFile = null;
+var extractedFrames  = [];
+var transcriptText   = '';
 
-// Toggles
-const modes = {
+// ─── Toggles ──────────────────────────────────────────────────────────────────
+var modes = {
   titulo:      { el: document.getElementById('togTitulo'),      on: true },
   transcricao: { el: document.getElementById('togTranscricao'), on: true },
   frames:      { el: document.getElementById('togFrames'),      on: true },
 };
-
-Object.entries(modes).forEach(([key, obj]) => {
+Object.keys(modes).forEach(function(key) {
+  var obj = modes[key];
   obj.el.addEventListener('click', function() {
     obj.on = !obj.on;
     obj.el.classList.toggle('active', obj.on);
@@ -195,34 +203,124 @@ Object.entries(modes).forEach(([key, obj]) => {
   });
 });
 
-// Sliders
-document.getElementById('frameCount').addEventListener('input', e =>
-  document.getElementById('frameCountVal').textContent = e.target.value);
-document.getElementById('frameInterval').addEventListener('input', e =>
-  document.getElementById('frameIntervalVal').textContent = e.target.value + 's');
+// ─── Sliders ──────────────────────────────────────────────────────────────────
+document.getElementById('frameCount').addEventListener('input', function(e) {
+  document.getElementById('frameCountVal').textContent = e.target.value;
+});
+document.getElementById('frameInterval').addEventListener('input', function(e) {
+  document.getElementById('frameIntervalVal').textContent = e.target.value + 's';
+});
 
-// Helpers
-function showStatus(msg) { statusBar.style.display='flex'; statusText.textContent=msg; }
-function hideStatus()    { statusBar.style.display='none'; }
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function showStatus(msg) { statusBar.style.display = 'flex'; statusText.textContent = msg; }
+function hideStatus()    { statusBar.style.display = 'none'; }
 function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 
-// Buscar
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── HTML do fallback de transcrição ──────────────────────────────────────────
+function buildWhisperFallbackHtml() {
+  return (
+    '<div class="notice-warn">' +
+      '⚠️ Transcrição automática não encontrada no YouTube.<br>' +
+      '<small style="color:var(--muted)">Carregue o vídeo na seção abaixo — a IA vai transcrever o áudio automaticamente. ' +
+      'Na primeira execução o modelo de IA é baixado (~75 MB, fica em cache depois).</small>' +
+    '</div>' +
+    '<button class="btn-whisper" id="whisperBtn" disabled>' +
+      '🤖 Transcrever com IA (Whisper) — carregue o vídeo abaixo primeiro' +
+    '</button>' +
+    '<div class="whisper-status" id="whisperStatus"></div>' +
+    '<div class="manual-label">ou cole manualmente:</div>' +
+    '<textarea id="manualTranscript" placeholder="Cole a transcrição aqui..."></textarea>'
+  );
+}
+
+// ─── Whisper: executar transcrição ────────────────────────────────────────────
+async function runWhisperTranscription() {
+  var whisperBtn    = document.getElementById('whisperBtn');
+  var whisperStatus = document.getElementById('whisperStatus');
+
+  if (!currentVideoFile) {
+    alert('Carregue o vídeo primeiro na seção 04 abaixo!');
+    return;
+  }
+
+  if (whisperBtn) {
+    whisperBtn.disabled = true;
+    whisperBtn.textContent = '⏳ Transcrevendo...';
+  }
+
+  function setStatus(msg) {
+    showStatus(msg);
+    if (whisperStatus) { whisperStatus.style.display = 'block'; whisperStatus.textContent = msg; }
+  }
+
+  setStatus('Aguardando módulo de IA...');
+
+  // Espera o módulo carregar (até 15s)
+  var waited = 0;
+  while (!window.whisperTranscribe && waited < 15000) {
+    await new Promise(function(r) { setTimeout(r, 500); });
+    waited += 500;
+  }
+
+  if (!window.whisperTranscribe) {
+    setStatus('⚠️ Módulo de IA não carregou. Recarregue a página e tente de novo.');
+    hideStatus();
+    if (whisperBtn) { whisperBtn.disabled = false; whisperBtn.textContent = '🤖 Tentar de novo'; }
+    return;
+  }
+
+  await window.whisperTranscribe(
+    currentVideoFile,
+    // onStatus
+    function(msg) { setStatus(msg); },
+    // onDone
+    function(text) {
+      hideStatus();
+      transcriptText = text;
+      show('transcriptSection');
+      var tc = document.getElementById('transcriptContent');
+      if (tc) {
+        tc.innerHTML =
+          '<div class="notice-success">✅ Transcrito com sucesso pelo Whisper IA</div>' +
+          '<div class="transcript-box">' + escapeHtml(text) + '</div>';
+      }
+      if (whisperStatus) whisperStatus.style.display = 'none';
+      if (whisperBtn)    whisperBtn.style.display = 'none';
+    },
+    // onError
+    function(errMsg) {
+      hideStatus();
+      if (whisperStatus) {
+        whisperStatus.style.display = 'block';
+        whisperStatus.textContent = '⚠️ Erro na transcrição: ' + errMsg;
+      }
+      if (whisperBtn) { whisperBtn.disabled = false; whisperBtn.textContent = '🤖 Tentar de novo'; }
+    }
+  );
+}
+
+// ─── Buscar ───────────────────────────────────────────────────────────────────
 fetchBtn.addEventListener('click', async function() {
-  const url = urlInput.value.trim();
+  var url = urlInput.value.trim();
   if (!url) { alert('Cole um link do YouTube primeiro!'); return; }
 
   fetchBtn.disabled = true;
+  transcriptText = '';
   showStatus('Buscando informações...');
 
   // Título
   if (modes.titulo.on) {
     show('infoSection');
-    document.getElementById('videoTitle').textContent = 'Buscando...';
+    document.getElementById('videoTitle').textContent   = 'Buscando...';
     document.getElementById('videoChannel').textContent = '...';
     try {
-      const res  = await fetch('/api/info?url=' + encodeURIComponent(url));
-      const data = await res.json();
+      var res  = await fetch('/api/info?url=' + encodeURIComponent(url));
+      var data = await res.json();
       document.getElementById('videoTitle').textContent   = data.title   || '(não encontrado)';
       document.getElementById('videoChannel').textContent = data.channel || '—';
     } catch(e) {
@@ -234,21 +332,39 @@ fetchBtn.addEventListener('click', async function() {
   if (modes.transcricao.on) {
     show('transcriptSection');
     showStatus('Buscando transcrição automática...');
-    const tc = document.getElementById('transcriptContent');
+    var tc = document.getElementById('transcriptContent');
     tc.innerHTML = '<p style="color:var(--muted);font-size:13px;">Buscando...</p>';
+
+    var transcriptOk = false;
     try {
-      const res  = await fetch('/api/transcript?url=' + encodeURIComponent(url));
-      const data = await res.json();
-      if (data.transcript) {
-        transcriptText = data.transcript;
-        tc.innerHTML = '<div class="transcript-box">' + data.transcript + '</div>';
-      } else { throw new Error('sem transcrição'); }
-    } catch(e) {
-      transcriptText = '';
-      tc.innerHTML = '<div class="notice-warn">⚠️ Transcrição automática não disponível. Cole manualmente abaixo:<br><small>No YouTube: três pontinhos → Mostrar transcrição</small></div><textarea id="manualTranscript" placeholder="Cole a transcrição aqui..."></textarea>';
-      document.getElementById('manualTranscript').addEventListener('input', function(e) {
-        transcriptText = e.target.value;
-      });
+      var tres  = await fetch('/api/transcript?url=' + encodeURIComponent(url));
+      var tdata = await tres.json();
+      if (tdata.transcript) {
+        transcriptText = tdata.transcript;
+        tc.innerHTML = '<div class="transcript-box">' + escapeHtml(tdata.transcript) + '</div>';
+        transcriptOk = true;
+      }
+    } catch(e) { /* vai pro fallback */ }
+
+    if (!transcriptOk) {
+      tc.innerHTML = buildWhisperFallbackHtml();
+
+      // Escuta manual
+      var manualEl = document.getElementById('manualTranscript');
+      if (manualEl) {
+        manualEl.addEventListener('input', function(e) { transcriptText = e.target.value; });
+      }
+
+      // Botão Whisper
+      var wBtn = document.getElementById('whisperBtn');
+      if (wBtn) {
+        // Habilita já se vídeo estiver carregado
+        if (currentVideoFile) {
+          wBtn.disabled = false;
+          wBtn.textContent = '🤖 Transcrever com IA (Whisper)';
+        }
+        wBtn.addEventListener('click', function() { runWhisperTranscription(); });
+      }
     }
   } else { hide('transcriptSection'); }
 
@@ -259,50 +375,57 @@ fetchBtn.addEventListener('click', async function() {
   fetchBtn.disabled = false;
 });
 
-// Copiar
+// ─── Copiar ───────────────────────────────────────────────────────────────────
 copyBtn.addEventListener('click', function() {
   if (!transcriptText.trim()) { alert('Nenhuma transcrição disponível.'); return; }
   navigator.clipboard.writeText(transcriptText).then(function() {
     copyBtn.textContent = '✅ Copiado!';
-    setTimeout(function(){ copyBtn.innerHTML = '📋 Copiar transcrição'; }, 2000);
+    setTimeout(function() { copyBtn.innerHTML = '📋 Copiar transcrição'; }, 2000);
   });
 });
 
-// Carregar vídeo
+// ─── Carregar vídeo ───────────────────────────────────────────────────────────
 loadVideoBtn.addEventListener('click', function() { videoFile.click(); });
 videoFile.addEventListener('change', function() {
   if (!videoFile.files[0]) return;
   currentVideoFile = videoFile.files[0];
   loadedName.textContent = currentVideoFile.name;
   extractBtn.disabled = false;
+
+  // Se o botão Whisper estiver esperando, habilita ele
+  var wBtn = document.getElementById('whisperBtn');
+  if (wBtn && wBtn.disabled) {
+    wBtn.disabled = false;
+    wBtn.textContent = '🤖 Transcrever com IA (Whisper)';
+  }
 });
 
-// Capturar frame
+// ─── Capturar frame ───────────────────────────────────────────────────────────
 function captureFrame(video, time) {
   return new Promise(function(resolve, reject) {
-    var timeout = setTimeout(function(){ reject(new Error('timeout')); }, 6000);
+    var timeout = setTimeout(function() { reject(new Error('timeout')); }, 6000);
     video.onseeked = function() {
       clearTimeout(timeout);
       canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
-      canvas.toBlob(function(blob){ resolve(blob); }, 'image/png');
+      canvas.toBlob(function(blob) { resolve(blob); }, 'image/png');
     };
     video.currentTime = time;
   });
 }
 
-// Google Lens
+// ─── Google Lens ──────────────────────────────────────────────────────────────
 function openLens(blob, idx) {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'frame_' + String(idx+1).padStart(3,'0') + '.png';
+  a.download = 'frame_' + String(idx + 1).padStart(3, '0') + '.png';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(function(){ URL.revokeObjectURL(url); window.open('https://lens.google.com/upload','_blank'); }, 600);
+  setTimeout(function() { URL.revokeObjectURL(url); window.open('https://lens.google.com/upload', '_blank'); }, 600);
 }
 
-// Extrair frames
+// ─── Extrair frames ───────────────────────────────────────────────────────────
 extractBtn.addEventListener('click', async function() {
   if (!currentVideoFile) { alert('Carregue um vídeo primeiro!'); return; }
   extractBtn.disabled = true;
@@ -311,38 +434,45 @@ extractBtn.addEventListener('click', async function() {
   extractedFrames = [];
   zipBtn.classList.add('hidden');
 
-  const frameCount  = parseInt(document.getElementById('frameCount').value);
-  const intervalSec = parseInt(document.getElementById('frameInterval').value);
+  var frameCount  = parseInt(document.getElementById('frameCount').value);
+  var intervalSec = parseInt(document.getElementById('frameInterval').value);
 
-  const video = document.createElement('video');
+  var video = document.createElement('video');
   video.muted = true;
   var objectUrl = URL.createObjectURL(currentVideoFile);
   video.src = objectUrl;
 
   video.onloadedmetadata = async function() {
-    const duration = video.duration;
+    var duration   = video.duration;
     var timestamps = [];
     for (var i = 0; i < frameCount; i++) {
       var t = parseFloat(Math.min(i * intervalSec, duration - 0.15).toFixed(2));
       if (timestamps.indexOf(t) === -1) timestamps.push(t);
     }
-
     for (var j = 0; j < timestamps.length; j++) {
-      showStatus('Extraindo frame ' + (j+1) + ' de ' + timestamps.length + '...');
+      showStatus('Extraindo frame ' + (j + 1) + ' de ' + timestamps.length + '...');
       var blob;
       try { blob = await captureFrame(video, timestamps[j]); } catch(e) { continue; }
       extractedFrames.push({ blob: blob, time: timestamps[j] });
 
       var imgUrl = URL.createObjectURL(blob);
-      var mm = String(Math.floor(timestamps[j]/60)).padStart(2,'0');
-      var ss = String(Math.floor(timestamps[j]%60)).padStart(2,'0');
+      var mm = String(Math.floor(timestamps[j] / 60)).padStart(2, '0');
+      var ss = String(Math.floor(timestamps[j] % 60)).padStart(2, '0');
       var card = document.createElement('div');
       card.className = 'frame-card';
-      card.innerHTML = '<img class="frame-img" src="'+imgUrl+'"><div class="frame-footer"><span class="frame-time">#'+(j+1)+' · '+mm+':'+ss+'</span><button class="lens-btn">🔍 Lens</button></div>';
+      card.innerHTML =
+        '<img class="frame-img" src="' + imgUrl + '">' +
+        '<div class="frame-footer">' +
+          '<span class="frame-time">#' + (j + 1) + ' · ' + mm + ':' + ss + '</span>' +
+          '<button class="lens-btn">🔍 Lens</button>' +
+        '</div>';
       framesGrid.appendChild(card);
-      (function(idx){ card.querySelector('.lens-btn').addEventListener('click', function(){ openLens(extractedFrames[idx].blob, idx); }); })(extractedFrames.length-1);
+      (function(idx) {
+        card.querySelector('.lens-btn').addEventListener('click', function() {
+          openLens(extractedFrames[idx].blob, idx);
+        });
+      })(extractedFrames.length - 1);
     }
-
     URL.revokeObjectURL(objectUrl);
     hideStatus();
     extractBtn.disabled = false;
@@ -359,23 +489,129 @@ extractBtn.addEventListener('click', async function() {
   };
 });
 
-// ZIP
+// ─── ZIP ──────────────────────────────────────────────────────────────────────
 zipBtn.addEventListener('click', async function() {
   if (!extractedFrames.length) return;
-  zipBtn.disabled = true; zipBtn.textContent = '⏳ Gerando ZIP...';
-  var zip = new JSZip();
+  zipBtn.disabled = true;
+  zipBtn.textContent = '⏳ Gerando ZIP...';
+  var zip    = new JSZip();
   var folder = zip.folder('frames');
   extractedFrames.forEach(function(f, i) {
-    folder.file('frame_' + String(i+1).padStart(3,'0') + '_' + f.time.toFixed(1).replace('.','s') + '.png', f.blob);
+    folder.file('frame_' + String(i + 1).padStart(3, '0') + '_' + f.time.toFixed(1).replace('.', 's') + '.png', f.blob);
   });
-  var blob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{level:3} });
+  var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href = url; a.download = 'frames_' + Date.now() + '.zip';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  zipBtn.disabled = false; zipBtn.textContent = '📦 Baixar todos os frames em ZIP';
+  zipBtn.disabled = false;
+  zipBtn.textContent = '📦 Baixar todos os frames em ZIP';
 });
+</script>
+
+<!-- ═══ Módulo Whisper (roda no navegador, sem servidor) ═══════════════════════
+     Usa @xenova/transformers para rodar o modelo Whisper localmente no browser.
+     O modelo (~75MB) é baixado uma vez e fica em cache automático do browser.
+     Nenhum dado sai do seu computador — 100% offline após o primeiro download.
+-->
+<script type="module">
+import { env, pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
+
+// Força download do HuggingFace Hub (sem modelos locais)
+env.allowLocalModels = false;
+env.useBrowserCache  = true;
+
+var transcriber = null;
+
+/**
+ * window.whisperTranscribe(file, onStatus, onDone, onError)
+ *   file     — File object do vídeo
+ *   onStatus — callback(string) para atualizar o status na UI
+ *   onDone   — callback(string) com o texto final transcrito
+ *   onError  — callback(string) com a mensagem de erro
+ */
+window.whisperTranscribe = async function(file, onStatus, onDone, onError) {
+  try {
+    // 1. Carrega o modelo (só baixa na primeira vez, depois usa cache)
+    if (!transcriber) {
+      onStatus('⏬ Baixando modelo de IA... (primeira vez ~1 min, depois é instantâneo)');
+      transcriber = await pipeline(
+        'automatic-speech-recognition',
+        'Xenova/whisper-tiny',
+        {
+          progress_callback: function(p) {
+            if ((p.status === 'downloading' || p.status === 'progress') && p.total) {
+              var pct = Math.round((p.loaded / p.total) * 100);
+              onStatus('⏬ Baixando modelo: ' + pct + '%...');
+            } else if (p.status === 'loading') {
+              onStatus('🧠 Carregando modelo na memória...');
+            }
+          }
+        }
+      );
+    }
+
+    // 2. Extrai o áudio do vídeo
+    onStatus('🎵 Extraindo áudio do vídeo...');
+    var arrayBuffer  = await file.arrayBuffer();
+    var AudioCtx     = window.AudioContext || window.webkitAudioContext;
+    var audioContext = new AudioCtx();
+
+    var audioBuffer;
+    try {
+      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    } catch(e) {
+      throw new Error('Não foi possível extrair o áudio. Certifique-se de que o arquivo é um vídeo válido (MP4 recomendado).');
+    }
+
+    // 3. Reamostrar para 16kHz mono (formato que o Whisper exige)
+    var TARGET_SR = 16000;
+    var channelData;
+    if (audioBuffer.sampleRate !== TARGET_SR) {
+      onStatus('🔧 Ajustando qualidade do áudio...');
+      var offlineCtx = new OfflineAudioContext(
+        1,
+        Math.ceil(audioBuffer.duration * TARGET_SR),
+        TARGET_SR
+      );
+      var source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      // Mescla todos os canais em mono
+      if (audioBuffer.numberOfChannels > 1) {
+        var merger = offlineCtx.createChannelMerger(audioBuffer.numberOfChannels);
+        source.connect(merger);
+        merger.connect(offlineCtx.destination);
+      } else {
+        source.connect(offlineCtx.destination);
+      }
+      source.start(0);
+      var resampled = await offlineCtx.startRendering();
+      channelData = resampled.getChannelData(0);
+    } else {
+      channelData = audioBuffer.getChannelData(0);
+    }
+
+    // 4. Roda o Whisper
+    onStatus('🤖 Transcrevendo com Whisper IA... (aguarde, pode levar alguns segundos)');
+    var result = await transcriber(channelData, {
+      chunk_length_s: 30,
+      stride_length_s: 5,
+      return_timestamps: false,
+    });
+
+    var text = (result.text || '').trim();
+    if (!text) {
+      throw new Error('A transcrição veio vazia. O vídeo pode ter pouca fala ou muito ruído de fundo.');
+    }
+
+    onDone(text);
+
+  } catch(e) {
+    console.error('[Whisper]', e);
+    onError(e.message || 'Erro desconhecido no Whisper.');
+  }
+};
 </script>
 </body>
 </html>
