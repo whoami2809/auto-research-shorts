@@ -107,6 +107,36 @@ textarea:focus { border-color: var(--accent); }
 .whisper-status { display: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--blue); margin: 8px 0; padding: 10px 14px; background: rgba(96,165,250,.05); border: 1px solid rgba(96,165,250,.2); border-radius: 8px; }
 .manual-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin: 12px 0 6px; }
 
+/* ── Download Panel ── */
+.dl-panel { background: var(--surface); border: 1.5px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.dl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.dl-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent2); display: flex; align-items: center; gap: 8px; }
+.dl-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; transition: color .2s; }
+.dl-close:hover { color: var(--danger); }
+.dl-section-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+.dl-options { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.dl-btn { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 14px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.dl-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+.dl-btn-audio { border-color: rgba(52,211,153,.3); }
+.dl-btn-audio:hover { border-color: var(--success); color: var(--success); }
+.dl-btn-video { border-color: rgba(96,165,250,.3); }
+.dl-btn-video:hover { border-color: var(--blue); color: var(--blue); }
+.dl-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* ── Download Panel ── */
+.dl-panel{background:var(--surface);border:1.5px solid var(--border);border-left:3px solid var(--accent2);border-radius:12px;padding:18px;margin-bottom:16px;}
+.dl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.dl-title{font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent2);display:flex;align-items:center;gap:8px;}
+.dl-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px;border-radius:6px;transition:color .2s;}
+.dl-close:hover{color:var(--danger);}
+.dl-section-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+.dl-options{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;}
+.dl-btn{background:var(--surface2);border:1.5px solid var(--border);border-radius:9px;padding:8px 14px;color:var(--text);font-family:'Nunito',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.dl-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+.dl-btn-audio{border-color:rgba(52,211,153,.3);}
+.dl-btn-audio:hover{border-color:var(--success);color:var(--success);}
+.dl-btn-video{border-color:rgba(96,165,250,.3);}
+.dl-btn-video:hover{border-color:var(--blue);color:var(--blue);}
+.dl-two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 /* ── Frames ── */
 .ctrl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
@@ -169,6 +199,36 @@ canvas { display: none; }
     <div class="action-row">
       <button class="btn-primary" id="fetchBtn">Buscar &rarr;</button>
       <button class="btn-download" id="downloadBtn" title="Baixar vídeo">&#11015;&#65039; Baixar</button>
+    </div>
+
+    <!-- Painel de download -->
+    <div id="downloadPanel" class="dl-panel hidden">
+      <div class="dl-header">
+        <span class="dl-title">
+          <div class="status-dot" style="animation:none;background:var(--accent2)"></div>
+          Download
+        </span>
+        <button class="dl-close" id="closeDownloadBtn">&#10005;</button>
+      </div>
+      <div id="dlLoading" style="color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px;">
+        <div class="status-dot" style="background:var(--accent2)"></div>
+        Verificando formatos disponíveis...
+      </div>
+      <div id="dlContent" class="hidden">
+        <div class="dl-section-lbl">&#127916; Vídeo + Áudio</div>
+        <div class="dl-options" id="dlCombined"></div>
+        <div class="dl-two-col">
+          <div>
+            <div class="dl-section-lbl">&#127925; Só Áudio</div>
+            <div class="dl-options" id="dlAudio"></div>
+          </div>
+          <div>
+            <div class="dl-section-lbl">&#128249; Só Vídeo (sem áudio)</div>
+            <div class="dl-options" id="dlVideoOnly"></div>
+          </div>
+        </div>
+        <div id="dlError" class="notice-warn hidden" style="margin-top:10px;"></div>
+      </div>
     </div>
     <div class="mode-lbl">Extrair:</div>
     <div class="mode-row">
@@ -301,30 +361,67 @@ function showToast(msg,color){
   setTimeout(function(){t.style.transition='opacity .5s';t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},500);},3500);
 }
 
-// ─── Download de vídeo ────────────────────────────────────────────────────────
-downloadBtn.addEventListener('click',async function(){
+// ─── Painel de Download ───────────────────────────────────────────────────────
+document.getElementById('closeDownloadBtn').addEventListener('click',function(){hide('downloadPanel');});
+
+downloadBtn.addEventListener('click',function(){
   var url=urlInput.value.trim();
-  if(!url){showToast('Cole um link do YouTube primeiro','var(--warn)');return;}
-  downloadBtn.disabled=true;downloadBtn.textContent='\u23f3 Verificando...';
-  showStatus('Preparando download...');
-  try{
-    var res=await fetch('/api/video?url='+encodeURIComponent(url),{method:'HEAD',signal:AbortSignal.timeout(8000)});
-    if(res.ok){
-      var a=document.createElement('a');
-      a.href='/api/video?url='+encodeURIComponent(url);
-      a.download='video.mp4';a.style.display='none';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-      showToast('\u2705 Download iniciado!','var(--success)');
-    }else{throw new Error('HTTP '+res.status);}
-  }catch(e){
-    // Fallback: abre cobalt.tools com URL copiada
-    try{await navigator.clipboard.writeText(url);}catch(ce){}
-    window.open('https://cobalt.tools/','_blank');
-    showToast('\u21d7 Link copiado! Cole no cobalt.tools para baixar','var(--blue)');
-  }
-  hideStatus();
-  downloadBtn.disabled=false;downloadBtn.innerHTML='&#11015;&#65039; Baixar';
+  if(!url){showToast('Cole um link primeiro','var(--warn)');return;}
+  var panel=document.getElementById('downloadPanel');
+  if(!panel.classList.contains('hidden')){hide('downloadPanel');return;}
+  show('downloadPanel');
+  document.getElementById('dlLoading').style.display='flex';
+  hide('dlContent');hide('dlError');
+  fetchDownloadInfo(url);
 });
+
+async function fetchDownloadInfo(url){
+  try{
+    var res=await fetch('/api/download-info?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(35000)});
+    var data=await res.json();
+    document.getElementById('dlLoading').style.display='none';
+    show('dlContent');
+
+    if(data.blocked||!res.ok){
+      show('dlError');
+      document.getElementById('dlError').innerHTML='\u26a0\uFE0F '+esc(data.error||'Servidor indisponível')+'<br><small>Alternativa gratuita: <a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a> (suporta YouTube, TikTok, Instagram)</small>';
+      return;
+    }
+
+    function makeBtn(f,cls){
+      var btn=document.createElement('button');
+      btn.className='dl-btn '+cls;
+      btn.textContent=f.label+(f.size&&f.size!='~'?' · '+f.size:'');
+      btn.addEventListener('click',function(){startDownload(url,f.id,f.label);});
+      return btn;
+    }
+
+    var dc=document.getElementById('dlCombined');dc.innerHTML='';
+    (data.combined||[]).forEach(function(f){dc.appendChild(makeBtn(f,''));});
+    if(!data.combined||!data.combined.length)dc.innerHTML='<span style="font-size:12px;color:var(--muted)">Nenhum disponível</span>';
+
+    var da=document.getElementById('dlAudio');da.innerHTML='';
+    (data.audioOnly||[]).forEach(function(f){da.appendChild(makeBtn(f,'dl-btn-audio'));});
+    if(!data.audioOnly||!data.audioOnly.length)da.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
+
+    var dv=document.getElementById('dlVideoOnly');dv.innerHTML='';
+    (data.videoOnly||[]).forEach(function(f){dv.appendChild(makeBtn(f,'dl-btn-video'));});
+    if(!data.videoOnly||!data.videoOnly.length)dv.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
+
+  }catch(e){
+    document.getElementById('dlLoading').style.display='none';
+    show('dlContent');show('dlError');
+    document.getElementById('dlError').innerHTML='\u26a0\uFE0F Erro ao verificar formatos: '+esc(e.message)+'<br><small><a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a></small>';
+  }
+}
+
+function startDownload(url,formatId,label){
+  showToast('\u23f3 Iniciando download: '+label+'...','var(--accent2)');
+  var a=document.createElement('a');
+  a.href='/api/video?url='+encodeURIComponent(url)+(formatId?'&id='+encodeURIComponent(formatId):'');
+  a.download='video.mp4';a.style.display='none';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 
 // ─── Tradução ─────────────────────────────────────────────────────────────────
 function chunkText(text,size){
@@ -534,31 +631,64 @@ function captureFrame(video,time){
   });
 }
 
-// Auto-lens: envia frame pro servidor e abre lens.google.com/uploadbyurl
+// Lens: abre aba imediatamente (about:blank), faz upload, redireciona
 async function openLens(blob,idx){
+  var frame=extractedFrames[idx];
+
+  // Se já foi pré-carregado durante a extração, abre instantaneamente
+  if(frame&&frame.lensUrl){
+    window.open('https://lens.google.com/uploadbyurl?url='+encodeURIComponent(frame.lensUrl),'_blank');
+    showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
+    return;
+  }
+
+  // Abre aba em branco AGORA (dentro do contexto de click = sem popup block)
+  var newTab=window.open('about:blank','_blank');
+
   try{
-    var ab=await blob.arrayBuffer();
-    var res=await fetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:AbortSignal.timeout(8000)});
-    if(!res.ok)throw new Error('upload falhou');
-    var data=await res.json();
+    // Converte para JPEG para upload mais rápido
+    var jpegBlob=await new Promise(function(res){canvas.toBlob(function(b){res(b);},'image/jpeg',0.85);});
+    var ab=await jpegBlob.arrayBuffer();
+    var r=await fetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:AbortSignal.timeout(10000)});
+    if(!r.ok)throw new Error('upload falhou');
+    var data=await r.json();
     var publicUrl=window.location.origin+data.url;
-    window.open('https://lens.google.com/uploadbyurl?url='+encodeURIComponent(publicUrl),'_blank');
-    showToast('\uD83D\uDD0D Abrindo no Google Lens automaticamente!','var(--lens)');
+    // Redireciona a aba já aberta (sem precisar de novo window.open)
+    if(newTab&&!newTab.closed){
+      newTab.location.href='https://lens.google.com/uploadbyurl?url='+encodeURIComponent(publicUrl);
+    }
+    if(frame)frame.lensUrl=publicUrl;
+    showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
   }catch(e){
-    // Fallback 1: clipboard
+    // Se falhar: tenta clipboard
     try{
       await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-      window.open('https://lens.google.com/upload','_blank');
+      if(newTab&&!newTab.closed)newTab.location.href='https://lens.google.com/upload';
       showToast('\u2705 Imagem copiada! Cole com Ctrl+V no Lens','var(--blue)');
     }catch(e2){
-      // Fallback 2: download + abrir Lens
-      var u=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=u;a.download='frame_'+String(idx+1).padStart(3,'0')+'.png';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-      setTimeout(function(){URL.revokeObjectURL(u);window.open('https://lens.google.com/upload','_blank');},600);
-      showToast('\u2B07\uFE0F Frame baixado! Arraste para o Lens','var(--muted)');
+      if(newTab)newTab.close();
+      showToast('\u26a0\uFE0F Falha no Lens. Tente de novo.','var(--warn)');
     }
   }
+}
+
+// Pré-upload JPEG em background quando frame é capturado (torna Lens instantâneo)
+function preUploadFrameForLens(blob,frameIdx){
+  try{
+    canvas.toBlob(async function(jpegBlob){
+      if(!jpegBlob)return;
+      try{
+        var ab=await jpegBlob.arrayBuffer();
+        var r=await fetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab});
+        if(r.ok){
+          var data=await r.json();
+          if(extractedFrames[frameIdx]){
+            extractedFrames[frameIdx].lensUrl=window.location.origin+data.url;
+          }
+        }
+      }catch(e){/* silencioso */}
+    },'image/jpeg',0.85);
+  }catch(e){}
 }
 
 extractBtn.addEventListener('click',async function(){
@@ -592,7 +722,9 @@ extractBtn.addEventListener('click',async function(){
       showStatus('Vídeo '+vLabel+'/'+currentVideoFiles.length+' — frame '+(j+1)+'/'+ts.length);
       var blob;try{blob=await captureFrame(video,ts[j]);}catch(e){continue;}
       var fi=extractedFrames.length;
-      extractedFrames.push({blob:blob,time:ts[j],videoIdx:vi,videoName:vName});
+      extractedFrames.push({blob:blob,time:ts[j],videoIdx:vi,videoName:vName,lensUrl:null});
+      // Pré-upload em background para Lens instantâneo
+      preUploadFrameForLens(blob,fi);
       var imgU=URL.createObjectURL(blob);
       var mm=String(Math.floor(ts[j]/60)).padStart(2,'0'),ss=String(Math.floor(ts[j]%60)).padStart(2,'0');
       var card=document.createElement('div');card.className='frame-card';
