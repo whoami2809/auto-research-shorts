@@ -430,81 +430,77 @@ async function fetchDownloadInfo(url){
   }
 }
 
-// ─── Cobalt browser-side download ─────────────────────────────────────────────
-// Instâncias cobalt com CORS habilitado (chamadas direto do navegador)
-var _cobaltInstances = null;
-var _cobaltTs = 0;
+// ─── Download ─────────────────────────────────────────────────────────────────
 
+// Para plataformas não-YouTube: cobalt browser-side (TikTok, Instagram, etc.)
+var _cobaltInst=null,_cobaltTs=0;
 async function getCobaltInstances(){
-  if(_cobaltInstances&&Date.now()-_cobaltTs<20*60*1000)return _cobaltInstances;
-  var FALLBACKS=[
-    'https://cobalt.canine.tools',
-    'https://cobalt.api.beedev.win',
-    'https://co.wuk.sh',
-    'https://cobalt.owo.ac',
-  ];
+  if(_cobaltInst&&Date.now()-_cobaltTs<20*60*1000)return _cobaltInst;
+  var FB=['https://cobalt.canine.tools','https://cobalt.api.beedev.win','https://co.wuk.sh'];
   try{
     var r=await fetch('https://instances.cobalt.best/api',{signal:AbortSignal.timeout(5000)});
     var data=await r.json();
-    var list=data.filter(function(i){return i.online&&i.info&&i.info.cors&&!i.info.auth;})
-                 .map(function(i){return i.protocol+'://'+i.api;});
-    if(list.length>0){_cobaltInstances=list;_cobaltTs=Date.now();return list;}
+    var list=data.filter(function(i){return i.online&&i.info&&i.info.cors&&!i.info.auth;}).map(function(i){return i.protocol+'://'+i.api;});
+    if(list.length>0){_cobaltInst=list;_cobaltTs=Date.now();return list;}
   }catch(e){}
-  _cobaltInstances=FALLBACKS;_cobaltTs=Date.now();
-  return FALLBACKS;
+  _cobaltInst=FB;_cobaltTs=Date.now();return FB;
 }
-
-async function cobaltDownloadBrowser(url,quality,mode,audioFormat){
+async function cobaltBrowser(url,quality,mode,audioFormat){
   var instances=await getCobaltInstances();
-  var body={
-    url:url,
-    videoQuality:quality==='max'?'max':(quality||'720'),
-    downloadMode:mode||'auto',
-    audioFormat:audioFormat||'mp3',
-    filenameStyle:'pretty',
-  };
-  var errors=[];
-  for(var i=0;i<Math.min(instances.length,6);i++){
-    var inst=instances[i];
+  var body={url:url,videoQuality:quality==='max'?'max':(quality||'720'),downloadMode:mode||'auto',audioFormat:audioFormat||'mp3',filenameStyle:'pretty'};
+  for(var i=0;i<Math.min(instances.length,5);i++){
     try{
-      var r=await fetch(inst+'/',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Accept':'application/json'},
-        body:JSON.stringify(body),
-        signal:AbortSignal.timeout(15000),
-      });
-      if(!r.ok){errors.push(inst+': HTTP '+r.status);continue;}
+      var r=await fetch(instances[i]+'/',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
+      if(!r.ok)continue;
       var d=await r.json();
       if((d.status==='tunnel'||d.status==='redirect'||d.status==='stream')&&d.url)return d.url;
       if(d.status==='picker'&&d.picker&&d.picker[0])return d.picker[0].url;
-      errors.push(inst+': status='+d.status);
-    }catch(e){errors.push(inst+': '+e.message.slice(0,60));}
+    }catch(e){}
   }
-  throw new Error('Cobalt falhou: '+errors.slice(0,2).join(' | '));
+  return null;
 }
 
 async function doDownload(url,fmt,vid,source,btn){
   btn.disabled=true;
   var origHtml=btn.innerHTML;
-  btn.innerHTML='\u23f3 '+esc(fmt.label||'')+'...';
-  showStatus('Processando download...');
+  btn.innerHTML='\u23f3 Baixando '+esc(fmt.label||'')+'...';
+  showStatus('Preparando download...');
 
-  try{
-    var dlUrl=await cobaltDownloadBrowser(url,fmt.k.replace('-mute',''),fmt.mode||'auto',fmt.audioFormat||'mp3');
-    // Abre em nova aba — cobalt envia Content-Disposition:attachment, o browser baixa
-    window.open(dlUrl,'_blank');
-    showToast('\u2705 Download abrindo em nova aba!','var(--success)');
-  }catch(e){
-    console.warn('[doDownload]',e.message);
-    // Fallback final: copia URL e abre cobalt.tools
-    try{await navigator.clipboard.writeText(url);}catch(ce){}
-    window.open('https://cobalt.tools/','_blank');
-    showToast('\u26a0\uFE0F Automático falhou. Link copiado! Cole no cobalt.tools que abriu.','var(--warn)');
+  var cacheId=dlCurrentInfo&&dlCurrentInfo.cacheId?dlCurrentInfo.cacheId:'';
+
+  // ── Caso 1: Piped (YouTube) — baixa pelo servidor, fica na mesma aba ──
+  if(source==='piped'&&cacheId&&fmt.k){
+    var dlPath='/api/video-dl?cacheId='+encodeURIComponent(cacheId)+'&k='+encodeURIComponent(fmt.k);
+    var a=document.createElement('a');
+    a.href=dlPath;
+    a.download=fmt.type==='audio'?'audio.m4a':'video.mp4';
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('\u2705 Download iniciado! Verifique a barra de downloads do navegador.','var(--success)');
+    hideStatus();
+    btn.disabled=false;btn.innerHTML=origHtml;
+    return;
   }
 
+  // ── Caso 2: Cobalt browser-side (TikTok, Instagram, outros) ──
+  try{
+    var dlUrl=await cobaltBrowser(url,fmt.k.replace('-mute',''),fmt.mode||'auto',fmt.audioFormat||'mp3');
+    if(dlUrl){
+      var a2=document.createElement('a');
+      a2.href=dlUrl;a2.download='video';a2.style.display='none';
+      document.body.appendChild(a2);a2.click();document.body.removeChild(a2);
+      showToast('\u2705 Download iniciado!','var(--success)');
+      hideStatus();btn.disabled=false;btn.innerHTML=origHtml;
+      return;
+    }
+  }catch(e){console.warn('[cobalt]',e.message);}
+
+  // ── Fallback: instrução manual ──
+  showToast('\u26a0\uFE0F Falha no download. Tente: clique em Baixar novamente.','var(--warn)');
   hideStatus();
-  btn.disabled=false;
-  btn.innerHTML=origHtml;
+  btn.disabled=false;btn.innerHTML=origHtml;
 }
 
 // ─── Tradução ─────────────────────────────────────────────────────────────────
