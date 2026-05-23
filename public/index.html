@@ -201,7 +201,7 @@ canvas { display: none; }
       <button class="btn-download" id="downloadBtn" title="Baixar vídeo">&#11015;&#65039; Baixar</button>
     </div>
 
-    <!-- Painel de download -->
+    <!-- Painel de download (presets estáticos, sem loading) -->
     <div id="downloadPanel" class="dl-panel hidden">
       <div class="dl-header">
         <span class="dl-title">
@@ -210,25 +210,30 @@ canvas { display: none; }
         </span>
         <button class="dl-close" id="closeDownloadBtn">&#10005;</button>
       </div>
-      <div id="dlLoading" style="color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px;">
-        <div class="status-dot" style="background:var(--accent2)"></div>
-        <span id="dlLoadingText">Carregando formatos disponíveis...</span>
+      <div class="dl-section-lbl">&#127916; Vídeo + Áudio</div>
+      <div class="dl-options">
+        <button class="dl-btn" id="dlBtnMax">&#11015; Melhor qualidade</button>
+        <button class="dl-btn" id="dlBtn1080">1080p Full HD</button>
+        <button class="dl-btn" id="dlBtn720">720p HD</button>
+        <button class="dl-btn" id="dlBtn480">480p</button>
+        <button class="dl-btn" id="dlBtn360">360p</button>
       </div>
-      <div id="dlContent" class="hidden">
-        <div class="dl-section-lbl">&#127916; Vídeo + Áudio</div>
-        <div class="dl-options" id="dlCombined"></div>
-        <div class="dl-two-col">
-          <div>
-            <div class="dl-section-lbl">&#127925; Só Áudio</div>
-            <div class="dl-options" id="dlAudio"></div>
-          </div>
-          <div>
-            <div class="dl-section-lbl">&#128249; Só Vídeo (sem áudio)</div>
-            <div class="dl-options" id="dlVideoOnly"></div>
+      <div class="dl-two-col" style="margin-top:10px;">
+        <div>
+          <div class="dl-section-lbl">&#127925; Só Áudio</div>
+          <div class="dl-options">
+            <button class="dl-btn dl-btn-audio" id="dlBtnMp3">&#127925; MP3</button>
           </div>
         </div>
-        <div id="dlError" class="notice-warn hidden" style="margin-top:10px;font-size:12px;"></div>
+        <div>
+          <div class="dl-section-lbl">&#128249; Só Vídeo (sem áudio)</div>
+          <div class="dl-options">
+            <button class="dl-btn dl-btn-video" id="dlBtnMute720">720p mudo</button>
+            <button class="dl-btn dl-btn-video" id="dlBtnMute1080">1080p mudo</button>
+          </div>
+        </div>
       </div>
+      <div id="dlMsg" style="display:none;margin-top:10px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted);"></div>
     </div>
     <div class="mode-lbl">Extrair:</div>
     <div class="mode-row">
@@ -362,207 +367,74 @@ function showToast(msg,color){
 }
 
 // ─── Painel de Download ───────────────────────────────────────────────────────
-document.getElementById('closeDownloadBtn').addEventListener('click',function(){hide('downloadPanel');});
+document.getElementById('closeDownloadBtn').addEventListener('click',function(){
+  hide('downloadPanel');
+  var m=document.getElementById('dlMsg');if(m)m.style.display='none';
+});
 
 downloadBtn.addEventListener('click',function(){
   var url=urlInput.value.trim();
   if(!url){showToast('Cole um link primeiro','var(--warn)');return;}
   var panel=document.getElementById('downloadPanel');
   if(!panel.classList.contains('hidden')){hide('downloadPanel');return;}
+  dlCurrentUrl=url;
+  var m=document.getElementById('dlMsg');if(m)m.style.display='none';
   show('downloadPanel');
-  document.getElementById('dlLoading').style.display='flex';
-  hide('dlContent');hide('dlError');
-  fetchDownloadInfo(url);
 });
 
-// Estado do painel de download
-var dlCurrentInfo = null;
+// ─── Painel de download ───────────────────────────────────────────────────────
+var dlCurrentUrl = '';
 
-async function fetchDownloadInfo(url){
-  document.getElementById('dlLoading').style.display='flex';
-  document.getElementById('dlLoadingText').textContent='Carregando formatos disponíveis...';
-  hide('dlContent');hide('dlError');
+function initDownloadPanel(){
+  // Liga botões de qualidade ao startDownload
+  document.getElementById('dlBtnMax').onclick   = function(){startDownload('max','auto');};
+  document.getElementById('dlBtn1080').onclick  = function(){startDownload('1080','auto');};
+  document.getElementById('dlBtn720').onclick   = function(){startDownload('720','auto');};
+  document.getElementById('dlBtn480').onclick   = function(){startDownload('480','auto');};
+  document.getElementById('dlBtn360').onclick   = function(){startDownload('360','auto');};
+  document.getElementById('dlBtnMp3').onclick   = function(){startDownload('audio','audio');};
+  document.getElementById('dlBtnMute720').onclick  = function(){startDownload('720','mute');};
+  document.getElementById('dlBtnMute1080').onclick = function(){startDownload('1080','mute');};
+}
+initDownloadPanel();
 
-  try{
-    var res=await fetch('/api/download-info?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(25000)});
-    var data=await res.json();
-    document.getElementById('dlLoading').style.display='none';
-
-    if(data.blocked||(!res.ok&&!data.combined)){
-      show('dlContent');show('dlError');
-      document.getElementById('dlError').innerHTML=
-        '\u26a0\uFE0F '+(data.error||'Servidor indisponível')+
-        '<br><small>Alternativa: <a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a> (YouTube, TikTok, Instagram)</small>';
-      return;
-    }
-
-    dlCurrentInfo = data; // guarda vid, source
-    show('dlContent');
-
-    function makeBtn(f, cls){
-      var btn=document.createElement('button');
-      btn.className='dl-btn '+(cls||'');
-      btn.innerHTML=(f.label||'?')+(f.size&&f.size!='~'?'<span style="opacity:.55;font-size:11px;margin-left:6px;">'+f.size+'</span>':'');
-      btn.addEventListener('click',function(){
-        doDownload(url, f, data.vid, data.source, btn);
-      });
-      return btn;
-    }
-
-    var dc=document.getElementById('dlCombined');dc.innerHTML='';
-    (data.combined||[]).forEach(function(f){dc.appendChild(makeBtn(f,''));});
-    if(!(data.combined||[]).length)dc.innerHTML='<span style="font-size:12px;color:var(--muted)">Não disponível</span>';
-
-    var da=document.getElementById('dlAudio');da.innerHTML='';
-    (data.audioOnly||[]).forEach(function(f){da.appendChild(makeBtn(f,'dl-btn-audio'));});
-    if(!(data.audioOnly||[]).length)da.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
-
-    var dv=document.getElementById('dlVideoOnly');dv.innerHTML='';
-    (data.videoOnly||[]).forEach(function(f){dv.appendChild(makeBtn(f,'dl-btn-video'));});
-    if(!(data.videoOnly||[]).length)dv.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
-
-  }catch(e){
-    document.getElementById('dlLoading').style.display='none';
-    show('dlContent');show('dlError');
-    document.getElementById('dlError').innerHTML=
-      '\u26a0\uFE0F Erro: '+esc(e.message)+
-      '<br><small>Tente via <a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a></small>';
-  }
+function setDlMsg(msg,color){
+  var el=document.getElementById('dlMsg');
+  if(!el)return;
+  el.style.display='block';
+  el.style.color=color||'var(--muted)';
+  el.textContent=msg;
 }
 
-// ─── Download ─────────────────────────────────────────────────────────────────
+function startDownload(quality, mode){
+  var url = dlCurrentUrl || urlInput.value.trim();
+  if(!url){showToast('Cole um link primeiro','var(--warn)');return;}
 
-// Para plataformas não-YouTube: cobalt browser-side (TikTok, Instagram, etc.)
-var _cobaltInst=null,_cobaltTs=0;
-async function getCobaltInstances(){
-  if(_cobaltInst&&Date.now()-_cobaltTs<20*60*1000)return _cobaltInst;
-  var FB=['https://cobalt.canine.tools','https://cobalt.api.beedev.win','https://co.wuk.sh'];
-  try{
-    var r=await fetch('https://instances.cobalt.best/api',{signal:AbortSignal.timeout(5000)});
-    var data=await r.json();
-    var list=data.filter(function(i){return i.online&&i.info&&i.info.cors&&!i.info.auth;}).map(function(i){return i.protocol+'://'+i.api;});
-    if(list.length>0){_cobaltInst=list;_cobaltTs=Date.now();return list;}
-  }catch(e){}
-  _cobaltInst=FB;_cobaltTs=Date.now();return FB;
-}
-async function cobaltBrowser(url,quality,mode,audioFormat){
-  var instances=await getCobaltInstances();
-  var body={url:url,videoQuality:quality==='max'?'max':(quality||'720'),downloadMode:mode||'auto',audioFormat:audioFormat||'mp3',filenameStyle:'pretty'};
-  for(var i=0;i<Math.min(instances.length,5);i++){
-    try{
-      var r=await fetch(instances[i]+'/',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
-      if(!r.ok)continue;
-      var d=await r.json();
-      if((d.status==='tunnel'||d.status==='redirect'||d.status==='stream')&&d.url)return d.url;
-      if(d.status==='picker'&&d.picker&&d.picker[0])return d.picker[0].url;
-    }catch(e){}
-  }
-  return null;
-}
+  // Feedback imediato
+  setDlMsg('\u23f3 Iniciando download... (pode demorar alguns segundos)','var(--accent2)');
+  showStatus('Preparando download '+quality+'...');
 
-async function doDownload(url,fmt,vid,source,btn){
-  btn.disabled=true;
-  var origHtml=btn.innerHTML;
-  btn.innerHTML='\u23f3 Baixando '+esc(fmt.label||'')+'...';
-  showStatus('Preparando download...');
+  // Usa <a download> com URL do nosso servidor (mesmo origin = sem problemas de CORS)
+  // O servidor envia Content-Disposition:attachment → browser baixa sem sair da página
+  var dlUrl = '/api/video-dl'
+    + '?url=' + encodeURIComponent(url)
+    + '&quality=' + encodeURIComponent(quality)
+    + '&mode=' + encodeURIComponent(mode || 'auto');
 
-  var cacheId=dlCurrentInfo&&dlCurrentInfo.cacheId?dlCurrentInfo.cacheId:'';
+  var a = document.createElement('a');
+  a.href = dlUrl;
+  a.download = mode === 'audio' ? 'audio.m4a' : 'video.mp4';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 
-  // ── Caso 1: Piped (YouTube) — baixa pelo servidor, fica na mesma aba ──
-  if(source==='piped'&&cacheId&&fmt.k){
-    var dlPath='/api/video-dl?cacheId='+encodeURIComponent(cacheId)+'&k='+encodeURIComponent(fmt.k);
-    var a=document.createElement('a');
-    a.href=dlPath;
-    a.download=fmt.type==='audio'?'audio.m4a':'video.mp4';
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showToast('\u2705 Download iniciado! Verifique a barra de downloads do navegador.','var(--success)');
+  // Após 3s mostra confirmação (otimista — se falhar o browser mostra erro na barra)
+  setTimeout(function(){
     hideStatus();
-    btn.disabled=false;btn.innerHTML=origHtml;
-    return;
-  }
-
-  // ── Caso 2: Cobalt browser-side (TikTok, Instagram, outros) ──
-  try{
-    var dlUrl=await cobaltBrowser(url,fmt.k.replace('-mute',''),fmt.mode||'auto',fmt.audioFormat||'mp3');
-    if(dlUrl){
-      var a2=document.createElement('a');
-      a2.href=dlUrl;a2.download='video';a2.style.display='none';
-      document.body.appendChild(a2);a2.click();document.body.removeChild(a2);
-      showToast('\u2705 Download iniciado!','var(--success)');
-      hideStatus();btn.disabled=false;btn.innerHTML=origHtml;
-      return;
-    }
-  }catch(e){console.warn('[cobalt]',e.message);}
-
-  // ── Fallback: instrução manual ──
-  showToast('\u26a0\uFE0F Falha no download. Tente: clique em Baixar novamente.','var(--warn)');
-  hideStatus();
-  btn.disabled=false;btn.innerHTML=origHtml;
+    setDlMsg('\u2705 Se o download não aparecer em ~10 segundos, tente outra qualidade.','var(--success)');
+  }, 3000);
 }
-
-// ─── Tradução ─────────────────────────────────────────────────────────────────
-function chunkText(text,size){
-  var chunks=[],rem=text.trim();
-  while(rem.length>0){
-    if(rem.length<=size){chunks.push(rem);break;}
-    var cut=rem.lastIndexOf('. ',size);
-    if(cut<size*0.5)cut=size;else cut+=1;
-    chunks.push(rem.substring(0,cut).trim());
-    rem=rem.substring(cut).trim();
-  }
-  return chunks.filter(Boolean);
-}
-async function translateText(text,lang){
-  var chunks=chunkText(text,3000),results=[];
-  for(var i=0;i<chunks.length;i++){
-    var r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl='+lang+'&dt=t&q='+encodeURIComponent(chunks[i]));
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    var d=await r.json();
-    results.push(d[0].map(function(s){return s[0]||'';}).join(''));
-    if(i<chunks.length-1)await new Promise(function(r){setTimeout(r,300);});
-  }
-  return results.join(' ');
-}
-function showTranslateBar(){var b=document.getElementById('translateBar');if(b)b.classList.remove('hidden');}
-async function doTranslate(){
-  if(!transcriptText.trim())return;
-  var btn=document.getElementById('translateBtn'),lang=document.getElementById('translateLang').value;
-  if(btn){btn.disabled=true;btn.textContent='\u23f3 Traduzindo...';}
-  showStatus('Traduzindo...');
-  try{
-    var result=await translateText(transcriptText,lang);
-    translatedText=result;
-    show('translatedSection');
-    document.getElementById('translatedBox').textContent=result;
-    if(btn){btn.disabled=false;btn.textContent='\u2705 Traduzido';}
-    showToast('\u2705 Tradução concluída','var(--success)');
-  }catch(e){
-    if(btn){btn.disabled=false;btn.textContent='\u127760 Tentar novamente';}
-    showToast('Erro na tradução: '+e.message,'var(--danger)');
-  }
-  hideStatus();
-}
-async function autoTranslateIfNeeded(text){
-  if(!text.trim())return;
-  var langEl=document.getElementById('translateLang');if(!langEl)return;
-  var targetLang=langEl.value;
-  try{
-    var r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl='+targetLang+'&dt=t&q='+encodeURIComponent(text.substring(0,200)));
-    var d=await r.json();
-    var detected=d[2];
-    if(detected&&detected!==targetLang.split('-')[0])await doTranslate();
-  }catch(e){}
-}
-document.getElementById('translateBtn').addEventListener('click',doTranslate);
-document.getElementById('copyTranslatedBtn').addEventListener('click',function(){
-  if(!translatedText.trim())return;
-  navigator.clipboard.writeText(translatedText).then(function(){
-    showToast('\u2705 Tradução copiada','var(--success)');
-  });
-});
 
 // ─── Whisper ──────────────────────────────────────────────────────────────────
 async function runWhisperOnFile(file){
