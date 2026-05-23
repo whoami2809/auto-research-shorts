@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Research Shorts</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #06060a;
+  --surface: #0e0e14;
+  --surface2: #16161e;
+  --border: #1e1e2a;
+  --accent: #ff3c5f;
+  --accent2: #ff8c00;
+  --blue: #4a9eff;
+  --text: #e8e8f0;
+  --muted: #4a4a5e;
+  --success: #00e676;
+  --lens: #4285f4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+}
+
+.orb1 { position: fixed; top: -200px; right: -100px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,60,95,0.08) 0%, transparent 70%); pointer-events: none; }
+.orb2 { position: fixed; bottom: -150px; left: -100px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(74,158,255,0.06) 0%, transparent 70%); pointer-events: none; }
+
+.container { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 40px 24px 100px; }
+
+header {
+  margin-bottom: 48px; display: flex; align-items: flex-end;
+  justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 24px;
+}
+
+.brand-name {
+  font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem;
+  letter-spacing: 0.05em; line-height: 1;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.brand-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 2px; }
+.badge { background: var(--surface2); border: 1px solid var(--border); padding: 5px 12px; border-radius: 100px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+
+.section { margin-bottom: 32px; }
+.section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.input-row { display: flex; gap: 12px; }
+.url-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; transition: border-color 0.2s; }
+.url-input:focus { border-color: var(--accent); }
+.url-input::placeholder { color: var(--muted); }
+
+.btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; border: none; border-radius: 10px; padding: 14px 24px; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; transition: all 0.2s; box-shadow: 0 4px 20px rgba(255,60,95,0.25); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(255,60,95,0.35); }
+.btn-primary:disabled { background: var(--surface2); color: var(--muted); box-shadow: none; cursor: not-allowed; transform: none; }
+
+.mode-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.mode-toggle { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; user-select: none; flex: 1; min-width: 140px; }
+.mode-toggle:hover { border-color: var(--accent); }
+.mode-toggle.active { border-color: var(--accent); background: rgba(255,60,95,0.08); }
+.mode-check { width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; transition: all 0.2s; background: var(--surface2); }
+.mode-toggle.active .mode-check { border-color: var(--accent); background: var(--accent); color: #000; font-weight: 700; }
+.mode-icon { font-size: 18px; }
+.mode-label { font-size: 13px; font-weight: 600; }
+.mode-desc { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.info-card.full { grid-column: 1 / -1; }
+.info-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.info-value { font-size: 15px; font-weight: 500; line-height: 1.5; }
+
+.thumbnail { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-top: 10px; display: none; }
+
+.transcript-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; max-height: 260px; overflow-y: auto; line-height: 1.8; font-size: 14px; white-space: pre-wrap; }
+.transcript-box::-webkit-scrollbar { width: 4px; }
+.transcript-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.transcript-manual { width: 100%; min-height: 120px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; resize: vertical; outline: none; line-height: 1.7; margin-top: 10px; }
+.transcript-manual:focus { border-color: var(--accent); }
+
+.copy-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; }
+.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.notice { background: rgba(74,158,255,0.06); border: 1px solid rgba(74,158,255,0.2); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--blue); margin-bottom: 16px; line-height: 1.7; }
+.notice strong { font-weight: 600; }
+
+.notice-warn { background: rgba(255,140,0,0.06); border: 1px solid rgba(255,140,0,0.2); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--accent2); margin-bottom: 16px; line-height: 1.7; }
+
+.controls-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; margin-bottom: 20px; }
+.control-group { display: flex; flex-direction: column; gap: 8px; }
+.control-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.slider-row { display: flex; align-items: center; gap: 10px; }
+
+input[type="range"] { -webkit-appearance: none; flex: 1; height: 3px; background: var(--border); border-radius: 3px; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 10px rgba(255,60,95,0.5); }
+.slider-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); min-width: 40px; text-align: right; }
+
+.btn-secondary { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.frames-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.frame-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color 0.2s; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+.frame-card:hover { border-color: var(--lens); }
+.frame-img { width: 100%; aspect-ratio: 9/16; object-fit: cover; display: block; background: var(--surface2); }
+.frame-footer { padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.frame-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+.lens-btn { background: var(--lens); color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.lens-btn:hover { background: #5a9fff; }
+
+.zip-btn { width: 100%; margin-top: 20px; padding: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.zip-btn:hover { border-color: var(--success); color: var(--success); }
+.zip-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.status-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); margin-bottom: 20px; display: none; align-items: center; gap: 10px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1s infinite; flex-shrink: 0; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.hidden { display: none !important; }
+canvas { display: none; }
+
+@media (max-width: 600px) {
+  .info-grid { grid-template-columns: 1fr; }
+  .controls-row { grid-template-columns: 1fr 1fr; }
+  .controls-row .btn-secondary { grid-column: 1/-1; }
+  .frames-grid { grid-template-columns: repeat(2,1fr); }
+  .mode-row { flex-direction: column; }
+  .input-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div class="orb1"></div>
+<div class="orb2"></div>
+<div class="container">
+
+  <header>
+    <div>
+      <div class="brand-name">AUTO RESEARCH SHORTS</div>
+      <div class="brand-sub">Ferramenta do canal Zuefy</div>
+    </div>
+    <span class="badge">v1.0</span>
+  </header>
+
+  <!-- STEP 1 -->
+  <div class="section">
+    <div class="section-title">01 — Cole o link do YouTube</div>
+    <div class="input-row">
+      <input type="text" class="url-input" id="urlInput" placeholder="https://youtube.com/shorts/...">
+      <button class="btn-primary" id="fetchBtn">Buscar →</button>
+    </div>
+    <div style="margin-top:16px;margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;">O que extrair:</span>
+    </div>
+    <div class="mode-row">
+      <div class="mode-toggle active" id="toggleTitulo">
+        <div class="mode-check">✓</div>
+        <span class="mode-icon">🏷️</span>
+        <div><div class="mode-label">Título</div><div class="mode-desc">nome + canal</div></div>
+      </div>
+      <div class="mode-toggle active" id="toggleTranscricao">
+        <div class="mode-check">✓</div>
+        <span class="mode-icon">📝</span>
+        <div><div class="mode-label">Transcrição</div><div class="mode-desc">automática</div></div>
+      </div>
+      <div class="mode-toggle active" id="toggleFrames">
+        <div class="mode-check">✓</div>
+        <span class="mode-icon">🎬</span>
+        <div><div class="mode-label">Frames</div><div class="mode-desc">+ Google Lens</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-dot"></div>
+    <span id="statusText">Processando...</span>
+  </div>
+
+  <!-- STEP 2: Info -->
+  <div class="section hidden" id="infoSection">
+    <div class="section-title">02 — Informações do vídeo</div>
+    <div class="info-grid">
+      <div class="info-card full">
+        <div class="info-label"><span class="dot"></span>Título</div>
+        <div class="info-value" id="videoTitle">—</div>
+        <img class="thumbnail" id="thumbnail" alt="thumbnail">
+      </div>
+      <div class="info-card">
+        <div class="info-label"><span class="dot"></span>Canal</div>
+        <div class="info-value" id="videoChannel">—</div>
+      </div>
+      <div class="info-card">
+        <div class="info-label"><span class="dot"></span>ID</div>
+        <div class="info-value" id="videoId" style="font-family:'JetBrains Mono',monospace;font-size:13px;">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Transcrição -->
+  <div class="section hidden" id="transcriptSection">
+    <div class="section-title">03 — Transcrição / Roteiro</div>
+    <div id="transcriptContent"></div>
+    <button class="copy-btn" id="copyBtn">📋 Copiar transcrição</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:12px;font-family:'JetBrains Mono',monospace;">Cole no ChatGPT ou Claude para traduzir!</span>
+  </div>
+
+  <!-- STEP 4: Frames -->
+  <div class="section" id="framesSection">
+    <div class="section-title">04 — Extrair frames do vídeo</div>
+    <div class="notice">
+      <strong>📂 Carregue o vídeo baixado</strong> para extrair os frames e buscar no Google Lens.
+    </div>
+    <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <input type="file" id="videoFile" accept="video/*" style="display:none">
+      <button class="btn-secondary" id="loadVideoBtn">📁 Carregar vídeo</button>
+      <span style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;" id="loadedName"></span>
+    </div>
+    <div class="controls-row">
+      <div class="control-group">
+        <span class="control-label">Frames a extrair</span>
+        <div class="slider-row">
+          <input type="range" id="frameCount" min="5" max="40" value="12" step="1">
+          <span class="slider-val" id="frameCountVal">12</span>
+        </div>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Intervalo (segundos)</span>
+        <div class="slider-row">
+          <input type="range" id="frameInterval" min="1" max="20" value="2" step="1">
+          <span class="slider-val" id="frameIntervalVal">2s</span>
+        </div>
+      </div>
+      <button class="btn-secondary" id="extractBtn" disabled>⚡ Extrair</button>
+    </div>
+    <div class="frames-grid" id="framesGrid"></div>
+    <button class="zip-btn hidden" id="zipBtn">📦 Baixar todos os frames em ZIP</button>
+  </div>
+
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+const API = ''; // mesmo domínio
+
+const urlInput   = document.getElementById('urlInput');
+const fetchBtn   = document.getElementById('fetchBtn');
+const statusBar  = document.getElementById('statusBar');
+const statusText = document.getElementById('statusText');
+const copyBtn    = document.getElementById('copyBtn');
+const framesGrid = document.getElementById('framesGrid');
+const zipBtn     = document.getElementById('zipBtn');
+const extractBtn = document.getElementById('extractBtn');
+const loadVideoBtn = document.getElementById('loadVideoBtn');
+const videoFile  = document.getElementById('videoFile');
+const loadedName = document.getElementById('loadedName');
+const canvas     = document.getElementById('canvas');
+const ctx        = canvas.getContext('2d');
+
+let currentVideoFile = null;
+let extractedFrames  = [];
+let transcriptText   = '';
+
+// ── Toggles ───────────────────────────────────────────────
+const activeMap = { titulo: true, transcricao: true, frames: true };
+['titulo','transcricao','frames'].forEach(key => {
+  const el = document.getElementById('toggle' + key.charAt(0).toUpperCase() + key.slice(1));
+  el.addEventListener('click', () => {
+    activeMap[key] = !activeMap[key];
+    el.classList.toggle('active', activeMap[key]);
+    el.querySelector('.mode-check').textContent = activeMap[key] ? '✓' : '';
+  });
+});
+
+// ── Sliders ───────────────────────────────────────────────
+document.getElementById('frameCount').addEventListener('input', e =>
+  document.getElementById('frameCountVal').textContent = e.target.value);
+document.getElementById('frameInterval').addEventListener('input', e =>
+  document.getElementById('frameIntervalVal').textContent = e.target.value + 's');
+
+// ── Helpers ───────────────────────────────────────────────
+function showStatus(msg) { statusBar.style.display = 'flex'; statusText.textContent = msg; }
+function hideStatus()    { statusBar.style.display = 'none'; }
+function show(id)        { document.getElementById(id).classList.remove('hidden'); }
+function hide(id)        { document.getElementById(id).classList.add('hidden'); }
+
+// ── Buscar ────────────────────────────────────────────────
+fetchBtn.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) { alert('Cole um link do YouTube primeiro!'); return; }
+
+  fetchBtn.disabled = true;
+  showStatus('Buscando informações...');
+
+  // Título
+  if (activeMap.titulo) {
+    show('infoSection');
+    document.getElementById('videoTitle').textContent = 'Buscando...';
+    document.getElementById('videoChannel').textContent = '...';
+    try {
+      const res  = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      document.getElementById('videoTitle').textContent   = data.title   || '(não encontrado)';
+      document.getElementById('videoChannel').textContent = data.channel || '—';
+      document.getElementById('videoId').textContent      = data.videoId || '—';
+      const thumb = document.getElementById('thumbnail');
+      if (data.thumbnail) { thumb.src = data.thumbnail; thumb.style.display = 'block'; }
+    } catch(e) {
+      document.getElementById('videoTitle').textContent = '(erro ao buscar)';
+    }
+  } else { hide('infoSection'); }
+
+  // Transcrição
+  if (activeMap.transcricao) {
+    show('transcriptSection');
+    showStatus('Buscando transcrição automática...');
+    const tc = document.getElementById('transcriptContent');
+    tc.innerHTML = '<div style="color:var(--muted);font-family:JetBrains Mono,monospace;font-size:13px;">Buscando transcrição...</div>';
+    try {
+      const res  = await fetch(`/api/transcript?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (data.transcript) {
+        transcriptText = data.transcript;
+        tc.innerHTML = `<div class="transcript-box">${data.transcript}</div>`;
+      } else {
+        throw new Error(data.error || 'sem transcrição');
+      }
+    } catch(e) {
+      transcriptText = '';
+      tc.innerHTML = `
+        <div class="notice-warn">⚠️ Transcrição automática não disponível para este vídeo. Cole manualmente abaixo:<br><small>No YouTube: três pontinhos → Mostrar transcrição</small></div>
+        <textarea class="transcript-manual" id="manualTranscript" placeholder="Cole a transcrição aqui..."></textarea>
+      `;
+      document.getElementById('manualTranscript').addEventListener('input', e => {
+        transcriptText = e.target.value;
+      });
+    }
+  } else { hide('transcriptSection'); }
+
+  // Frames
+  document.getElementById('framesSection').style.display = activeMap.frames ? '' : 'none';
+
+  hideStatus();
+  fetchBtn.disabled = false;
+});
+
+// ── Copiar transcrição ────────────────────────────────────
+copyBtn.addEventListener('click', () => {
+  if (!transcriptText.trim()) { alert('Nenhuma transcrição disponível.'); return; }
+  navigator.clipboard.writeText(transcriptText).then(() => {
+    copyBtn.textContent = '✅ Copiado!';
+    setTimeout(() => { copyBtn.innerHTML = '📋 Copiar transcriç
