@@ -251,8 +251,15 @@ copyBtn.addEventListener('click',function(){
 
 function captureFrame(video,time){
   return new Promise(function(resolve,reject){
-    var to=setTimeout(function(){reject(new Error('timeout'));},8000);
-    video.onseeked=function(){clearTimeout(to);canvas.width=video.videoWidth;canvas.height=video.videoHeight;ctx.drawImage(video,0,0);canvas.toBlob(function(b){resolve(b);},'image/png');};
+    var to=setTimeout(function(){reject(new Error('timeout'));},10000);
+    function onSeeked(){
+      clearTimeout(to);
+      video.removeEventListener('seeked',onSeeked);
+      canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+      ctx.drawImage(video,0,0);
+      canvas.toBlob(function(b){resolve(b);},'image/png');
+    }
+    video.addEventListener('seeked',onSeeked);
     video.currentTime=time;
   });
 }
@@ -271,9 +278,14 @@ extractBtn.addEventListener('click',async function(){
     var sep=document.createElement('div');sep.className='video-sep';
     sep.innerHTML='<span class="video-sep-badge">v\u00eddeo '+vLabel+'</span><span class="video-sep-name">'+esc(vName)+'</span>';
     framesGrid.appendChild(sep);
-    var video=document.createElement('video');video.muted=true;
-    var oUrl=URL.createObjectURL(file);video.src=oUrl;
-    var metaOk=await new Promise(function(res){video.onloadedmetadata=function(){res(true);};video.onerror=function(){res(false);};video.load();});
+    var video=document.createElement('video');video.muted=true;video.preload='metadata';
+    var oUrl=URL.createObjectURL(file);
+    var metaOk=await new Promise(function(res){
+      var mto=setTimeout(function(){res(false);},20000);
+      video.onloadedmetadata=function(){clearTimeout(mto);res(true);};
+      video.onerror=function(){clearTimeout(mto);res(false);};
+      video.src=oUrl;
+    });
     if(!metaOk||!video.duration){
       var ed=document.createElement('div');ed.style.cssText='grid-column:1/-1;color:var(--accent2);font-size:12px;padding:8px;';
       ed.textContent='\u26a0\ufe0f N\u00e3o foi poss\u00edvel carregar: '+vName;framesGrid.appendChild(ed);URL.revokeObjectURL(oUrl);continue;
@@ -290,6 +302,7 @@ extractBtn.addEventListener('click',async function(){
       framesGrid.appendChild(card);
       (function(idx){card.querySelector('.lens-btn').addEventListener('click',function(){openLens(extractedFrames[idx].blob,idx);});})(fi);
     }
+    video.pause();video.removeAttribute('src');video.load();
     URL.revokeObjectURL(oUrl);
   }
   hideStatus();extractBtn.disabled=false;extractBtn.textContent='\u26a1 Extrair frames';
