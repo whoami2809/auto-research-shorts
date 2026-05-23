@@ -212,7 +212,7 @@ canvas { display: none; }
       </div>
       <div id="dlLoading" style="color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px;">
         <div class="status-dot" style="background:var(--accent2)"></div>
-        Verificando formatos disponíveis...
+        <span id="dlLoadingText">Carregando formatos disponíveis...</span>
       </div>
       <div id="dlContent" class="hidden">
         <div class="dl-section-lbl">&#127916; Vídeo + Áudio</div>
@@ -227,7 +227,7 @@ canvas { display: none; }
             <div class="dl-options" id="dlVideoOnly"></div>
           </div>
         </div>
-        <div id="dlError" class="notice-warn hidden" style="margin-top:10px;"></div>
+        <div id="dlError" class="notice-warn hidden" style="margin-top:10px;font-size:12px;"></div>
       </div>
     </div>
     <div class="mode-lbl">Extrair:</div>
@@ -375,52 +375,94 @@ downloadBtn.addEventListener('click',function(){
   fetchDownloadInfo(url);
 });
 
+// Estado do painel de download
+var dlCurrentInfo = null;
+
 async function fetchDownloadInfo(url){
+  document.getElementById('dlLoading').style.display='flex';
+  document.getElementById('dlLoadingText').textContent='Carregando formatos disponíveis...';
+  hide('dlContent');hide('dlError');
+
   try{
-    var res=await fetch('/api/download-info?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(35000)});
+    var res=await fetch('/api/download-info?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(25000)});
     var data=await res.json();
     document.getElementById('dlLoading').style.display='none';
-    show('dlContent');
 
-    if(data.blocked||!res.ok){
-      show('dlError');
-      document.getElementById('dlError').innerHTML='\u26a0\uFE0F '+esc(data.error||'Servidor indisponível')+'<br><small>Alternativa gratuita: <a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a> (suporta YouTube, TikTok, Instagram)</small>';
+    if(data.blocked||(!res.ok&&!data.combined)){
+      show('dlContent');show('dlError');
+      document.getElementById('dlError').innerHTML=
+        '\u26a0\uFE0F '+(data.error||'Servidor indisponível')+
+        '<br><small>Alternativa: <a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a> (YouTube, TikTok, Instagram)</small>';
       return;
     }
 
-    function makeBtn(f,cls){
+    dlCurrentInfo = data; // guarda vid, source
+    show('dlContent');
+
+    function makeBtn(f, cls){
       var btn=document.createElement('button');
-      btn.className='dl-btn '+cls;
-      btn.textContent=f.label+(f.size&&f.size!='~'?' · '+f.size:'');
-      btn.addEventListener('click',function(){startDownload(url,f.id,f.label);});
+      btn.className='dl-btn '+(cls||'');
+      btn.innerHTML=(f.label||'?')+(f.size&&f.size!='~'?'<span style="opacity:.55;font-size:11px;margin-left:6px;">'+f.size+'</span>':'');
+      btn.addEventListener('click',function(){
+        doDownload(url, f, data.vid, data.source, btn);
+      });
       return btn;
     }
 
     var dc=document.getElementById('dlCombined');dc.innerHTML='';
     (data.combined||[]).forEach(function(f){dc.appendChild(makeBtn(f,''));});
-    if(!data.combined||!data.combined.length)dc.innerHTML='<span style="font-size:12px;color:var(--muted)">Nenhum disponível</span>';
+    if(!(data.combined||[]).length)dc.innerHTML='<span style="font-size:12px;color:var(--muted)">Não disponível</span>';
 
     var da=document.getElementById('dlAudio');da.innerHTML='';
     (data.audioOnly||[]).forEach(function(f){da.appendChild(makeBtn(f,'dl-btn-audio'));});
-    if(!data.audioOnly||!data.audioOnly.length)da.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
+    if(!(data.audioOnly||[]).length)da.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
 
     var dv=document.getElementById('dlVideoOnly');dv.innerHTML='';
     (data.videoOnly||[]).forEach(function(f){dv.appendChild(makeBtn(f,'dl-btn-video'));});
-    if(!data.videoOnly||!data.videoOnly.length)dv.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
+    if(!(data.videoOnly||[]).length)dv.innerHTML='<span style="font-size:12px;color:var(--muted)">—</span>';
 
   }catch(e){
     document.getElementById('dlLoading').style.display='none';
     show('dlContent');show('dlError');
-    document.getElementById('dlError').innerHTML='\u26a0\uFE0F Erro ao verificar formatos: '+esc(e.message)+'<br><small><a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a></small>';
+    document.getElementById('dlError').innerHTML=
+      '\u26a0\uFE0F Erro: '+esc(e.message)+
+      '<br><small>Tente via <a href="https://cobalt.tools/" target="_blank" style="color:var(--blue)">cobalt.tools</a></small>';
   }
 }
 
-function startDownload(url,formatId,label){
-  showToast('\u23f3 Iniciando download: '+label+'...','var(--accent2)');
-  var a=document.createElement('a');
-  a.href='/api/video?url='+encodeURIComponent(url)+(formatId?'&id='+encodeURIComponent(formatId):'');
-  a.download='video.mp4';a.style.display='none';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
+async function doDownload(url, fmt, vid, source, btn){
+  var label=fmt.label||'video';
+  btn.disabled=true;
+  btn.innerHTML='\u23f3 Processando '+label+'...';
+  showStatus('Processando '+label+'...');
+
+  try{
+    // Monta query
+    var qs='url='+encodeURIComponent(url)+'&k='+encodeURIComponent(fmt.k)+'&source='+(source||'')+'&vid='+(vid||'');
+
+    var res=await fetch('/api/video-link?'+qs,{signal:AbortSignal.timeout(90000)});
+    var data=await res.json();
+
+    if(!res.ok||!data.url)throw new Error(data.error||'Sem URL de download');
+
+    // Aciona download direto
+    var a=document.createElement('a');
+    a.href=data.url;
+    a.download='video';
+    a.style.display='none';
+    a.target='_blank';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+
+    showToast('\u2705 Download iniciado!','var(--success)');
+    hideStatus();
+  }catch(e){
+    showToast('\u26a0\uFE0F '+e.message,'var(--danger)');
+    hideStatus();
+  }
+
+  // Restaura botão
+  btn.disabled=false;
+  btn.innerHTML=(fmt.label||'?')+(fmt.size&&fmt.size!='~'?'<span style="opacity:.55;font-size:11px;margin-left:6px;">'+fmt.size+'</span>':'');
 }
 
 // ─── Tradução ─────────────────────────────────────────────────────────────────
