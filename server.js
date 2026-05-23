@@ -33,41 +33,85 @@ function decodeEntities(s) {
     .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(parseInt(c, 10)));
 }
 
-// Método 1: Innertube API (API interna do YouTube, mais confiável)
-async function getCaptionTracksViaInnertube(videoId) {
-  const body = {
-    videoId,
-    context: {
-      client: {
-        clientName: 'WEB',
-        clientVersion: '2.20240101.01.00',
-        hl: 'en',
-        gl: 'US',
-      },
-    },
-  };
+const CLIENTS = {
+  WEB: {
+    clientName: 'WEB',
+    clientVersion: '2.20240101.01.00',
+    ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  },
+  ANDROID: {
+    clientName: 'ANDROID',
+    clientVersion: '19.09.37',
+    androidSdkVersion: 30,
+    ua: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+  },
+  IOS: {
+    clientName: 'IOS',
+    clientVersion: '19.09.3',
+    deviceModel: 'iPhone14,3',
+    ua: 'com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)',
+  },
+};
+
+async function innertubePlayer(videoId, clientKey) {
+  const c = CLIENTS[clientKey];
+  const client = { clientName: c.clientName, clientVersion: c.clientVersion, hl: 'en', gl: 'US' };
+  if (c.androidSdkVersion) client.androidSdkVersion = c.androidSdkVersion;
+  if (c.deviceModel) client.deviceModel = c.deviceModel;
+
   const r = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', 'User-Agent': c.ua },
+    body: JSON.stringify({ videoId, context: { client } }),
   });
-  if (!r.ok) throw new Error(`Innertube HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`Innertube ${clientKey} HTTP ${r.status}`);
   const data = await r.json();
   const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-  if (!tracks || !tracks.length) throw new Error('Innertube sem captionTracks');
+  if (!tracks || !tracks.length) throw new Error(`Innertube ${clientKey} sem captionTracks`);
   return tracks;
 }
 
-// Método 2: scraping HTML (fallback)
-async function getCaptionTracksViaHtml(videoId) {
+function makeTranscriptParams(videoId) {
+  const idBytes = Buffer.from(videoId, 'utf8');
+  return Buffer.concat([Buffer.from([0x0a, idBytes.length]), idBytes]).toString('base64');
+}
+
+async function getTranscriptDirect(videoId) {
+  const body = {
+    context: { client: { clientName: 'WEB', clientVersion: '2.20240101.01.00', hl: 'en', gl: 'US' } },
+    params: makeTranscriptParams(videoId),
+  };
+  const r = await fetch('https://www.youtube.com/youtubei/v1/get_transcript?prettyPrint=false', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': CLIENTS.WEB.ua },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`get_transcript HTTP ${r.status}`);
+  const data = await r.json();
+
+  const segments = data?.actions?.[0]?.updateEngagementPanelAction?.content
+    ?.transcriptRenderer?.content?.transcriptSearchPanelRenderer?.body
+    ?.transcriptSegmentListRenderer?.initialSegments;
+
+  if (!segments || !segments.length) throw new Error('get_transcript sem segments');
+
+  const texts = [];
+  for (const seg of segments) {
+    const snippet = seg?.transcriptSegmentRenderer?.snippet;
+    if (!snippet) continue;
+    let t = '';
+    if (Array.isArray(snippet.runs)) t = snippet.runs.map(x => x.text || '').join('');
+    else if (snippet.simpleText) t = snippet.simpleText;
+    t = t.trim();
+    if (t) texts.push(t);
+  }
+  if (!texts.length) throw new Error('get_transcript sem texto extraído');
+  return texts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+async function htmlScrape(videoId) {
   const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
+    headers: { 'User-Agent': CLIENTS.WEB.ua, 'Accept-Language': 'en-US,en;q=0.9' },
   });
   const html = await pageRes.text();
   const m = html.match(/"captionTracks":\s*(\[[\s\S]*?\])/);
@@ -75,7 +119,45 @@ async function getCaptionTracksViaHtml(videoId) {
   return JSON.parse(m[1]);
 }
 
-// Info do vídeo via oEmbed
+async function captionsToText(tracks) {
+  const track =
+    tracks.find(c => c.languageCode === 'en') ||
+    tracks.find(c => c.languageCode === 'pt' || c.languageCode === 'pt-BR') ||
+    tracks[0];
+  if (!track || !track.baseUrl) throw new Error('Track sem URL');
+
+  let url = track.baseUrl;
+  if (!/[?&]fmt=/.test(url)) url += '&fmt=srv3';
+
+  const xmlRes = await fetch(url, { headers: { 'User-Agent': CLIENTS.WEB.ua } });
+  if (!xmlRes.ok) throw new Error(`baseUrl HTTP ${xmlRes.status}`);
+  const xml = await xmlRes.text();
+
+  const texts = [];
+  let m;
+  const pR = /<p\b[^>]*>([\s\S]*?)<\/p>/g;
+  while ((m = pR.exec(xml)) !== null) {
+    const inner = m[1].replace(/<[^>]+>/g, ' ');
+    const clean = decodeEntities(inner).replace(/\s+/g, ' ').trim();
+    if (clean) texts.push(clean);
+  }
+  if (!texts.length) {
+    const tR = /<text\b[^>]*>([\s\S]*?)<\/text>/g;
+    while ((m = tR.exec(xml)) !== null) {
+      const inner = m[1].replace(/<[^>]+>/g, '');
+      const clean = decodeEntities(inner).replace(/\s+/g, ' ').trim();
+      if (clean) texts.push(clean);
+    }
+  }
+  if (!texts.length) throw new Error('XML sem texto');
+
+  return {
+    transcript: texts.join(' ').replace(/\s+/g, ' ').trim(),
+    language: track.languageCode,
+    languageName: track.name?.simpleText || track.name?.runs?.[0]?.text || '',
+  };
+}
+
 app.get('/api/info', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'URL obrigatória' });
@@ -91,98 +173,51 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
-// Transcrição
 app.get('/api/transcript', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'URL obrigatória' });
   const videoId = extractVideoId(url);
   if (!videoId) return res.status(400).json({ error: 'Link inválido' });
 
-  let tracks = null;
-  let methodUsed = '';
   const errors = [];
 
+  // 1. get_transcript direto (funciona para a maioria dos Shorts)
   try {
-    tracks = await getCaptionTracksViaInnertube(videoId);
-    methodUsed = 'innertube';
-  } catch (e) {
-    errors.push('Innertube: ' + e.message);
-    console.log('[transcript]', e.message);
-  }
+    const transcript = await getTranscriptDirect(videoId);
+    return res.json({ transcript, language: 'auto', languageName: 'auto', method: 'get_transcript' });
+  } catch (e) { errors.push('[1] ' + e.message); console.log('[1]', e.message); }
 
-  if (!tracks) {
-    try {
-      tracks = await getCaptionTracksViaHtml(videoId);
-      methodUsed = 'html';
-    } catch (e) {
-      errors.push('HTML: ' + e.message);
-      console.log('[transcript]', e.message);
-    }
-  }
-
-  if (!tracks || !tracks.length) {
-    return res.status(404).json({
-      error: 'Não foi possível encontrar legendas. ' + errors.join(' | '),
-    });
-  }
-
-  const track =
-    tracks.find((c) => c.languageCode === 'en') ||
-    tracks.find((c) => c.languageCode === 'pt' || c.languageCode === 'pt-BR') ||
-    tracks[0];
-
-  if (!track || !track.baseUrl) {
-    return res.status(404).json({ error: 'Track de legenda sem URL.' });
-  }
-
-  let captionUrl = track.baseUrl;
-  if (!/[?&]fmt=/.test(captionUrl)) captionUrl += '&fmt=srv3';
-
+  // 2. Innertube /player WEB
   try {
-    const xmlRes = await fetch(captionUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-    if (!xmlRes.ok) {
-      return res.status(500).json({ error: `Erro ao baixar legendas (HTTP ${xmlRes.status}).` });
-    }
-    const xml = await xmlRes.text();
+    const tracks = await innertubePlayer(videoId, 'WEB');
+    const result = await captionsToText(tracks);
+    return res.json({ ...result, method: 'innertube-web' });
+  } catch (e) { errors.push('[2] ' + e.message); console.log('[2]', e.message); }
 
-    const texts = [];
-    let m;
+  // 3. Innertube /player ANDROID
+  try {
+    const tracks = await innertubePlayer(videoId, 'ANDROID');
+    const result = await captionsToText(tracks);
+    return res.json({ ...result, method: 'innertube-android' });
+  } catch (e) { errors.push('[3] ' + e.message); console.log('[3]', e.message); }
 
-    const pRegex = /<p\b[^>]*>([\s\S]*?)<\/p>/g;
-    while ((m = pRegex.exec(xml)) !== null) {
-      const inner = m[1].replace(/<[^>]+>/g, ' ');
-      const clean = decodeEntities(inner).replace(/\s+/g, ' ').trim();
-      if (clean) texts.push(clean);
-    }
+  // 4. Innertube /player IOS
+  try {
+    const tracks = await innertubePlayer(videoId, 'IOS');
+    const result = await captionsToText(tracks);
+    return res.json({ ...result, method: 'innertube-ios' });
+  } catch (e) { errors.push('[4] ' + e.message); console.log('[4]', e.message); }
 
-    if (!texts.length) {
-      const tRegex = /<text\b[^>]*>([\s\S]*?)<\/text>/g;
-      while ((m = tRegex.exec(xml)) !== null) {
-        const inner = m[1].replace(/<[^>]+>/g, '');
-        const clean = decodeEntities(inner).replace(/\s+/g, ' ').trim();
-        if (clean) texts.push(clean);
-      }
-    }
+  // 5. HTML scrape (último recurso)
+  try {
+    const tracks = await htmlScrape(videoId);
+    const result = await captionsToText(tracks);
+    return res.json({ ...result, method: 'html' });
+  } catch (e) { errors.push('[5] ' + e.message); console.log('[5]', e.message); }
 
-    if (!texts.length) {
-      return res.status(500).json({ error: 'XML das legendas veio vazio ou em formato desconhecido.' });
-    }
-
-    const transcript = texts.join(' ').replace(/\s+/g, ' ').trim();
-    res.json({
-      transcript,
-      language: track.languageCode,
-      languageName: track.name?.simpleText || track.name?.runs?.[0]?.text || '',
-      method: methodUsed,
-    });
-  } catch (e) {
-    console.error('[transcript] erro final:', e);
-    res.status(500).json({ error: 'Erro ao buscar transcrição: ' + e.message });
-  }
+  return res.status(404).json({
+    error: 'Nenhum método conseguiu legendas. ' + errors.join(' | '),
+  });
 });
 
 app.listen(PORT, () => console.log(`Servidor na porta ${PORT}`));
