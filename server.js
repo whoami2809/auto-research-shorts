@@ -7,10 +7,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Carrega ytdl opcionalmente (caso instalação falhe, não quebra o servidor)
 let ytdl = null;
-try { ytdl = require('@distube/ytdl-core'); console.log('[ytdl] carregado'); }
-catch(e) { console.warn('[ytdl] não disponível:', e.message); }
+try { ytdl = require('@distube/ytdl-core'); console.log('[ytdl] ok'); }
+catch(e) { console.warn('[ytdl] indisponível:', e.message); }
+
+// Cache temporário de frames para o Google Lens (reset a cada deploy)
+const frameCache = new Map();
+const FRAME_TTL = 15 * 60 * 1000; // 15 minutos
+function cleanFrameCache() {
+  const now = Date.now();
+  for (const [id, f] of frameCache) { if (now > f.exp) frameCache.delete(id); }
+}
 
 function extractVideoId(url) {
   const patterns = [
@@ -37,27 +44,19 @@ app.get('/api/info', async (req, res) => {
     if (!r.ok) throw new Error('falhou');
     const d = await r.json();
     res.json({ videoId, title: d.title || '', channel: d.author_name || '' });
-  } catch(e) {
-    res.json({ videoId, title: '', channel: '' });
-  }
+  } catch(e) { res.json({ videoId, title: '', channel: '' }); }
 });
 
 // ─── /api/transcript ──────────────────────────────────────────────────────────
-// Mantido como tentativa rápida; na prática o YouTube bloqueia de datacenters
 app.get('/api/transcript', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'URL obrigatória' });
   const videoId = extractVideoId(url);
   if (!videoId) return res.status(400).json({ error: 'Link inválido' });
-
-  const errors = [];
-
-  // Tenta Innertube WEB
   try {
     const body = { videoId, context: { client: { clientName: 'WEB', clientVersion: '2.20240101.01.00', hl: 'en', gl: 'US' } } };
     const r = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0' },
       body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -77,56 +76,81 @@ app.get('/api/transcript', async (req, res) => {
       const t = m[1].replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();
       if (t) texts.push(t);
     }
-    if (!texts.length) throw new Error('XML sem texto');
-    return res.json({ transcript: texts.join(' '), language: track.languageCode });
-  } catch(e) { errors.push(e.message); }
-
-  res.status(404).json({ error: 'Sem legendas disponíveis. ' + errors.join(' | ') });
+    if (!texts.length) throw new Error('sem texto');
+    res.json({ transcript: texts.join(' '), language: track.languageCode });
+  } catch(e) { res.status(404).json({ error: 'Sem legendas. ' + e.message }); }
 });
 
 // ─── /api/audio ───────────────────────────────────────────────────────────────
-// Baixa o áudio do vídeo via ytdl-core e envia para o browser rodar o Whisper
 app.get('/api/audio', async (req, res) => {
-  if (!ytdl) return res.status(503).json({ error: 'ytdl não disponível no servidor' });
-
+  if (!ytdl) return res.status(503).json({ error: 'ytdl indisponível' });
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'URL obrigatória' });
   const videoId = extractVideoId(url);
   if (!videoId) return res.status(400).json({ error: 'Link inválido' });
-
   try {
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-    // Obtém info do vídeo
-    const info = await ytdl.getInfo(videoUrl);
-
-    // Escolhe o formato de áudio mais leve disponível
+    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
     const formats = ytdl.filterFormats(info.formats, 'audioonly');
-    if (!formats.length) throw new Error('Nenhum formato de áudio disponível');
-
-    // Ordena por bitrate (menor primeiro = menor arquivo = mais rápido)
+    if (!formats.length) throw new Error('sem áudio');
     formats.sort((a, b) => (a.audioBitrate || 999) - (b.audioBitrate || 999));
     const format = formats[0];
-
-    const mimeType = (format.mimeType || 'audio/mp4').split(';')[0];
-    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Type', (format.mimeType || 'audio/mp4').split(';')[0]);
     res.setHeader('Cache-Control', 'no-store');
-
     const stream = ytdl.downloadFromInfo(info, { format });
-
-    stream.on('error', (e) => {
-      console.error('[audio stream error]', e.message);
-      if (!res.headersSent) res.status(500).json({ error: e.message });
-      else res.end();
-    });
-
+    stream.on('error', e => { if (!res.headersSent) res.status(500).end(); });
     req.on('close', () => stream.destroy());
     stream.pipe(res);
+  } catch(e) { console.error('[audio]', e.message); if (!res.headersSent) res.status(500).json({ error: e.message }); }
+});
 
-  } catch(e) {
-    console.error('[audio]', e.message);
-    if (!res.headersSent) res.status(500).json({ error: 'Falha ao obter áudio: ' + e.message });
+// ─── /api/video (download completo) ──────────────────────────────────────────
+app.get('/api/video', async (req, res) => {
+  if (!ytdl) return res.status(503).json({ error: 'ytdl indisponível' });
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'URL obrigatória' });
+  const videoId = extractVideoId(url);
+  if (!videoId) return res.status(400).json({ error: 'Link inválido' });
+  try {
+    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+    const title = (info.videoDetails?.title || videoId).replace(/[^\w\s\-]/g, '').trim().substring(0, 60);
+    // Prefere MP4 com vídeo+áudio combinados
+    let format = ytdl.chooseFormat(info.formats, {
+      quality: 'highest', filter: f => f.hasVideo && f.hasAudio && f.container === 'mp4'
+    });
+    if (!format) format = ytdl.chooseFormat(info.formats, {
+      quality: 'highest', filter: f => f.hasVideo && f.hasAudio
+    });
+    if (!format) throw new Error('Nenhum formato disponível');
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(title)}.mp4"`);
+    const stream = ytdl.downloadFromInfo(info, { format });
+    stream.on('error', e => { if (!res.headersSent) res.status(500).end(); });
+    req.on('close', () => stream.destroy());
+    stream.pipe(res);
+  } catch(e) { console.error('[video]', e.message); if (!res.headersSent) res.status(500).json({ error: e.message }); }
+});
+
+// ─── /api/frame (hospedagem temporária para Google Lens) ─────────────────────
+app.post('/api/frame', express.raw({ type: '*/*', limit: '10mb' }), (req, res) => {
+  cleanFrameCache();
+  if (frameCache.size >= 200) {
+    // Remove o mais antigo
+    const oldest = [...frameCache.entries()].sort((a, b) => a[1].exp - b[1].exp)[0];
+    if (oldest) frameCache.delete(oldest[0]);
   }
+  const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 8);
+  frameCache.set(id, { data: req.body, exp: Date.now() + FRAME_TTL, type: 'image/png' });
+  res.json({ id, url: `/api/frame/${id}` });
+});
+
+app.get('/api/frame/:id', (req, res) => {
+  cleanFrameCache();
+  const frame = frameCache.get(req.params.id);
+  if (!frame) return res.status(404).send('Frame não encontrado ou expirado');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=900');
+  res.send(frame.data);
 });
 
 app.listen(PORT, () => console.log(`Servidor na porta ${PORT}`));
