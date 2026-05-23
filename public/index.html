@@ -438,7 +438,7 @@ async function doDownload(url, fmt, vid, source, btn){
 
   try{
     // Monta query
-    var qs='url='+encodeURIComponent(url)+'&k='+encodeURIComponent(fmt.k)+'&source='+(source||'')+'&vid='+(vid||'');
+    var qs='url='+encodeURIComponent(url)+'&k='+encodeURIComponent(fmt.k)+'&mode='+(fmt.mode||'auto')+'&audioFormat='+(fmt.audioFormat||'mp3');
 
     var res=await fetch('/api/video-link?'+qs,{signal:AbortSignal.timeout(90000)});
     var data=await res.json();
