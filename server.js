@@ -10,36 +10,41 @@ app.use(cors()); app.use(express.json()); app.use(express.static('public'));
 
 let ytdl = null;
 try { ytdl = require('@distube/ytdl-core'); } catch(e) {}
+
 let ytdlpBin = null;
 (async () => {
   for (const b of ['yt-dlp','/usr/local/bin/yt-dlp',`${process.env.HOME}/.local/bin/yt-dlp`]) {
     const ok = await new Promise(r=>{const p=spawn(b,['--version']);p.on('close',c=>r(c===0));p.on('error',()=>r(false));});
-    if (ok){ytdlpBin=b;console.log('[yt-dlp] instalado:',b);break;}
+    if (ok){ytdlpBin=b;console.log('[yt-dlp] OK:',b);break;}
   }
-  if(!ytdlpBin)console.warn('[yt-dlp] nao encontrado');
+  if(!ytdlpBin)console.warn('[yt-dlp] não encontrado');
 })();
 
-// Limpa arquivos temporários antigos na inicialização
+// ─── Limpa temp files antigos ao iniciar ──────────────────────────────────────
 try {
-  fs.readdirSync(os.tmpdir()).filter(f=>f.startsWith('ztemp_')).forEach(f=>{
-    try{fs.unlinkSync(path.join(os.tmpdir(),f));}catch(e){}
-  });
+  fs.readdirSync(os.tmpdir())
+    .filter(f=>f.startsWith('zyt_'))
+    .forEach(f=>{try{fs.unlinkSync(path.join(os.tmpdir(),f));}catch(e){}});
 } catch(e){}
 
-const frameCache=new Map();const FRAME_TTL=15*60*1000;
+const frameCache=new Map();
+const FRAME_TTL=15*60*1000;
 function cleanFrames(){const now=Date.now();for(const[id,f]of frameCache)if(now>f.exp)frameCache.delete(id);}
 
 function extractVideoId(url){
   for(const p of[/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,/youtu\.be\/([a-zA-Z0-9_-]{11})/,/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,/[?&]v=([a-zA-Z0-9_-]{11})/]){
     const m=url.match(p);if(m)return m[1];}return null;}
 
-function safeFilename(title, ext){
-  const s=(title||'video').replace(/[^a-zA-Z0-9\u00C0-\u024F\s\-_]/g,'').trim().replace(/\s+/g,'_').slice(0,80)||'video';
+function safeFilename(title,ext){
+  const s=(title||'video')
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g,'')  // caracteres ilegais
+    .replace(/\s+/g,'_')
+    .slice(0,80)||'video';
   return s+'.'+ext;
 }
 
-// ─── Piped.video ──────────────────────────────────────────────────────────────
-const PIPED=['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de','https://piped-api.garudalinux.org','https://api.piped.yt','https://pipedapi.tokhmi.xyz','https://watchapi.whatever.social'];
+// ─── Piped ───────────────────────────────────────────────────────────────────
+const PIPED=['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de','https://piped-api.garudalinux.org','https://api.piped.yt','https://pipedapi.tokhmi.xyz'];
 async function pipedStreams(videoId){
   for(const api of PIPED){
     try{
@@ -47,7 +52,7 @@ async function pipedStreams(videoId){
       if(!r.ok)continue;
       const d=await r.json();
       if(!d.error&&(d.videoStreams?.length||d.audioStreams?.length)){console.log('[piped] OK:',api);return d;}
-    }catch(e){console.log('[piped fail]',api,e.message);}
+    }catch(e){console.log('[piped fail]',api,e.message.slice(0,50));}
   }
   return null;
 }
@@ -103,184 +108,189 @@ app.get('/api/audio',async(req,res)=>{
   }catch(e){if(!res.headersSent)res.status(500).json({error:e.message});}
 });
 
-// ═══════════════════════════════════════════════════════════════════════
-// /api/video-dl — download completo, sem arquivo corrompido
+// ═══════════════════════════════════════════════════════════════════════════════
+//  /api/video-dl
 //
-// ESTRATÉGIA: yt-dlp baixa para arquivo TEMPORÁRIO (não stdout)
-//   → garante MP4 completo e válido, mesmo com streams DASH
-//   → só serve o arquivo após download 100% concluído
-//   → fallback: Piped.video
-// ═══════════════════════════════════════════════════════════════════════
-app.get('/api/video-dl',async(req,res)=>{
-  const {url,quality,mode,title}=req.query;
-  if(!url)return res.status(400).send('URL obrigatória');
+//  SOLUÇÃO DEFINITIVA para arquivo corrompido:
+//
+//  Usar APENAS formatos PROGRESSIVOS do YouTube:
+//    format 22 = 720p  H.264+AAC  MP4 completo (não-DASH, não precisa de ffmpeg)
+//    format 18 = 360p  H.264+AAC  MP4 completo (não-DASH, não precisa de ffmpeg)
+//    format 140 = M4A  128kbps   áudio completo
+//    format 136/135/134 = vídeo-only progressivo
+//
+//  Esses formatos são MP4s nativos, não fragmentados, abrem em qualquer player.
+//  Não requerem muxing (sem ffmpeg necessário).
+//
+//  Fluxo: yt-dlp → arquivo temp → serve → deleta temp
+//         (arquivo temp garante que 100% baixado antes de servir)
+// ═══════════════════════════════════════════════════════════════════════════════
+app.get('/api/video-dl', async(req,res)=>{
+  const {url, quality, mode, title} = req.query;
+  if(!url) return res.status(400).send('URL obrigatória');
 
   const isAudio = mode==='audio';
   const isMute  = mode==='mute';
-  const h = (quality&&quality!=='max')?parseInt(quality)||720:9999;
-  const ext = isAudio?'m4a':'mp4';
-  const filename = safeFilename(title, ext);
-  const contentType = isAudio?'audio/mp4':'video/mp4';
+  const h = (quality && quality!=='max') ? parseInt(quality)||720 : 9999;
 
-  // ── yt-dlp: baixa para arquivo temp, depois serve ───────────────────────────
+  // ── Seleção de formato: SOMENTE progressivos (MP4 completo, sem ffmpeg) ───────
+  //
+  //  Formatos progressivos do YouTube (vídeo+áudio num arquivo só):
+  //    22  → 720p  MP4  H.264+AAC  (~30-80MB para Shorts)
+  //    18  → 360p  MP4  H.264+AAC  (~10-25MB para Shorts)
+  //
+  //  Formatos progressivos de vídeo-only:
+  //    137 → 1080p MP4  H.264      (~50-120MB para Shorts)
+  //    136 → 720p  MP4  H.264
+  //    135 → 480p  MP4  H.264
+  //    134 → 360p  MP4  H.264
+  //
+  //  Formato de áudio:
+  //    140 → M4A   128kbps   (~3-8MB para Shorts)
+  //
+  let fmtStr, fileExt;
+
+  if(isAudio){
+    fmtStr  = '140/bestaudio[ext=m4a]/bestaudio[acodec=mp4a]/bestaudio';
+    fileExt = 'm4a';
+  } else if(isMute){
+    if(h>=1080)      fmtStr='137/136/bestvideo[ext=mp4]';
+    else if(h>=720)  fmtStr='136/137/bestvideo[height<=720][ext=mp4]/bestvideo[height<=720]';
+    else if(h>=480)  fmtStr='135/bestvideo[height<=480][ext=mp4]';
+    else             fmtStr='134/133/bestvideo[height<=360][ext=mp4]';
+    fileExt = 'mp4';
+  } else {
+    // Vídeo + Áudio: usa APENAS progressivos (22 ou 18)
+    // Nota: sem ffmpeg não podemos fazer 1080p com áudio — max é 720p progressivo
+    if(h>=720 || h>=9999) fmtStr='22/18';
+    else                  fmtStr='18';
+    fileExt = 'mp4';
+  }
+
+  const filename = safeFilename(title, fileExt);
+  const contentType = isAudio ? 'audio/mp4' : 'video/mp4';
+  const tmpFile = path.join(os.tmpdir(), `zyt_${Date.now()}.${fileExt}`);
+
+  // ── Método 1: yt-dlp com arquivo temporário ──────────────────────────────────
   if(ytdlpBin){
-    const tmpFile = path.join(os.tmpdir(), `ztemp_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`);
-
-    let fmtStr;
-    if(isAudio){
-      // M4A de melhor qualidade
-      fmtStr='bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio';
-    }else if(isMute){
-      // Só vídeo sem áudio
-      fmtStr = h>=9999
-        ?'bestvideo[ext=mp4]/bestvideo'
-        :`bestvideo[height<=${h}][ext=mp4]/bestvideo[height<=${h}]`;
-    }else{
-      // Vídeo + Áudio combinados (yt-dlp muxeia automaticamente quando salva em arquivo)
-      // Formatos progressivos (não-DASH) são os mais confiáveis: 22=720p, 18=360p
-      // yt-dlp faz muxing automático dos DASH se necessário quando salva em arquivo
-      if(h>=1080){
-        fmtStr='bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/22/18/best';
-      }else if(h>=720){
-        fmtStr='22/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/18/best[height<=720]';
-      }else if(h>=480){
-        fmtStr='18/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]';
-      }else{
-        fmtStr='18/best[height<=360]/best';
-      }
-    }
-
-    const args=[
-      '--extractor-args','youtube:player_client=ios,web_creator',
+    const args = [
+      '--extractor-args','youtube:player_client=ios,web',
       '--no-check-certificates',
-      '--merge-output-format', ext,
       '-f', fmtStr,
       '--no-playlist',
-      '-o', tmpFile,
+      '--output', tmpFile,
       url
     ];
 
-    console.log('[yt-dlp] baixando para arquivo:',tmpFile);
-    console.log('[yt-dlp] formato:',fmtStr);
+    console.log(`[yt-dlp] format=${fmtStr} file=${tmpFile}`);
 
-    const proc=spawn(ytdlpBin,args);
-    let stderrLog='';
-    proc.stderr.on('data',d=>{
-      const s=d.toString().trim();
-      stderrLog+=s+'\n';
-      // Log apenas linhas úteis
-      if(s.includes('[download]')||s.includes('[ffmpeg]')||s.includes('ERROR')||s.includes('WARNING')){
-        console.log('[yt-dlp]',s.slice(0,120));
-      }
+    const proc = spawn(ytdlpBin, args);
+    let stderrBuf = '';
+    proc.stderr.on('data', d => {
+      const s = d.toString().trim();
+      stderrBuf += s + '\n';
+      if(s.match(/\[download\].*%|ERROR|WARNING|Merging/i))
+        console.log('[yt-dlp]', s.slice(0,120));
     });
 
-    req.on('close',()=>{try{proc.kill();}catch(e){}});
+    req.on('close', ()=>{ try{proc.kill();}catch(e){} });
 
-    proc.on('close',async code=>{
-      // Verifica se o arquivo foi criado
-      // yt-dlp às vezes salva com extensão diferente (.mkv se muxing não gera mp4)
+    proc.on('close', code => {
+      // Verifica arquivo criado
       let actualFile = tmpFile;
       if(!fs.existsSync(tmpFile)){
-        // Tenta .mkv (quando ffmpeg não está disponível para mp4)
-        const mkvFile = tmpFile.replace('.mp4','.mkv');
-        if(fs.existsSync(mkvFile)) actualFile=mkvFile;
+        // Tenta mesma base com outra extensão (ex: .webm)
+        const base = tmpFile.replace(/\.\w+$/, '');
+        for(const ext2 of ['.mp4','.m4a','.webm','.mkv']){
+          if(fs.existsSync(base+ext2)){actualFile=base+ext2;break;}
+        }
       }
 
-      if(code===0&&fs.existsSync(actualFile)){
-        const stat=fs.statSync(actualFile);
-        console.log('[yt-dlp] arquivo pronto:',stat.size,'bytes',actualFile);
+      if(code===0 && fs.existsSync(actualFile)){
+        const stat = fs.statSync(actualFile);
+        const realExt = path.extname(actualFile).slice(1)||fileExt;
+        const realMime = {m4a:'audio/mp4',webm:'video/webm',mkv:'video/x-matroska'}[realExt]||'video/mp4';
+        const realName = safeFilename(title, realExt);
 
-        // Detecta extensão real
-        const realExt = path.extname(actualFile).slice(1)||ext;
-        const realMime = realExt==='m4a'?'audio/mp4': realExt==='webm'?'video/webm':'video/mp4';
-        const realFilename = safeFilename(title,realExt);
+        console.log(`[yt-dlp] OK — ${stat.size} bytes → ${realName}`);
 
-        res.setHeader('Content-Type',realMime);
-        res.setHeader('Content-Disposition',`attachment; filename="${realFilename}"`);
-        res.setHeader('Content-Length',stat.size);
+        res.setHeader('Content-Type', realMime);
+        res.setHeader('Content-Disposition', `attachment; filename="${realName}"`);
+        res.setHeader('Content-Length', stat.size);
 
-        const stream=fs.createReadStream(actualFile);
-        stream.pipe(res);
-        stream.on('end',()=>{try{fs.unlinkSync(actualFile);}catch(e){}});
-        stream.on('error',(e)=>{
-          console.error('[stream]',e.message);
-          try{fs.unlinkSync(actualFile);}catch(e){}
-          if(!res.writableEnded)res.end();
-        });
-        req.on('close',()=>{try{fs.unlinkSync(actualFile);}catch(e){}});
-      }else{
-        // yt-dlp falhou — tenta Piped
+        const rs = fs.createReadStream(actualFile);
+        rs.pipe(res);
+        rs.on('close', ()=>{ try{fs.unlinkSync(actualFile);}catch(e){} });
+        rs.on('error', ()=>{ try{fs.unlinkSync(actualFile);}catch(e){}; if(!res.writableEnded)res.end(); });
+        req.on('close', ()=>{ try{fs.unlinkSync(actualFile);}catch(e){} });
+      } else {
         try{fs.unlinkSync(actualFile);}catch(e){}
-        console.warn('[yt-dlp] falhou code',code,'— tentando Piped');
-        console.warn('[yt-dlp stderr]',stderrLog.slice(-400));
-        await pipedFallback();
+        console.warn(`[yt-dlp] falhou code=${code} stderr:\n${stderrBuf.slice(-500)}`);
+        pipedFallback();
       }
     });
     return;
   }
 
-  await pipedFallback();
+  // ── Método 2: Piped.video ────────────────────────────────────────────────────
+  pipedFallback();
 
   async function pipedFallback(){
     if(res.headersSent||res.writableEnded)return;
-    const videoId=extractVideoId(url);
+    const videoId = extractVideoId(url);
     if(!videoId){
-      if(!res.headersSent)res.status(400).json({error:'URL não suportada sem yt-dlp (apenas YouTube)'});
-      return;
+      return res.status(400).json({error:'Plataforma não suportada sem yt-dlp'});
     }
     try{
-      const data=await pipedStreams(videoId);
-      if(!data)throw new Error('Piped: sem streams disponíveis');
+      const data = await pipedStreams(videoId);
+      if(!data) throw new Error('Piped indisponível');
 
-      let stream=null;
+      let stream = null;
       if(isAudio){
-        stream=(data.audioStreams||[])[0];
-      }else if(isMute){
-        stream=(data.videoStreams||[]).filter(s=>s.videoOnly)
-          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))
-          .find(s=>parseInt(s.quality)<=h);
-      }else{
-        // Somente streams combinados (não-DASH) — evita arquivo corrompido
-        stream=(data.videoStreams||[]).filter(s=>!s.videoOnly)
-          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))
-          .find(s=>parseInt(s.quality)<=h);
+        // Pega audioStream com URL de container MP4/M4A
+        stream = (data.audioStreams||[]).find(s=>s.mimeType?.includes('mp4'))||(data.audioStreams||[])[0];
+      } else if(isMute){
+        stream = (data.videoStreams||[])
+          .filter(s=>s.videoOnly && parseInt(s.quality)<=h)
+          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))[0];
+      } else {
+        // SOMENTE streams combinados (não-DASH, videoOnly=false)
+        stream = (data.videoStreams||[])
+          .filter(s=>!s.videoOnly && parseInt(s.quality)<=h)
+          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))[0];
         if(!stream){
-          stream=(data.videoStreams||[]).filter(s=>!s.videoOnly)
+          stream = (data.videoStreams||[])
+            .filter(s=>!s.videoOnly)
             .sort((a,b)=>parseInt(a.quality)-parseInt(b.quality))[0];
         }
       }
 
-      if(!stream?.url)throw new Error('Piped: formato combinado não encontrado para esta qualidade');
+      if(!stream?.url) throw new Error('Nenhum stream combinado disponível nesta qualidade');
 
-      const upstream=await fetch(stream.url,{
+      const upstream = await fetch(stream.url,{
         headers:{'User-Agent':'Mozilla/5.0','Referer':'https://piped.video/'},
         signal:AbortSignal.timeout(90000),
       });
-      if(!upstream.ok)throw new Error(`Piped upstream HTTP ${upstream.status}`);
+      if(!upstream.ok) throw new Error(`Piped HTTP ${upstream.status}`);
 
-      const ct=upstream.headers.get('Content-Type')||contentType;
-      res.setHeader('Content-Type',ct);
-      res.setHeader('Content-Disposition',`attachment; filename="${filename}"`);
-      const cl=upstream.headers.get('Content-Length');
-      if(cl)res.setHeader('Content-Length',cl);
+      const ct = upstream.headers.get('Content-Type')||contentType;
+      const cl = upstream.headers.get('Content-Length');
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      if(cl) res.setHeader('Content-Length', cl);
 
-      const reader=upstream.body.getReader();
+      const reader = upstream.body.getReader();
       req.on('close',()=>reader.cancel());
-      async function pump(){
-        try{
-          const{done,value}=await reader.read();
-          if(done){if(!res.writableEnded)res.end();return;}
-          if(!res.writableEnded){if(res.write(Buffer.from(value)))pump();else res.once('drain',pump);}
-        }catch(e){if(!res.writableEnded)res.end();}
-      }
-      pump();
+      const pump = async()=>{
+        const{done,value}=await reader.read();
+        if(done){if(!res.writableEnded)res.end();return;}
+        if(!res.writableEnded){if(res.write(Buffer.from(value)))pump();else res.once('drain',pump);}
+      };
+      pump().catch(()=>{if(!res.writableEnded)res.end();});
 
     }catch(e){
-      console.error('[piped fallback]',e.message);
-      if(!res.headersSent)res.status(503).json({
-        error:'Download falhou em ambos os métodos. Tente outra qualidade.',
-        detail:e.message
-      });
+      console.error('[piped]',e.message);
+      if(!res.headersSent) res.status(503).json({error:'Download falhou. '+e.message});
     }
   }
 });
@@ -296,8 +306,10 @@ app.post('/api/frame',express.raw({type:'*/*',limit:'10mb'}),(req,res)=>{
 app.get('/api/frame/:id',(req,res)=>{
   cleanFrames();const frame=frameCache.get(req.params.id);
   if(!frame)return res.status(404).send('Frame expirado');
-  res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Content-Type','image/png');
-  res.setHeader('Cache-Control','public, max-age=900');res.send(frame.data);
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Content-Type','image/png');
+  res.setHeader('Cache-Control','public, max-age=900');
+  res.send(frame.data);
 });
 
-app.listen(PORT,()=>console.log(`Servidor na porta ${PORT}`));
+app.listen(PORT,()=>console.log(`Servidor na porta ${PORT} — yt-dlp: ${ytdlpBin||'não encontrado'}`));
