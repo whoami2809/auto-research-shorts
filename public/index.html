@@ -164,6 +164,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 .frame-time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
 .lens-btn { background: var(--lens); color: #fff; border: none; border-radius: 7px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; transition: background .2s; }
 .lens-btn:hover { background: #4f46e5; }
+.dl-frame-btn { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; font-size: 11px; cursor: pointer; transition: all .2s; }
+.dl-frame-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 .zip-btn { width: 100%; margin-top: 14px; padding: 13px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s; }
 .zip-btn:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -198,6 +200,7 @@ canvas { display: none; }
     <input type="text" class="url-input" id="urlInput" placeholder="https://youtube.com/shorts/...">
     <div class="action-row">
       <button class="btn-primary" id="fetchBtn">Buscar &rarr;</button>
+      <button class="btn-sec" id="pasteBtn" title="Colar da área de transferência" style="padding:13px 14px;border-radius:12px;">&#128203;</button>
       <button class="btn-download" id="downloadBtn" title="Baixar vídeo">&#11015;&#65039; Baixar</button>
     </div>
 
@@ -260,6 +263,9 @@ canvas { display: none; }
   <!-- 02 — Info -->
   <div class="section hidden" id="infoSection">
     <div class="section-title"><span class="step-badge">02</span><h2>Informações do vídeo</h2></div>
+    <div id="thumbCard" class="hidden" style="margin-bottom:10px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);">
+      <img id="videoThumb" style="width:100%;display:block;max-height:220px;object-fit:cover;" alt="thumbnail">
+    </div>
     <div class="card"><div class="card-label"><span class="dot"></span>Título</div><div class="card-value" id="videoTitle">—</div></div>
     <div class="card"><div class="card-label"><span class="dot"></span>Canal</div><div class="card-value" id="videoChannel">—</div></div>
   </div>
@@ -343,6 +349,18 @@ var videoFile=document.getElementById('videoFile'),videoList=document.getElement
 var canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
 
 var currentVideoFiles=[],extractedFrames=[],transcriptText='',translatedText='';
+
+// ─── Colar URL ────────────────────────────────────────────────────────────────
+document.getElementById('pasteBtn').addEventListener('click',async function(){
+  try{
+    var text=await navigator.clipboard.readText();
+    if(text&&text.trim()){urlInput.value=text.trim();showToast('\u2705 Link colado!','var(--success)');}
+    else{showToast('\u26a0\uFE0F Área de transferência vazia','var(--warn)');}
+  }catch(e){showToast('\u26a0\uFE0F Sem permissão para colar. Use Ctrl+V.','var(--warn)');}
+});
+
+// Keyboard shortcut: Enter to search
+urlInput.addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('fetchBtn').click();});
 
 // ─── Toggles ──────────────────────────────────────────────────────────────────
 var modes={titulo:{el:document.getElementById('togTitulo'),on:true},transcricao:{el:document.getElementById('togTranscricao'),on:true},frames:{el:document.getElementById('togFrames'),on:true}};
@@ -525,6 +543,12 @@ fetchBtn.addEventListener('click',async function(){
       var d=await r.json();
       document.getElementById('videoTitle').textContent=d.title||'(não encontrado)';
       document.getElementById('videoChannel').textContent=d.channel||'—';
+      if(d.videoId){
+        var tb=document.getElementById('videoThumb'),tc=document.getElementById('thumbCard');
+        tb.src='https://img.youtube.com/vi/'+d.videoId+'/hqdefault.jpg';
+        tb.onerror=function(){this.src='https://img.youtube.com/vi/'+d.videoId+'/mqdefault.jpg';};
+        tc.classList.remove('hidden');
+      }
     }catch(e){document.getElementById('videoTitle').textContent='(erro)';}
   }else{hide('infoSection');}
 
@@ -555,13 +579,94 @@ fetchBtn.addEventListener('click',async function(){
     }
   }else{hide('transcriptSection');}
 
-  document.getElementById('framesSection').style.display=modes.frames.on?'':'none';
+  document.getElementById('framesSection').style.display=modes.frames.on?'':'none'; 
   hideStatus();fetchBtn.disabled=false;
 });
 
 copyBtn.addEventListener('click',function(){
   if(!transcriptText.trim()){showToast('Nenhuma transcrição disponível','var(--warn)');return;}
   navigator.clipboard.writeText(transcriptText).then(function(){showToast('\u2705 Transcrição copiada','var(--success)');});
+});
+
+// ─── Tradução (Google Translate sem API key) ──────────────────────────────────
+async function translateChunk(text, tl){
+  var url='https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl='+tl+'&dt=t&q='+encodeURIComponent(text);
+  var r=await fetch(url,{signal:AbortSignal.timeout(12000)});
+  if(!r.ok)throw new Error('Translate HTTP '+r.status);
+  var d=await r.json();
+  var out='';
+  if(d&&d[0])d[0].forEach(function(s){if(s&&s[0])out+=s[0];});
+  return out;
+}
+
+async function translateText(text, tl){
+  var CHUNK=4500,chunks=[],out=[];
+  for(var i=0;i<text.length;i+=CHUNK)chunks.push(text.slice(i,i+CHUNK));
+  for(var j=0;j<chunks.length;j++){
+    showStatus('Traduzindo… '+(j+1)+'/'+chunks.length);
+    out.push(await translateChunk(chunks[j],tl));
+  }
+  return out.join('');
+}
+
+function showTranslateBar(){show('translateBar');}
+
+async function autoTranslateIfNeeded(text){
+  // Detecta idioma do texto; se não for pt, auto-traduz
+  try{
+    var sample=encodeURIComponent(text.slice(0,300));
+    var r=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=pt&dt=t&q='+sample,{signal:AbortSignal.timeout(8000)});
+    if(r.ok){
+      var d=await r.json();
+      var detected=d&&d[2];
+      if(detected&&detected!=='pt'){
+        show('translateBar');
+        document.getElementById('translateLang').value='pt';
+        showStatus('Auto-traduzindo de '+detected.toUpperCase()+' para Português...');
+        try{
+          var result=await translateText(text,'pt');
+          translatedText=result;
+          show('translatedSection');
+          document.getElementById('translatedBox').textContent=result;
+          showToast('\u2705 Traduzido automaticamente!','var(--success)');
+        }catch(e){showToast('\u26a0\uFE0F Auto-tradução falhou. Use o botão Traduzir.','var(--warn)');}
+        hideStatus();return;
+      }
+    }
+  }catch(e){console.log('[autoTranslate detect]',e.message);}
+  show('translateBar');
+}
+
+async function handleTranslate(){
+  if(!transcriptText.trim()){showToast('Sem texto para traduzir','var(--warn)');return;}
+  var tl=document.getElementById('translateLang').value;
+  var btn=document.getElementById('translateBtn');
+  btn.disabled=true;btn.textContent='\u23f3 Traduzindo...';
+  try{
+    var result=await translateText(transcriptText,tl);
+    translatedText=result;
+    show('translatedSection');
+    document.getElementById('translatedBox').textContent=result;
+    showToast('\u2705 Tradução concluída!','var(--success)');
+  }catch(e){
+    showToast('\u26a0\uFE0F Falha na tradução: '+e.message,'var(--warn)');
+  }
+  btn.disabled=false;btn.textContent='\uD83C\uDF10 Traduzir';
+  hideStatus();
+}
+
+document.getElementById('translateBtn').addEventListener('click', handleTranslate);
+
+document.getElementById('copyTranslatedBtn').addEventListener('click',function(){
+  if(!translatedText.trim()){showToast('Sem tradução disponível','var(--warn)');return;}
+  navigator.clipboard.writeText(translatedText).then(function(){showToast('\u2705 Tradução copiada','var(--success)');});
+});
+
+// Copiar tradução também pelo transcriptBox quando está traduzido
+document.getElementById('translateLang').addEventListener('change',function(){
+  // Limpa tradução anterior ao trocar idioma
+  translatedText='';
+  hide('translatedSection');
 });
 
 // ─── Frames ───────────────────────────────────────────────────────────────────
@@ -680,9 +785,17 @@ extractBtn.addEventListener('click',async function(){
       var imgU=URL.createObjectURL(blob);
       var mm=String(Math.floor(ts[j]/60)).padStart(2,'0'),ss=String(Math.floor(ts[j]%60)).padStart(2,'0');
       var card=document.createElement('div');card.className='frame-card';
-      card.innerHTML='<img class="frame-img" src="'+imgU+'" loading="lazy"><div class="frame-footer"><span class="frame-time">#'+(j+1)+' · '+mm+':'+ss+'</span><button class="lens-btn">\uD83D\uDD0D Lens</button></div>';
+      card.innerHTML='<img class="frame-img" src="'+imgU+'" loading="lazy"><div class="frame-footer"><span class="frame-time">#'+(j+1)+' · '+mm+':'+ss+'</span><div style="display:flex;gap:5px;"><button class="dl-frame-btn" title="Baixar frame">\u2B07</button><button class="lens-btn">\uD83D\uDD0D Lens</button></div></div>';
       framesGrid.appendChild(card);
-      (function(idx){card.querySelector('.lens-btn').addEventListener('click',function(){openLens(extractedFrames[idx].blob,idx);});})(fi);
+      (function(idx,vIdx,jIdx){
+        card.querySelector('.lens-btn').addEventListener('click',function(){openLens(extractedFrames[idx].blob,idx);});
+        card.querySelector('.dl-frame-btn').addEventListener('click',function(){
+          var a=document.createElement('a');a.href=URL.createObjectURL(extractedFrames[idx].blob);
+          a.download='video'+String(vIdx+1).padStart(2,'0')+'_frame'+String(jIdx+1).padStart(3,'0')+'.png';
+          document.body.appendChild(a);a.click();document.body.removeChild(a);
+          showToast('\u2705 Frame salvo!','var(--success)');
+        });
+      })(fi,vi,j);
     }
     video.pause();video.removeAttribute('src');video.load();
     URL.revokeObjectURL(oUrl);
