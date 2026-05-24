@@ -433,15 +433,19 @@ function startDownload(quality, mode){
   showStatus('Preparando download '+quality+'...');
 
   // Usa <a download> com URL do nosso servidor (mesmo origin = sem problemas de CORS)
-  // O servidor envia Content-Disposition:attachment → browser baixa sem sair da página
+  // Servidor salva em arquivo temp, monta MP4 válido, depois envia — sem corrupção
+  var videoTitleEl = document.getElementById('videoTitle');
+  var videoTitleVal = videoTitleEl ? videoTitleEl.textContent.trim() : '';
   var dlUrl = '/api/video-dl'
     + '?url=' + encodeURIComponent(url)
     + '&quality=' + encodeURIComponent(quality)
-    + '&mode=' + encodeURIComponent(mode || 'auto');
+    + '&mode=' + encodeURIComponent(mode || 'auto')
+    + '&title=' + encodeURIComponent(videoTitleVal||'video');
 
   var a = document.createElement('a');
   a.href = dlUrl;
-  a.download = mode === 'audio' ? 'audio.m4a' : 'video.mp4';
+  // Filename is set server-side via Content-Disposition with the real title
+  a.download = mode === 'audio' ? 'audio.m4a' : 'video.mp4'; // fallback, server overrides
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
