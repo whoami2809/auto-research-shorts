@@ -593,28 +593,35 @@ downloadBtn.addEventListener('click',function(){
 // ─── Painel de download ───────────────────────────────────────────────────────
 var dlCurrentUrl = '';
 
-// Invidious instances — proxy YouTube sem bloquear por IP de datacenter
-var INVIDIOUS = [
-  'https://inv.nadeko.net',
-  'https://invidious.nerdvpn.de',
-  'https://yt.drgnz.club',
-  'https://invidious.privacydev.net',
-  'https://invidious.flokinet.to',
-];
-var invIdx = 0;
+// ─── Download via servidor próprio (same-origin = sem nova aba) ───────────────
+// Mapeamento itag → quality + mode para /api/video-dl
+var ITAG_MAP = {
+  '22':  {quality:'720',  mode:'auto',  ext:'mp4'},  // 720p+áudio progressivo
+  '18':  {quality:'360',  mode:'auto',  ext:'mp4'},  // 360p+áudio progressivo
+  '140': {quality:'audio',mode:'audio', ext:'m4a'},  // 128kbps AAC
+  '251': {quality:'audio',mode:'audio', ext:'m4a'},  // áudio fallback
+  '137': {quality:'1080', mode:'mute',  ext:'mp4'},  // 1080p vídeo-only
+  '136': {quality:'720',  mode:'mute',  ext:'mp4'},  // 720p vídeo-only
+  '135': {quality:'480',  mode:'mute',  ext:'mp4'},  // 480p vídeo-only
+};
 
-function getInvidious(){ return INVIDIOUS[invIdx % INVIDIOUS.length]; }
-
-function startInvidiousDownload(videoId, itag, btn){
-  var orig = btn.textContent;
-  btn.disabled = true; btn.textContent = '⏳ ...';
-  var dlUrl = getInvidious() + '/latest_version?id=' + videoId + '&itag=' + itag + '&local=true';
-  // Abre em nova aba — Invidious serve o arquivo com Content-Disposition:attachment
-  // Browser baixa e a aba fecha automaticamente
-  var w = window.open(dlUrl, '_blank');
-  if(!w){ window.location.href = dlUrl; } // fallback se popup blocker
-  showToast('\u2705 Download iniciado!', 'var(--success)');
-  setTimeout(function(){ btn.disabled = false; btn.textContent = orig; }, 3000);
+function triggerServerDownload(itag, url){
+  var map = ITAG_MAP[itag];
+  if(!map){ showToast('Formato não suportado','var(--warn)'); return; }
+  var title = (document.getElementById('videoTitle')||{}).textContent||'video';
+  var dlUrl = '/api/video-dl'
+    + '?url='     + encodeURIComponent(url)
+    + '&quality=' + map.quality
+    + '&mode='    + map.mode
+    + '&title='   + encodeURIComponent(title.replace(/[<>:"/\\|?*]/g,'').slice(0,80));
+  // <a download> com URL same-origin: browser baixa sem sair da página ✅
+  var a = document.createElement('a');
+  a.href = dlUrl;
+  a.download = (title.replace(/[^a-zA-Z0-9\s\-]/g,'').trim()||'video')+'.'+map.ext;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function initDownloadPanel(){
@@ -630,21 +637,18 @@ function initDownloadPanel(){
     });
   });
 
-  // Botões de download por linha
+  // Botão de download por linha
   document.querySelectorAll('.dl-row').forEach(function(row){
     row.querySelector('.dl-row-btn').addEventListener('click', function(){
       var itag = row.dataset.itag;
       var url = dlCurrentUrl || urlInput.value.trim();
       if(!url){ showToast('Cole um link primeiro','var(--warn)'); return; }
-      var videoId = clientVideoId(url);
-      if(videoId){
-        startInvidiousDownload(videoId, itag, this);
-      } else {
-        // Plataformas não-YouTube: usa servidor
-        var mode = itag==='140'||itag==='251' ? 'audio' : row.closest('#dlPaneMute') ? 'mute' : 'auto';
-        var quality = itag==='137'?'1080': itag==='136'?'720': itag==='135'?'480': itag==='22'?'720': '360';
-        startDownload(quality, mode);
-      }
+      var btn = this;
+      var orig = btn.textContent;
+      btn.disabled = true; btn.textContent = '\u23f3 Preparando...';
+      showToast('\u23f3 Iniciando download...','var(--accent2)');
+      triggerServerDownload(itag, url);
+      setTimeout(function(){ btn.disabled = false; btn.textContent = orig; }, 4000);
     });
   });
 }
@@ -935,27 +939,44 @@ async function fetchTagsAndHashtags(url){
   var tagsCard=document.getElementById('tagsCard');
   var tagsValue=document.getElementById('tagsValue');
   if(!tagsCard||!tagsValue) return;
-  tagsValue.innerHTML='';tagsCard.classList.add('hidden');
+  tagsValue.innerHTML='<span style="color:var(--muted);font-size:11px;">Carregando...</span>';
+  tagsCard.classList.remove('hidden'); // mostra imediatamente enquanto carrega
   try{
-    var r=await fetch('/api/tags?url='+encodeURIComponent(url));
-    if(!r.ok) return;
+    var r=await fetch('/api/tags?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json();
     var items=[];
-    // Hashtags primeiro (mais visíveis)
-    (d.hashtags||[]).slice(0,20).forEach(function(h){
-      var s=document.createElement('span');s.className='hash-chip';s.textContent=h;items.push(s);
+    var seenTags=new Set();
+    // Hashtags do título do vídeo (extraídas localmente)
+    var titleEl=document.getElementById('videoTitle');
+    var titleText=(titleEl?titleEl.textContent:'')||'';
+    var titleHashtags=titleText.match(/#\S+/g)||[];
+    titleHashtags.forEach(function(h){
+      if(!seenTags.has(h.toLowerCase())){seenTags.add(h.toLowerCase());
+        var s=document.createElement('span');s.className='hash-chip';s.textContent=h;items.push(s);}
     });
-    // Tags regulares
+    // Hashtags da descrição (da API)
+    (d.hashtags||[]).slice(0,20).forEach(function(h){
+      if(!seenTags.has(h.toLowerCase())){seenTags.add(h.toLowerCase());
+        var s=document.createElement('span');s.className='hash-chip';s.textContent=h;items.push(s);}
+    });
+    // Tags (keywords)
     (d.tags||[]).slice(0,30).forEach(function(t){
-      // Pula se já é hashtag
-      if((d.hashtags||[]).some(function(h){return h.toLowerCase()==='#'+t.toLowerCase()||h.toLowerCase()===t.toLowerCase();})) return;
+      var tLow='#'+t.toLowerCase();
+      if(seenTags.has(t.toLowerCase())||seenTags.has(tLow)) return;
+      seenTags.add(t.toLowerCase());
       var s=document.createElement('span');s.className='tag-chip';s.textContent=t;items.push(s);
     });
+    tagsValue.innerHTML='';
     if(items.length>0){
-      items.forEach(function(el){ tagsValue.appendChild(el); });
-      tagsCard.classList.remove('hidden');
+      items.forEach(function(el){tagsValue.appendChild(el);});
+    }else{
+      tagsValue.innerHTML='<span style="color:var(--muted);font-size:11px;">Nenhuma tag encontrada</span>';
     }
-  }catch(e){ console.log('[tags]',e.message); }
+  }catch(e){
+    console.log('[tags]',e.message);
+    tagsValue.innerHTML='<span style="color:var(--muted);font-size:11px;">Não foi possível carregar as tags</span>';
+  }
 }
 
 // ─── Frames ───────────────────────────────────────────────────────────────────
