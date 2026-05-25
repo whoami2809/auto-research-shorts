@@ -111,17 +111,26 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
 /* ─── Status bar ────────────────────────────────────────────────── */
 #statusBar{position:absolute;top:0;left:0;right:0;height:3px;z-index:100;background:rgba(155,77,255,.08);overflow:hidden;pointer-events:none;}
 #statusProgress{height:100%;width:0%;background:linear-gradient(90deg,#9b4dff,#34d399,#9b4dff);box-shadow:0 0 16px rgba(155,77,255,.7);display:none;}
-#statusLabel{position:fixed;bottom:24px;left:calc(var(--sb-w) + 20px);
+#statusLabel{
+  position:absolute;bottom:16px;left:calc(var(--sb-w) + 16px);
   background:rgba(8,9,18,.94);border:1px solid rgba(155,77,255,.35);border-radius:8px;
   padding:6px 14px;font-size:12px;color:#c7b7f3;display:none;
   font-family:'JetBrains Mono',monospace;z-index:200;box-shadow:0 0 28px rgba(155,77,255,.22);}
 
 /* ─── Toasts ────────────────────────────────────────────────────── */
-#toastContainer{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
-.toast{background:rgba(8,9,18,.96);border:1px solid rgba(155,77,255,.35);border-radius:10px;
-  padding:10px 18px;font-size:13px;font-weight:600;color:var(--fg);
-  box-shadow:0 4px 28px rgba(0,0,0,.5),0 0 28px rgba(155,77,255,.14);animation:slideUp .25s ease;}
-@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+#toastContainer{
+  position:fixed;top:14px;right:14px;z-index:9999;
+  display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none;
+}
+.toast{
+  background:rgba(8,9,18,.95);border:1px solid rgba(155,77,255,.45);border-radius:8px;
+  padding:8px 14px;font-size:12px;font-weight:700;color:var(--fg);
+  box-shadow:0 2px 20px rgba(0,0,0,.6),0 0 18px rgba(155,77,255,.18);
+  animation:slideDown .2s ease;display:flex;align-items:center;gap:7px;
+  pointer-events:all;max-width:220px;
+  font-family:'JetBrains Mono',monospace;letter-spacing:.02em;
+}
+@keyframes slideDown{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
 
 /* ═══════════════════════════════════════════════
    CHARACTER SVG — anime figure with lightning
@@ -729,12 +738,24 @@ function hide(id){var el=document.getElementById(id);if(el)el.classList.add('hid
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function showToast(msg,color){
-  color=color||'var(--accent)';
-  var old=document.querySelector('.toast');if(old)old.remove();
+  color=color||'var(--accent2)';
+  // Remove existing toasts
+  document.querySelectorAll('.toast').forEach(function(t){t.remove();});
+  var container=document.getElementById('toastContainer');
+  if(!container)return;
   var t=document.createElement('div');t.className='toast';
-  t.style.borderColor=color;t.style.color=color;
-  t.textContent=msg;document.body.appendChild(t);
-  setTimeout(function(){t.style.transition='opacity .5s';t.style.opacity='0';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},500);},3500);
+  // Color indicator dot
+  var dot=document.createElement('span');
+  dot.style.cssText='width:6px;height:6px;border-radius:50%;background:'+color+';flex-shrink:0;box-shadow:0 0 8px '+color+';';
+  t.appendChild(dot);
+  var txt=document.createElement('span');txt.textContent=msg;
+  t.appendChild(txt);
+  container.appendChild(t);
+  setTimeout(function(){
+    t.style.transition='opacity .4s,transform .4s';
+    t.style.opacity='0';t.style.transform='translateX(10px)';
+    setTimeout(function(){if(t.parentNode)t.remove();},420);
+  },2800);
 }
 
 // ─── Painel de Download ───────────────────────────────────────────────────────
@@ -968,6 +989,10 @@ fetchBtn.addEventListener('click',async function(){
       document.getElementById('videoTitle').textContent=d.title||'(não encontrado)';
       document.getElementById('videoChannel').textContent=d.channel||'—';
       
+      // Mostra o grid de info e esconde o empty state
+      var ig=document.getElementById('infoGrid'),ie=document.getElementById('infoEmpty');
+      if(ig)ig.classList.remove('hidden');
+      if(ie)ie.classList.add('hidden');
       if(d.videoId){
         var tb=document.getElementById('videoThumb'),tc=document.getElementById('thumbCard');
         tb.src='https://img.youtube.com/vi/'+d.videoId+'/hqdefault.jpg';
@@ -1006,7 +1031,7 @@ fetchBtn.addEventListener('click',async function(){
     }
   }else{hide('transcriptSection');}
 
-  document.getElementById('framesSection').style.display=modes.frames.on?'':'none'; 
+  // framesSection is always visible in its panel — no style override needed
   hideStatus();fetchBtn.disabled=false;
   fetchBtn.textContent='Buscar \u2192';
   // Auto-switch: se título habilitado vai para info, senão para texto
