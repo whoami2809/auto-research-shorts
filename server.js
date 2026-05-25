@@ -115,7 +115,7 @@ app.get('/api/tags',async(req,res)=>{
     const tags=data.videoDetails?.keywords||[];
     const desc=data.videoDetails?.shortDescription||'';
     // Extrai hashtags do texto (#palavra)
-    const hashtags=[...new Set((desc.match(/#[\wÀ-ÿ]+/g)||[]))].slice(0,30);
+    const hashtags=[...new Set((desc.match(/#[\w\u00C0-\u024F]+/g)||[]))].slice(0,30);
     res.json({tags,hashtags,description:desc.slice(0,600)});
   }catch(e){ res.json({tags:[],hashtags:[],description:''}); }
 });
