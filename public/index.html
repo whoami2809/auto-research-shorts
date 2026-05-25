@@ -951,8 +951,8 @@ function renderVideoList(){
   var wb=document.getElementById('autoTranscribeBtn');
   if(wb&&wb.disabled){wb.disabled=false;wb.textContent='\uD83E\uDD16 Transcrever com IA (Whisper)';}
 }
-loadVideoBtn.addEventListener('click',function(){videoFile.click();});
-videoFile.addEventListener('change',function(){
+loadVideoBtn.addEventListener('click',function(e){e.stopPropagation();setTimeout(function(){videoFile.click();},50);});
+videoFile.addEventListener('change',function(e){e.stopPropagation();
   if(!videoFile.files||!videoFile.files.length)return;
   var ex=currentVideoFiles.map(function(f){return f.name;});
   Array.from(videoFile.files).forEach(function(f){if(ex.indexOf(f.name)===-1)currentVideoFiles.push(f);});
@@ -966,7 +966,7 @@ clearBtn.addEventListener('click',function(){
 var loadVideoForWhisperBtn=document.getElementById('loadVideoForWhisper');
 var whisperFileInput=document.getElementById('whisperFileInput');
 if(loadVideoForWhisperBtn&&whisperFileInput){
-  loadVideoForWhisperBtn.addEventListener('click',function(){whisperFileInput.click();});
+  loadVideoForWhisperBtn.addEventListener('click',function(e){e.stopPropagation();setTimeout(function(){whisperFileInput.click();},50);});
   whisperFileInput.addEventListener('change',function(e){
     var f=e.target.files&&e.target.files[0];
     if(!f)return;
