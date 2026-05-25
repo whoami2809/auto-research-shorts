@@ -29,6 +29,63 @@ body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-se
 /* ── Container ── */
 .container { max-width: 680px; margin: 0 auto; padding: 36px 20px 80px; }
 
+/* ═══════════════════════════════════════════
+   LAYOUT DESKTOP (≥900px)
+═══════════════════════════════════════════ */
+.app-layout { display: flex; flex-direction: column; min-height: 100vh; }
+.sidebar { padding: 20px 16px 60px; }
+.main-content { padding: 0 16px 60px; }
+.desktop-empty { display: none; }
+.info-grid { display: flex; flex-direction: column; gap: 10px; }
+
+@media (min-width: 900px) {
+  body { overflow: hidden; }
+  .app-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+    overflow: hidden;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .sidebar {
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--surface);
+    border-right: 1.5px solid var(--border);
+    padding: 24px 20px 40px;
+    gap: 0;
+  }
+  .sidebar .section { margin-bottom: 16px; }
+  .sidebar header { margin-bottom: 16px; }
+  .main-content {
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 32px 60px;
+    background: var(--bg);
+  }
+  .desktop-empty { display: block; }
+  /* Info: thumbnail + detalhes lado a lado */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .info-thumb img { border-radius: 10px !important; max-height: 300px; }
+  .info-details { display: flex; flex-direction: column; gap: 8px; }
+  /* Sections no main mais espaçosas */
+  .main-content .section { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .main-content .section:last-child { border-bottom: none; margin-bottom: 0; }
+  /* Frames: mais colunas no desktop */
+  .frames-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
+  /* Transcript mais alta */
+  .transcript-box { max-height: 280px; overflow-y: auto; }
+  /* O painel de download no sidebar fica permanente (sem hidden no desktop) */
+}
+
 /* ── Header ── */
 header { margin-bottom: 40px; }
 .brand { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
@@ -169,6 +226,63 @@ body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-se
 
 /* ── Container ── */
 .container { max-width: 680px; margin: 0 auto; padding: 36px 20px 80px; }
+
+/* ═══════════════════════════════════════════
+   LAYOUT DESKTOP (≥900px)
+═══════════════════════════════════════════ */
+.app-layout { display: flex; flex-direction: column; min-height: 100vh; }
+.sidebar { padding: 20px 16px 60px; }
+.main-content { padding: 0 16px 60px; }
+.desktop-empty { display: none; }
+.info-grid { display: flex; flex-direction: column; gap: 10px; }
+
+@media (min-width: 900px) {
+  body { overflow: hidden; }
+  .app-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+    overflow: hidden;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .sidebar {
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--surface);
+    border-right: 1.5px solid var(--border);
+    padding: 24px 20px 40px;
+    gap: 0;
+  }
+  .sidebar .section { margin-bottom: 16px; }
+  .sidebar header { margin-bottom: 16px; }
+  .main-content {
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 32px 60px;
+    background: var(--bg);
+  }
+  .desktop-empty { display: block; }
+  /* Info: thumbnail + detalhes lado a lado */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .info-thumb img { border-radius: 10px !important; max-height: 300px; }
+  .info-details { display: flex; flex-direction: column; gap: 8px; }
+  /* Sections no main mais espaçosas */
+  .main-content .section { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .main-content .section:last-child { border-bottom: none; margin-bottom: 0; }
+  /* Frames: mais colunas no desktop */
+  .frames-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; }
+  /* Transcript mais alta */
+  .transcript-box { max-height: 280px; overflow-y: auto; }
+  /* O painel de download no sidebar fica permanente (sem hidden no desktop) */
+}
 
 /* ── Header ── */
 header { margin-bottom: 40px; }
@@ -326,16 +440,18 @@ canvas { display: none; }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="app-layout">
 
-  <header>
-    <div class="brand">
-      <div class="brand-name">Auto Research Shorts</div>
-      <div class="brand-tag">canal zuefy</div>
-    </div>
-  </header>
+  <!-- ═══════ SIDEBAR ═══════ -->
+  <aside class="sidebar" id="sidebar">
+    <header>
+      <div class="brand">
+        <div class="brand-name">Auto Research Shorts</div>
+        <div class="brand-tag">canal zuefy</div>
+      </div>
+    </header>
 
-  <!-- 01 — URL -->
+    <!-- 01 — URL -->
   <div class="section">
     <div class="section-title">
       <span class="step-badge">01</span>
@@ -429,21 +545,39 @@ canvas { display: none; }
 
   <div class="status-bar" id="statusBar"><div class="status-dot"></div><span id="statusText"></span></div>
 
-  <!-- 02 — Info -->
+  </aside>
+
+  <!-- ═══════ MAIN CONTENT ═══════ -->
+  <main class="main-content" id="mainContent">
+    <!-- Empty state (desktop) -->
+    <div class="desktop-empty" id="desktopEmpty">
+      <div style="text-align:center;color:var(--muted);font-size:13px;padding:60px 20px;">
+        <div style="font-size:48px;margin-bottom:16px;">&#128269;</div>
+        <div style="font-weight:700;font-size:16px;color:var(--fg);margin-bottom:8px;">Cole um link e clique em Buscar</div>
+        <div>O título, transcrição e frames aparecerão aqui</div>
+      </div>
+    </div>
+
+    <!-- 02 — Info -->
   <div class="section hidden" id="infoSection">
     <div class="section-title"><span class="step-badge">02</span><h2>Informações do vídeo</h2></div>
-    <div id="thumbCard" class="hidden" style="margin-bottom:10px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border);">
-      <img id="videoThumb" style="width:100%;display:block;max-height:220px;object-fit:cover;" alt="thumbnail">
-    </div>
-    <div class="card"><div class="card-label"><span class="dot"></span>Título</div><div class="card-value" id="videoTitle">—</div></div>
-    <div class="card"><div class="card-label"><span class="dot"></span>Canal</div><div class="card-value" id="videoChannel">—</div></div>
-    <div class="card hidden" id="tagsCard">
-      <div class="card-label"><span class="dot"></span>Tags &amp; Hashtags</div>
-      <div id="tagsValue" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+    <!-- Desktop: horizontal card — thumbnail esquerda, detalhes direita -->
+    <div class="info-grid">
+      <div id="thumbCard" class="hidden info-thumb">
+        <img id="videoThumb" style="width:100%;display:block;border-radius:10px;object-fit:cover;" alt="thumbnail">
+      </div>
+      <div class="info-details">
+        <div class="card"><div class="card-label"><span class="dot"></span>Título</div><div class="card-value" id="videoTitle">—</div></div>
+        <div class="card"><div class="card-label"><span class="dot"></span>Canal</div><div class="card-value" id="videoChannel">—</div></div>
+        <div class="card hidden" id="tagsCard">
+          <div class="card-label"><span class="dot"></span>Tags &amp; Hashtags</div>
+          <div id="tagsValue" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- 03 — Transcrição -->
+    <!-- 03 — Transcrição -->
   <div class="section hidden" id="transcriptSection">
     <div class="section-title"><span class="step-badge">03</span><h2>Transcrição / Roteiro</h2></div>
     <div id="transcriptContent"></div>
@@ -474,7 +608,7 @@ canvas { display: none; }
     </div>
   </div>
 
-  <!-- 04 — Frames -->
+    <!-- 04 — Frames -->
   <div class="section" id="framesSection">
     <div class="section-title"><span class="step-badge">04</span><h2>Extrair frames</h2></div>
     <div class="notice">
@@ -509,6 +643,10 @@ canvas { display: none; }
     </div>
     <div class="frames-grid" id="framesGrid"></div>
   </div>
+
+</div>
+
+  </main>
 
 </div>
 <canvas id="canvas"></canvas>
@@ -589,6 +727,18 @@ downloadBtn.addEventListener('click',function(){
   document.querySelectorAll('.dl-tab-pane').forEach(function(p,i){ p.classList.toggle('active',i===0); });
   show('downloadPanel');
 });
+
+// Desktop: mostra painel de download automaticamente quando carrega info
+function showDownloadOnDesktop(){
+  if(window.innerWidth>=900){
+    var panel=document.getElementById('downloadPanel');
+    if(panel&&panel.classList.contains('hidden')){
+      panel.classList.remove('hidden');
+    }
+    var empty=document.getElementById('desktopEmpty');
+    if(empty) empty.style.display='none';
+  }
+}
 
 // ─── Painel de download ───────────────────────────────────────────────────────
 var dlCurrentUrl = '';
@@ -785,6 +935,7 @@ fetchBtn.addEventListener('click',async function(){
       var d=await r.json();
       document.getElementById('videoTitle').textContent=d.title||'(não encontrado)';
       document.getElementById('videoChannel').textContent=d.channel||'—';
+      showDownloadOnDesktop();
       if(d.videoId){
         var tb=document.getElementById('videoThumb'),tc=document.getElementById('thumbCard');
         tb.src='https://img.youtube.com/vi/'+d.videoId+'/hqdefault.jpg';
