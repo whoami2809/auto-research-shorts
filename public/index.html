@@ -79,14 +79,7 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
   background:radial-gradient(ellipse at 0% 50%,rgba(155,77,255,.18),transparent 70%);
   opacity:.6;
 }
-/* Japanese watermark */
-#main::after{
-  content:"忠誠\AZUEFY";white-space:pre;position:absolute;left:160px;top:50%;
-  transform:translateY(-50%);pointer-events:none;z-index:1;
-  font-family:'JetBrains Mono',monospace;font-size:32px;line-height:1.3;
-  letter-spacing:.3em;color:rgba(193,132,252,.38);
-  text-shadow:0 0 36px rgba(155,77,255,.75);opacity:.45;
-}
+/* Japanese watermark removed */
 
 /* ─── Panels ────────────────────────────────────────────────────── */
 .panel{display:none;height:100%;overflow-y:auto;position:absolute;inset:0;animation:fadeIn .18s ease;
@@ -94,13 +87,7 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
 .panel.active{display:block;}
 #panel-buscar{display:none;position:relative;}
 #panel-buscar.active{display:flex;align-items:center;justify-content:center;}
-#panel-buscar::after{
-  content:"忠誠\A ZUEFY";white-space:pre;position:absolute;left:170px;top:50%;
-  transform:translateY(-50%);pointer-events:none;z-index:1;
-  font-family:'JetBrains Mono',monospace;font-size:30px;line-height:1.4;
-  letter-spacing:.28em;color:rgba(193,132,252,.35);
-  text-shadow:0 0 30px rgba(155,77,255,.7);opacity:.42;
-}
+/* buscar::after removed */
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .pi{padding:60px 52px 100px;max-width:980px;margin:0 auto;position:relative;z-index:2;}
 .pi.wide{max-width:100%;padding:52px 48px 100px;}
@@ -113,10 +100,19 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
 #statusBar{position:absolute;top:0;left:0;right:0;height:3px;z-index:100;background:rgba(155,77,255,.08);overflow:hidden;pointer-events:none;}
 #statusProgress{height:100%;width:0%;background:linear-gradient(90deg,#9b4dff,#34d399,#9b4dff);box-shadow:0 0 16px rgba(155,77,255,.7);display:none;}
 #statusLabel{
-  position:absolute;bottom:16px;left:calc(var(--sb-w) + 16px);
-  background:rgba(8,9,18,.94);border:1px solid rgba(155,77,255,.35);border-radius:8px;
-  padding:6px 14px;font-size:12px;color:#c7b7f3;display:none;
-  font-family:'JetBrains Mono',monospace;z-index:200;box-shadow:0 0 28px rgba(155,77,255,.22);}
+  position:fixed;top:50px;right:14px;
+  background:rgba(8,9,18,.95);border:1px solid rgba(155,77,255,.4);border-radius:8px;
+  padding:8px 14px;font-size:12px;color:#c7b7f3;
+  font-family:'JetBrains Mono',monospace;z-index:9998;
+  box-shadow:0 2px 20px rgba(0,0,0,.6),0 0 18px rgba(155,77,255,.18);
+  align-items:center;gap:7px;
+  display:none;
+}
+#statusLabel::before{
+  content:'';width:6px;height:6px;border-radius:50%;
+  background:var(--accent2);box-shadow:0 0 8px var(--accent2);
+  animation:blink 1.2s infinite;flex-shrink:0;
+}
 
 /* ─── Toasts ────────────────────────────────────────────────────── */
 #toastContainer{
@@ -466,10 +462,7 @@ input[type=range]{flex:1;accent-color:var(--accent);}
       <span class="hud-tag">v1.0</span>
     </div>
     <div class="hud-top-center">CANAL ZUEFY</div>
-    <div class="hud-top-right">
-      <span>FERRAMENTAS INTELIGENTES</span>
-      <span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;box-shadow:0 0 8px #34d399;"></span>
-    </div>
+
   </div>
 
 
@@ -711,8 +704,17 @@ document.getElementById('frameInterval').addEventListener('input',function(e){do
 // video file handlers handled by original loadVideoBtn/videoFile/clearBtn vars
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function showStatus(m){statusBar.style.display='flex';if(statusLabel)statusLabel.textContent=m;statusLabel&&(statusLabel.style.display='block');}
-function hideStatus(){statusBar.style.display='none';if(statusLabel)statusLabel.style.display='none';}
+function showStatus(m){
+  if(statusLabel){
+    statusLabel.style.display='flex';
+    statusLabel.style.alignItems='center';
+    statusLabel.style.gap='7px';
+    var span=statusLabel.querySelector('.sl-text');
+    if(!span){span=document.createElement('span');span.className='sl-text';statusLabel.appendChild(span);}
+    span.textContent=m;
+  }
+}
+function hideStatus(){if(statusLabel)statusLabel.style.display='none';}
 function show(id){
   var el=document.getElementById(id);if(el)el.classList.remove('hidden');
   if(PANEL_MAP[id])switchPanel(PANEL_MAP[id]);
