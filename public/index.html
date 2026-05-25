@@ -77,6 +77,150 @@ header { margin-bottom: 40px; }
 .card-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: .15em; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); display: inline-block; }
 .card-value { font-size: 14px; font-weight: 600; }
+.tag-chip { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--muted); cursor: default; transition: all .2s; }
+.tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+.hash-chip { background: rgba(129,140,248,.1); border: 1px solid var(--accent); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--accent); }
+
+/* ── Transcript ── */
+.transcript-box { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; max-height: 200px; overflow-y: auto; line-height: 1.8; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px; }
+textarea { width: 100%; min-height: 110px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 13px; resize: vertical; outline: none; line-height: 1.7; }
+textarea:focus { border-color: var(--accent); }
+
+/* ── Translate ── */
+.translate-bar { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
+.translate-select { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 12px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; flex: 1; min-width: 150px; }
+.translate-select:focus { border-color: var(--accent2); }
+.translated-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--success); letter-spacing: .12em; text-transform: uppercase; margin: 10px 0 6px; display: flex; align-items: center; gap: 6px; }
+
+/* ── Buttons secondary ── */
+.btn-sec { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 14px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all .2s; }
+.btn-sec:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sec:disabled { opacity: .4; cursor: not-allowed; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ── Notices ── */
+.notice      { background: rgba(96,165,250,.06); border: 1.5px solid rgba(96,165,250,.2); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--blue); margin-bottom: 12px; line-height: 1.7; }
+.notice-warn { background: rgba(251,191,36,.06);  border: 1.5px solid rgba(251,191,36,.2);  border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--warn); margin-bottom: 10px; line-height: 1.7; }
+.notice-ok   { background: rgba(52,211,153,.06);  border: 1.5px solid rgba(52,211,153,.2);  border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--success); margin-bottom: 10px; line-height: 1.7; }
+
+/* ── Whisper btn ── */
+.btn-whisper { width: 100%; padding: 13px; background: rgba(96,165,250,.07); border: 1.5px solid rgba(96,165,250,.3); border-radius: 10px; color: var(--blue); font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; transition: all .2s; }
+.btn-whisper:disabled { opacity: .35; cursor: not-allowed; }
+.btn-whisper:not([disabled]):hover { background: rgba(96,165,250,.14); border-color: var(--blue); }
+.whisper-status { display: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--blue); margin: 8px 0; padding: 10px 14px; background: rgba(96,165,250,.05); border: 1px solid rgba(96,165,250,.2); border-radius: 8px; }
+.manual-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin: 12px 0 6px; }
+
+/* ── Download Panel ── */
+.dl-panel { background: var(--surface); border: 1.5px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.dl-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.dl-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent2); display: flex; align-items: center; gap: 8px; }
+.dl-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; transition: color .2s; }
+.dl-close:hover { color: var(--danger); }
+/* Tabs */
+.dl-tabs { display: flex; gap: 0; border-bottom: 1.5px solid var(--border); margin-bottom: 16px; }
+.dl-tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700; padding: 8px 14px; margin-bottom: -1.5px; transition: all .2s; letter-spacing:.02em; }
+.dl-tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+.dl-tab-btn:hover { color: var(--fg); }
+.dl-tab-pane { display: none; }
+.dl-tab-pane.active { display: block; }
+/* Quality rows */
+.dl-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.dl-row:last-child { border-bottom: none; }
+.dl-row-info { display: flex; flex-direction: column; gap: 2px; }
+.dl-row-qual { font-size: 13px; font-weight: 700; color: var(--fg); }
+.dl-row-detail { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.dl-row-btn { background: var(--accent2); color: var(--bg); border: none; border-radius: 8px; padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; transition: all .2s; white-space: nowrap; }
+.dl-row-btn:hover { background: #22c55e; transform: scale(1.03); }
+.dl-row-btn:disabled { opacity:.5; cursor:default; transform:none; }
+.dl-section-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.dl-options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.dl-btn { background: var(--card); color: var(--fg); border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; transition: all .2s; }
+.dl-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+.dl-btn:disabled { opacity:.5; cursor:default; }
+.dl-btn-audio { border-color: var(--accent2); color: var(--accent2); }
+.dl-btn-video { border-color: var(--lens); color: var(--lens); }
+.dl-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.zip-btn { background: var(--accent2); color: var(--bg); border: none; border-radius: 12px; padding: 14px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; transition: background .2s; }
+.zip-btn:hover { background: #22c55e; }ead>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Research Shorts</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0d0f1a;
+  --surface:  #141726;
+  --surface2: #1d2239;
+  --border:   #272d4e;
+  --accent:   #818cf8;
+  --accent2:  #34d399;
+  --blue:     #60a5fa;
+  --text:     #e4e8ff;
+  --muted:    #4e5480;
+  --success:  #34d399;
+  --warn:     #fbbf24;
+  --danger:   #f87171;
+  --lens:     #6366f1;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; min-height: 100vh; font-size: 14px; line-height: 1.6; }
+
+/* ── Container ── */
+.container { max-width: 680px; margin: 0 auto; padding: 36px 20px 80px; }
+
+/* ── Header ── */
+header { margin-bottom: 40px; }
+.brand { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.brand-name { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: .06em; background: linear-gradient(120deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.brand-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: .2em; text-transform: uppercase; border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; }
+
+/* ── Section ── */
+.section { margin-bottom: 24px; }
+.section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.step-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: var(--accent); background: rgba(129,140,248,.12); border: 1px solid rgba(129,140,248,.25); border-radius: 6px; padding: 3px 9px; letter-spacing: .08em; white-space: nowrap; }
+.section-title h2 { font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Inputs ── */
+.url-input { width: 100%; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 13px 16px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none; margin-bottom: 10px; transition: border-color .2s; }
+.url-input:focus { border-color: var(--accent); }
+.url-input::placeholder { color: var(--muted); }
+
+/* ── Button row ── */
+.action-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.btn-primary { flex: 1; background: var(--accent); color: #fff; border: none; border-radius: 12px; padding: 13px 20px; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: all .2s; box-shadow: 0 4px 16px rgba(129,140,248,.25); }
+.btn-primary:hover { background: #6366f1; box-shadow: 0 6px 22px rgba(129,140,248,.4); transform: translateY(-1px); }
+.btn-primary:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-download { background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 13px 16px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.btn-download:hover { border-color: var(--accent2); color: var(--accent2); }
+.btn-download:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Mode toggles ── */
+.mode-row { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.mode-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: .15em; text-transform: uppercase; margin-bottom: 4px; }
+.mode-toggle { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px; cursor: pointer; transition: all .2s; user-select: none; }
+.mode-toggle.active { border-color: var(--accent); background: rgba(129,140,248,.07); }
+.mode-check { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; background: var(--surface2); font-weight: 800; color: transparent; transition: all .2s; }
+.mode-toggle.active .mode-check { border-color: var(--accent); background: var(--accent); color: #fff; }
+.mode-icon { font-size: 18px; }
+.mode-name { font-size: 14px; font-weight: 700; }
+.mode-desc { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+/* ── Status ── */
+.status-bar { display: none; align-items: center; gap: 10px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── Cards ── */
+.card { background: var(--surface); border: 1.5px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; }
+.card-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: .15em; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.card-value { font-size: 14px; font-weight: 600; }
+.tag-chip { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--muted); cursor: default; transition: all .2s; }
+.tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+.hash-chip { background: rgba(129,140,248,.1); border: 1px solid var(--accent); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--accent); }
 
 /* ── Transcript ── */
 .transcript-box { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; max-height: 200px; overflow-y: auto; line-height: 1.8; font-size: 13px; white-space: pre-wrap; margin-bottom: 10px; }
@@ -204,7 +348,7 @@ canvas { display: none; }
       <button class="btn-download" id="downloadBtn" title="Baixar vídeo">&#11015;&#65039; Baixar</button>
     </div>
 
-    <!-- Painel de download — dlsrv.online embed (mesmo sistema do y2meta) -->
+    <!-- Painel de download — design próprio com abas -->
     <div id="downloadPanel" class="dl-panel hidden">
       <div class="dl-header">
         <span class="dl-title">
@@ -214,43 +358,50 @@ canvas { display: none; }
         <button class="dl-close" id="closeDownloadBtn">&#10005;</button>
       </div>
 
-      <!-- Embed dlsrv.online: serviço profissional com vídeo+áudio/só áudio/só vídeo/todas as resoluções -->
-      <div id="dlsrvWrap" style="display:none;border-radius:10px;overflow:hidden;min-height:520px;position:relative;">
-        <div id="dlsrvLoading" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:13px;background:var(--surface);border-radius:10px;border:1.5px dashed var(--border);">
-          <div class="status-dot" style="width:10px;height:10px;background:var(--accent2);"></div>
-          Carregando opções de download...
-        </div>
-        <iframe id="dlsrvIframe" src="" width="100%" height="550"
-          style="border:none;display:block;border-radius:10px;position:relative;z-index:1;"
-          allowfullscreen sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
-          onload="document.getElementById('dlsrvLoading').style.display='none'">
-        </iframe>
+      <!-- Abas -->
+      <div class="dl-tabs" id="dlTabs">
+        <button class="dl-tab-btn active" data-tab="combined">&#127916; Vídeo + Áudio</button>
+        <button class="dl-tab-btn" data-tab="audio">&#127925; Só Áudio</button>
+        <button class="dl-tab-btn" data-tab="mute">&#128249; Só Vídeo</button>
       </div>
 
-      <!-- Fallback manual quando não é YouTube -->
-      <div id="dlFallback" style="display:none;">
-        <div class="dl-section-lbl">&#127916; Vídeo + Áudio</div>
-        <div class="dl-options">
-          <button class="dl-btn" id="dlBtnMax">&#11015; Melhor qualidade</button>
-          <button class="dl-btn" id="dlBtn1080">1080p Full HD</button>
-          <button class="dl-btn" id="dlBtn720">720p HD</button>
-          <button class="dl-btn" id="dlBtn480">480p</button>
-          <button class="dl-btn" id="dlBtn360">360p</button>
+      <!-- Vídeo + Áudio -->
+      <div class="dl-tab-pane active" id="dlPaneCombined">
+        <div class="dl-row" data-itag="22" data-ext="mp4">
+          <div class="dl-row-info"><span class="dl-row-qual">720p HD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
         </div>
-        <div class="dl-two-col" style="margin-top:10px;">
-          <div>
-            <div class="dl-section-lbl">&#127925; Só Áudio</div>
-            <div class="dl-options">
-              <button class="dl-btn dl-btn-audio" id="dlBtnMp3">&#127925; MP3</button>
-            </div>
-          </div>
-          <div>
-            <div class="dl-section-lbl">&#128249; Só Vídeo</div>
-            <div class="dl-options">
-              <button class="dl-btn dl-btn-video" id="dlBtnMute720">720p s/ áudio</button>
-              <button class="dl-btn dl-btn-video" id="dlBtnMute1080">1080p s/ áudio</button>
-            </div>
-          </div>
+        <div class="dl-row" data-itag="18" data-ext="mp4">
+          <div class="dl-row-info"><span class="dl-row-qual">360p SD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
+        </div>
+      </div>
+
+      <!-- Só Áudio -->
+      <div class="dl-tab-pane" id="dlPaneAudio">
+        <div class="dl-row" data-itag="140" data-ext="m4a">
+          <div class="dl-row-info"><span class="dl-row-qual">128kbps AAC</span><span class="dl-row-detail">M4A · Alta qualidade</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
+        </div>
+        <div class="dl-row" data-itag="251" data-ext="webm">
+          <div class="dl-row-info"><span class="dl-row-qual">160kbps Opus</span><span class="dl-row-detail">WebM · Alta qualidade</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
+        </div>
+      </div>
+
+      <!-- Só Vídeo -->
+      <div class="dl-tab-pane" id="dlPaneMute">
+        <div class="dl-row" data-itag="137" data-ext="mp4">
+          <div class="dl-row-info"><span class="dl-row-qual">1080p Full HD</span><span class="dl-row-detail">H.264 · Sem áudio</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
+        </div>
+        <div class="dl-row" data-itag="136" data-ext="mp4">
+          <div class="dl-row-info"><span class="dl-row-qual">720p HD</span><span class="dl-row-detail">H.264 · Sem áudio</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
+        </div>
+        <div class="dl-row" data-itag="135" data-ext="mp4">
+          <div class="dl-row-info"><span class="dl-row-qual">480p</span><span class="dl-row-detail">H.264 · Sem áudio</span></div>
+          <button class="dl-row-btn">&#11015; Baixar</button>
         </div>
       </div>
 
@@ -286,6 +437,10 @@ canvas { display: none; }
     </div>
     <div class="card"><div class="card-label"><span class="dot"></span>Título</div><div class="card-value" id="videoTitle">—</div></div>
     <div class="card"><div class="card-label"><span class="dot"></span>Canal</div><div class="card-value" id="videoChannel">—</div></div>
+    <div class="card hidden" id="tagsCard">
+      <div class="card-label"><span class="dot"></span>Tags &amp; Hashtags</div>
+      <div id="tagsValue" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+    </div>
   </div>
 
   <!-- 03 — Transcrição -->
@@ -406,9 +561,6 @@ function showToast(msg,color){
 
 // ─── Painel de Download ───────────────────────────────────────────────────────
 document.getElementById('closeDownloadBtn').addEventListener('click',function(){
-  // Para o iframe ao fechar (evita que continue carregando em background)
-  var iframe=document.getElementById('dlsrvIframe');
-  if(iframe) iframe.src='';
   hide('downloadPanel');
   var m=document.getElementById('dlMsg');if(m)m.style.display='none';
 });
@@ -429,45 +581,72 @@ downloadBtn.addEventListener('click',function(){
   var url=urlInput.value.trim();
   if(!url){showToast('Cole um link primeiro','var(--warn)');return;}
   var panel=document.getElementById('downloadPanel');
-  if(!panel.classList.contains('hidden')){
-    var iframe=document.getElementById('dlsrvIframe');if(iframe)iframe.src='';
-    hide('downloadPanel');return;
-  }
+  if(!panel.classList.contains('hidden')){ hide('downloadPanel'); return; }
   dlCurrentUrl=url;
   var m=document.getElementById('dlMsg');if(m)m.style.display='none';
-
-  var videoId=clientVideoId(url);
-  var wrap=document.getElementById('dlsrvWrap');
-  var fallback=document.getElementById('dlFallback');
-
-  if(videoId){
-    // YouTube: usa embed profissional dlsrv.online (mesmo sistema do y2meta)
-    // Tem vídeo+áudio, só áudio (MP3/OGG), só vídeo, todas as resoluções
-    var iframe=document.getElementById('dlsrvIframe');
-    iframe.src='https://embed.dlsrv.online/v1/full?videoId='+videoId;
-    wrap.style.display='block';
-    fallback.style.display='none';
-  }else{
-    // Outros sites (TikTok, Instagram...): fallback com nosso servidor
-    wrap.style.display='none';
-    fallback.style.display='block';
-  }
+  // Reset tabs to first tab
+  document.querySelectorAll('.dl-tab-btn').forEach(function(b,i){ b.classList.toggle('active',i===0); });
+  document.querySelectorAll('.dl-tab-pane').forEach(function(p,i){ p.classList.toggle('active',i===0); });
   show('downloadPanel');
 });
 
 // ─── Painel de download ───────────────────────────────────────────────────────
 var dlCurrentUrl = '';
 
+// Invidious instances — proxy YouTube sem bloquear por IP de datacenter
+var INVIDIOUS = [
+  'https://inv.nadeko.net',
+  'https://invidious.nerdvpn.de',
+  'https://yt.drgnz.club',
+  'https://invidious.privacydev.net',
+  'https://invidious.flokinet.to',
+];
+var invIdx = 0;
+
+function getInvidious(){ return INVIDIOUS[invIdx % INVIDIOUS.length]; }
+
+function startInvidiousDownload(videoId, itag, btn){
+  var orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ ...';
+  var dlUrl = getInvidious() + '/latest_version?id=' + videoId + '&itag=' + itag + '&local=true';
+  // Abre em nova aba — Invidious serve o arquivo com Content-Disposition:attachment
+  // Browser baixa e a aba fecha automaticamente
+  var w = window.open(dlUrl, '_blank');
+  if(!w){ window.location.href = dlUrl; } // fallback se popup blocker
+  showToast('\u2705 Download iniciado!', 'var(--success)');
+  setTimeout(function(){ btn.disabled = false; btn.textContent = orig; }, 3000);
+}
+
 function initDownloadPanel(){
-  // Liga botões de qualidade ao startDownload
-  document.getElementById('dlBtnMax').onclick   = function(){startDownload('max','auto');};
-  document.getElementById('dlBtn1080').onclick  = function(){startDownload('1080','auto');};
-  document.getElementById('dlBtn720').onclick   = function(){startDownload('720','auto');};
-  document.getElementById('dlBtn480').onclick   = function(){startDownload('480','auto');};
-  document.getElementById('dlBtn360').onclick   = function(){startDownload('360','auto');};
-  document.getElementById('dlBtnMp3').onclick   = function(){startDownload('audio','audio');};
-  document.getElementById('dlBtnMute720').onclick  = function(){startDownload('720','mute');};
-  document.getElementById('dlBtnMute1080').onclick = function(){startDownload('1080','mute');};
+  // Tabs
+  document.querySelectorAll('.dl-tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.dl-tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.dl-tab-pane').forEach(function(p){ p.classList.remove('active'); });
+      this.classList.add('active');
+      var paneId = 'dlPane' + this.dataset.tab.charAt(0).toUpperCase() + this.dataset.tab.slice(1);
+      var pane = document.getElementById(paneId);
+      if(pane) pane.classList.add('active');
+    });
+  });
+
+  // Botões de download por linha
+  document.querySelectorAll('.dl-row').forEach(function(row){
+    row.querySelector('.dl-row-btn').addEventListener('click', function(){
+      var itag = row.dataset.itag;
+      var url = dlCurrentUrl || urlInput.value.trim();
+      if(!url){ showToast('Cole um link primeiro','var(--warn)'); return; }
+      var videoId = clientVideoId(url);
+      if(videoId){
+        startInvidiousDownload(videoId, itag, this);
+      } else {
+        // Plataformas não-YouTube: usa servidor
+        var mode = itag==='140'||itag==='251' ? 'audio' : row.closest('#dlPaneMute') ? 'mute' : 'auto';
+        var quality = itag==='137'?'1080': itag==='136'?'720': itag==='135'?'480': itag==='22'?'720': '360';
+        startDownload(quality, mode);
+      }
+    });
+  });
 }
 initDownloadPanel();
 
@@ -607,6 +786,8 @@ fetchBtn.addEventListener('click',async function(){
         tb.src='https://img.youtube.com/vi/'+d.videoId+'/hqdefault.jpg';
         tb.onerror=function(){this.src='https://img.youtube.com/vi/'+d.videoId+'/mqdefault.jpg';};
         tc.classList.remove('hidden');
+        // Carrega tags e hashtags em background
+        fetchTagsAndHashtags(urlInput.value.trim());
       }
     }catch(e){document.getElementById('videoTitle').textContent='(erro)';}
   }else{hide('infoSection');}
@@ -701,15 +882,36 @@ async function handleTranslate(){
   var tl=document.getElementById('translateLang').value;
   var btn=document.getElementById('translateBtn');
   btn.disabled=true;btn.textContent='\u23f3 Traduzindo...';
+  showStatus('Traduzindo com IA...');
+  var result='';
   try{
-    var result=await translateText(transcriptText,tl);
-    translatedText=result;
-    show('translatedSection');
-    document.getElementById('translatedBox').textContent=result;
-    showToast('\u2705 Tradução concluída!','var(--success)');
-  }catch(e){
-    showToast('\u26a0\uFE0F Falha na tradução: '+e.message,'var(--warn)');
+    // Tenta Claude (tradução natural e adaptada)
+    var resp=await fetch('/api/translate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:transcriptText,targetLang:tl}),
+      signal:AbortSignal.timeout(30000)
+    });
+    if(resp.ok){
+      var d=await resp.json();
+      result=d.translation||'';
+    }
+  }catch(e){ console.log('[translate server]',e.message); }
+  
+  if(!result){
+    // Fallback: Google Translate (literal mas funcional)
+    try{
+      showStatus('Traduzindo...');
+      result=await translateText(transcriptText,tl);
+    }catch(e2){
+      showToast('\u26a0\uFE0F Falha na tradução: '+e2.message,'var(--warn)');
+      btn.disabled=false;btn.textContent='\uD83C\uDF10 Traduzir';hideStatus();return;
+    }
   }
+  translatedText=result;
+  show('translatedSection');
+  document.getElementById('translatedBox').textContent=result;
+  showToast('\u2705 Tradução concluída!','var(--success)');
   btn.disabled=false;btn.textContent='\uD83C\uDF10 Traduzir';
   hideStatus();
 }
@@ -727,6 +929,34 @@ document.getElementById('translateLang').addEventListener('change',function(){
   translatedText='';
   hide('translatedSection');
 });
+
+// ─── Tags & Hashtags ─────────────────────────────────────────────────────────
+async function fetchTagsAndHashtags(url){
+  var tagsCard=document.getElementById('tagsCard');
+  var tagsValue=document.getElementById('tagsValue');
+  if(!tagsCard||!tagsValue) return;
+  tagsValue.innerHTML='';tagsCard.classList.add('hidden');
+  try{
+    var r=await fetch('/api/tags?url='+encodeURIComponent(url));
+    if(!r.ok) return;
+    var d=await r.json();
+    var items=[];
+    // Hashtags primeiro (mais visíveis)
+    (d.hashtags||[]).slice(0,20).forEach(function(h){
+      var s=document.createElement('span');s.className='hash-chip';s.textContent=h;items.push(s);
+    });
+    // Tags regulares
+    (d.tags||[]).slice(0,30).forEach(function(t){
+      // Pula se já é hashtag
+      if((d.hashtags||[]).some(function(h){return h.toLowerCase()==='#'+t.toLowerCase()||h.toLowerCase()===t.toLowerCase();})) return;
+      var s=document.createElement('span');s.className='tag-chip';s.textContent=t;items.push(s);
+    });
+    if(items.length>0){
+      items.forEach(function(el){ tagsValue.appendChild(el); });
+      tagsCard.classList.remove('hidden');
+    }
+  }catch(e){ console.log('[tags]',e.message); }
+}
 
 // ─── Frames ───────────────────────────────────────────────────────────────────
 function captureFrame(video,time){
