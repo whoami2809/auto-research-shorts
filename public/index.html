@@ -419,6 +419,7 @@ input[type=range]{flex:1;accent-color:var(--accent);}
   #char-art,#zuefy-widget,#d1,#d2,#d3{display:none!important;}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -1356,7 +1357,7 @@ zipBtn.addEventListener('click',async function(){
   a.href=url;a.download='frames_'+Date.now()+'.zip';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  zipBtn.disabled=false;zipBtn.textContent='\uD83D\uDCE6 Baixar ZIP com todos os frames';
+  zipBtn.disabled=false;zipBtn.textContent='\uD83D\uDCE6 Baixar ZIP';
   showToast('\u2705 ZIP gerado!','var(--success)');
 });
 </script>
