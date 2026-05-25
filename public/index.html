@@ -127,15 +127,18 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
    CHARACTER SVG — anime figure with lightning
 ═══════════════════════════════════════════════ */
 #char-art{
-  position:absolute;left:0;top:0;bottom:0;width:440px;pointer-events:none;z-index:1;
-  opacity:0;transition:opacity 1s ease;
+  position:absolute;left:0;top:0;bottom:0;width:480px;pointer-events:none;z-index:1;
+  overflow:hidden;
 }
-#char-art.loaded{opacity:1;}
-.lightning{animation:strike 3.5s infinite;}
-.lightning2{animation:strike 4.2s 1.1s infinite;}
-@keyframes strike{0%,88%,100%{opacity:0}89%{opacity:.9}90%{opacity:.3}92%{opacity:.8}94%{opacity:0}}
-.char-glow{animation:pulse 4s ease-in-out infinite;}
-@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+#char-art.loaded #char-img{opacity:1;}
+/* Purple glow behind character */
+#char-art::before{
+  content:"";position:absolute;left:10%;top:15%;width:70%;height:80%;
+  background:radial-gradient(ellipse,rgba(155,77,255,.55) 0%,rgba(120,30,255,.25) 35%,transparent 70%);
+  filter:blur(28px);z-index:0;animation:pulse 4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:.7}50%{opacity:1}}
+@keyframes strike{0%,88%,100%{opacity:0}89%{opacity:.85}91%{opacity:.25}93%{opacity:.7}95%{opacity:0}}
 
 /* ═══════════════════════════════════════════════
    PANEL BUSCAR
@@ -452,102 +455,15 @@ input[type=range]{flex:1;accent-color:var(--accent);}
     </div>
   </div>
 
-  <!-- Anime character SVG (left side) -->
-  <svg id="char-art" viewBox="0 0 440 720" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-    <defs>
-      <radialGradient id="aura" cx="50%" cy="42%" r="55%">
-        <stop offset="0%" stop-color="#9b4dff" stop-opacity=".6"/>
-        <stop offset="60%" stop-color="#7435ff" stop-opacity=".18"/>
-        <stop offset="100%" stop-color="#05050b" stop-opacity="0"/>
-      </radialGradient>
-      <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#d0a0ff" stop-opacity="1"/>
-        <stop offset="100%" stop-color="#9b4dff" stop-opacity=".4"/>
-      </radialGradient>
-      <filter id="glow4" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="4" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
-      </filter>
-      <filter id="glow8" x="-100%" y="-100%" width="300%" height="300%">
-        <feGaussianBlur stdDeviation="8" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
-      </filter>
-      <filter id="glow14" x="-150%" y="-150%" width="400%" height="400%">
-        <feGaussianBlur stdDeviation="14" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/>
-      </filter>
-    </defs>
-    <!-- Aura background -->
-    <ellipse cx="210" cy="310" rx="160" ry="300" fill="url(#aura)" class="char-glow"/>
-    <!-- Body silhouette -->
-    <g opacity=".88">
-      <!-- Legs -->
-      <path d="M162 560 Q155 620 148 720 L172 720 Q176 650 182 580Z" fill="#1a0b2e"/>
-      <path d="M248 560 Q258 620 264 720 L240 720 Q236 650 228 580Z" fill="#1a0b2e"/>
-      <!-- Coat lower -->
-      <path d="M140 440 Q130 500 125 560 L175 575 Q180 510 182 460Z" fill="#150826" stroke="rgba(155,77,255,.3)" stroke-width="1"/>
-      <path d="M270 440 Q280 500 285 560 L245 575 Q240 510 228 460Z" fill="#150826" stroke="rgba(155,77,255,.3)" stroke-width="1"/>
-      <!-- Torso / coat -->
-      <path d="M145 290 Q135 360 140 440 L290 440 Q295 360 285 290 Q260 310 205 308 Q150 310 145 290Z" fill="#150826" stroke="rgba(155,77,255,.25)" stroke-width="1"/>
-      <!-- Coat collar -->
-      <path d="M178 290 Q185 320 205 325 Q225 320 232 290 L218 282 Q210 300 200 302 Q190 300 182 282Z" fill="#1e0d38"/>
-      <!-- Coat symbol -->
-      <path d="M195 380 L215 355 L235 380 L215 405Z" fill="none" stroke="rgba(155,77,255,.5)" stroke-width="1.5" opacity=".7"/>
-      <circle cx="215" cy="380" r="4" fill="rgba(155,77,255,.4)"/>
-      <!-- Left arm -->
-      <path d="M145 295 Q112 330 100 390 Q95 420 108 440 L130 430 Q118 415 124 390 Q136 345 162 310Z" fill="#150826" stroke="rgba(155,77,255,.2)" stroke-width="1"/>
-      <!-- Right arm -->
-      <path d="M285 295 Q318 330 330 390 Q335 420 322 440 L300 430 Q312 415 306 390 Q294 345 258 310Z" fill="#150826" stroke="rgba(155,77,255,.2)" stroke-width="1"/>
-      <!-- Neck -->
-      <rect x="195" y="255" width="30" height="42" rx="6" fill="#1e0d38"/>
-      <!-- Head base -->
-      <ellipse cx="210" cy="210" rx="58" ry="68" fill="#1e0d38"/>
-      <!-- Face highlight -->
-      <ellipse cx="210" cy="205" rx="42" ry="52" fill="#241244" opacity=".6"/>
-      <!-- Eyes -->
-      <ellipse cx="192" cy="200" rx="9" ry="6" fill="#9b4dff" filter="url(#glow8)" class="char-glow"/>
-      <ellipse cx="228" cy="200" rx="9" ry="6" fill="#9b4dff" filter="url(#glow8)" class="char-glow"/>
-      <ellipse cx="192" cy="200" rx="4" ry="3" fill="url(#eyeGlow)"/>
-      <ellipse cx="228" cy="200" rx="4" ry="3" fill="url(#eyeGlow)"/>
-      <!-- Eyebrow -->
-      <path d="M183 191 Q192 187 202 190" stroke="rgba(200,170,255,.6)" stroke-width="2" fill="none"/>
-      <path d="M218 190 Q228 187 237 191" stroke="rgba(200,170,255,.6)" stroke-width="2" fill="none"/>
-      <!-- Hair spikes -->
-      <g fill="#12082a" stroke="rgba(155,77,255,.25)" stroke-width="1">
-        <path d="M210 145 Q202 120 186 108 Q196 128 186 148Z"/>
-        <path d="M210 145 Q218 118 234 110 Q222 130 234 148Z"/>
-        <path d="M205 142 Q188 110 170 102 Q184 126 174 148Z"/>
-        <path d="M215 142 Q232 110 250 102 Q238 126 248 148Z"/>
-        <path d="M200 148 Q175 118 158 115 Q172 138 162 160Z"/>
-        <path d="M220 148 Q245 118 262 115 Q248 138 258 160Z"/>
-        <path d="M195 152 Q162 130 148 130 Q164 150 156 172Z"/>
-        <path d="M225 152 Q258 130 272 130 Q256 150 264 172Z"/>
-      </g>
-      <!-- Hair fill -->
-      <ellipse cx="210" cy="165" rx="70" ry="35" fill="#12082a"/>
-    </g>
-    <!-- Lightning bolts -->
-    <g class="lightning" filter="url(#glow8)">
-      <polyline points="108,380 96,400 115,402 100,430" stroke="#cf7cff" stroke-width="2.5" fill="none"/>
-      <polyline points="115,340 103,358 118,362 106,385" stroke="#a855f7" stroke-width="2" fill="none"/>
-    </g>
-    <g class="lightning2" filter="url(#glow8)">
-      <polyline points="322,385 334,405 316,408 330,438" stroke="#cf7cff" stroke-width="2.5" fill="none"/>
-      <polyline points="312,342 324,360 310,365 322,390" stroke="#a855f7" stroke-width="2" fill="none"/>
-    </g>
-    <!-- Purple energy particles -->
-    <g class="char-glow" opacity=".6">
-      <circle cx="88" cy="390" r="3" fill="#9b4dff" filter="url(#glow4)"/>
-      <circle cx="340" cy="370" r="2.5" fill="#cf7cff" filter="url(#glow4)"/>
-      <circle cx="150" cy="450" r="2" fill="#9b4dff" filter="url(#glow4)"/>
-      <circle cx="278" cy="460" r="2" fill="#cf7cff" filter="url(#glow4)"/>
-    </g>
-    <!-- Bottom fade -->
-    <defs>
-      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="55%" stop-color="transparent"/>
-        <stop offset="100%" stop-color="#05050b"/>
-      </linearGradient>
-    </defs>
-    <rect x="0" y="0" width="440" height="720" fill="url(#fade)" pointer-events="none"/>
-  </svg>
+  <!-- Character image (left side, PNG with transparent bg) -->
+  <div id="char-art">
+    <img id="char-img" src="/character.png" alt="character"
+      style="position:absolute;bottom:0;left:-20px;height:96%;width:auto;
+             object-fit:contain;object-position:bottom left;
+             mix-blend-mode:screen;
+             filter:drop-shadow(0 0 30px rgba(155,77,255,.8)) drop-shadow(0 0 60px rgba(155,77,255,.5)) saturate(1.1) brightness(0.95);
+             opacity:0;transition:opacity 1.2s ease;">
+  </div>
 
   <!-- Diamond ornaments -->
   <div class="diamond" id="d1">
@@ -1439,15 +1355,28 @@ window.whisperTranscribe=async function(file,onStatus,onDone,onError){
 </script>
 </body>
 <script>
-// Anima character + widget quando carrega
+// Anima character quando imagem carrega
+var charImg = document.getElementById('char-img');
+if(charImg){
+  if(charImg.complete){
+    document.getElementById('char-art').classList.add('loaded');
+  } else {
+    charImg.addEventListener('load',function(){
+      document.getElementById('char-art').classList.add('loaded');
+    });
+    charImg.addEventListener('error',function(){
+      // Se imagem não carrega, mostra SVG fallback
+      console.warn('Character image not found');
+    });
+  }
+}
+// Widget com delay
 setTimeout(function(){
-  var art = document.getElementById('char-art');
-  if(art) art.classList.add('loaded');
   var w = document.getElementById('zuefy-widget');
   if(w) w.classList.add('visible');
   var bar = document.getElementById('zuefyBar');
   if(bar) setTimeout(function(){bar.style.width='82%'},600);
-},400);
+},600);
 </script>
 </body>
 </html>
