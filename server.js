@@ -102,6 +102,66 @@ app.get('/api/audio',async(req,res)=>{
   }catch(e){ if(!res.headersSent) res.status(500).json({error:e.message}); }
 });
 
+// ─── /api/tags ───────────────────────────────────────────────────────────────
+app.get('/api/tags',async(req,res)=>{
+  const{url}=req.query; const videoId=extractVideoId(url);
+  if(!videoId) return res.status(400).json({error:'Link inválido'});
+  try{
+    const r=await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false',{
+      method:'POST',headers:{'Content-Type':'application/json','User-Agent':'Mozilla/5.0'},
+      body:JSON.stringify({videoId,context:{client:{clientName:'WEB',clientVersion:'2.20240101.01.00',hl:'pt',gl:'BR'}}}),
+    });
+    const data=await r.json();
+    const tags=data.videoDetails?.keywords||[];
+    const desc=data.videoDetails?.shortDescription||'';
+    // Extrai hashtags do texto (#palavra)
+    const hashtags=[...new Set((desc.match(/#[\wÀ-ÿ]+/g)||[]))].slice(0,30);
+    res.json({tags,hashtags,description:desc.slice(0,600)});
+  }catch(e){ res.json({tags:[],hashtags:[],description:''}); }
+});
+
+// ─── /api/translate ───────────────────────────────────────────────────────────
+// Usa Claude para tradução natural (requer ANTHROPIC_API_KEY no Render)
+// Fallback: retorna erro 503 → frontend usa Google Translate
+app.post('/api/translate',async(req,res)=>{
+  const{text,targetLang}=req.body;
+  if(!text) return res.status(400).json({error:'Texto obrigatório'});
+  const key=process.env.ANTHROPIC_API_KEY;
+  if(!key) return res.status(503).json({error:'ANTHROPIC_API_KEY não configurada'});
+  const langMap={pt:'Português do Brasil',en:'English',es:'Español',fr:'Français',de:'Deutsch',it:'Italiano',ja:'Japonês',ko:'Coreano'};
+  const tl=langMap[targetLang]||targetLang;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:2000,
+        messages:[{role:'user',content:`Você é um tradutor especializado em conteúdo de vídeos curtos para redes sociais (YouTube Shorts, TikTok, Reels).
+
+Traduza o texto abaixo para ${tl}.
+
+Regras:
+- Tradução natural e fluida — adapte ao estilo falado, não ao literário
+- Preserve hashtags (#palavra) exatamente como estão, sem traduzir
+- Adicione pontuação adequada (o texto pode ser transcrição sem pontuação)
+- Adapte expressões idiomáticas para equivalentes naturais na língua alvo
+- Mantenha tom e energia do original (pode ser informal, entusiasmado, narrativo)
+- Retorne APENAS o texto traduzido, sem explicações ou prefixos
+
+Texto:
+${text.slice(0,3000)}`}]
+      })
+    });
+    const d=await r.json();
+    if(d.content&&d.content[0]) return res.json({translation:d.content[0].text,model:'claude'});
+    throw new Error('Resposta inválida');
+  }catch(e){
+    console.error('[translate claude]',e.message);
+    res.status(500).json({error:e.message});
+  }
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  /api/video-dl
 //
