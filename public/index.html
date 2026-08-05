@@ -543,6 +543,9 @@ input[type=range]{flex:1;accent-color:var(--accent);}
           <button class="dl-tab-btn" data-tab="mute">📹 Só Vídeo</button>
         </div>
         <div class="dl-tab-pane active" id="dlPaneCombined">
+          <div class="dl-row" data-itag="8k" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">8K (4320p)</span><span class="dl-row-detail">Se disponível no vídeo original · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="4k" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">4K (2160p)</span><span class="dl-row-detail">Se disponível no vídeo original · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="max" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">Máxima (auto)</span><span class="dl-row-detail">Melhor qualidade disponível · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="22" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">720p HD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="18" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">360p SD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
         </div>
@@ -551,6 +554,8 @@ input[type=range]{flex:1;accent-color:var(--accent);}
           <div class="dl-row" data-itag="251" data-ext="webm"><div class="dl-row-info"><span class="dl-row-qual">160kbps Opus</span><span class="dl-row-detail">WebM · Alta qualidade</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
         </div>
         <div class="dl-tab-pane" id="dlPaneMute">
+          <div class="dl-row" data-itag="8kmute" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">8K (4320p)</span><span class="dl-row-detail">Se disponível · H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="4kmute" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">4K (2160p)</span><span class="dl-row-detail">Se disponível · H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="137" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">1080p Full HD</span><span class="dl-row-detail">H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="136" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">720p HD</span><span class="dl-row-detail">H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="135" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">480p</span><span class="dl-row-detail">H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
@@ -784,10 +789,15 @@ var dlCurrentUrl = '';
 // ─── Download via servidor próprio (same-origin = sem nova aba) ───────────────
 // Mapeamento itag → quality + mode para /api/video-dl
 var ITAG_MAP = {
+  '8k':  {quality:'4320', mode:'auto',  ext:'mp4'},  // 8K + áudio (se disponível)
+  '4k':  {quality:'2160', mode:'auto',  ext:'mp4'},  // 4K + áudio (se disponível)
+  'max': {quality:'max',  mode:'auto',  ext:'mp4'},  // melhor qualidade disponível
   '22':  {quality:'720',  mode:'auto',  ext:'mp4'},  // 720p+áudio progressivo
   '18':  {quality:'360',  mode:'auto',  ext:'mp4'},  // 360p+áudio progressivo
   '140': {quality:'audio',mode:'audio', ext:'m4a'},  // 128kbps AAC
   '251': {quality:'audio',mode:'audio', ext:'m4a'},  // áudio fallback
+  '8kmute': {quality:'4320', mode:'mute', ext:'mp4'}, // 8K vídeo-only (se disponível)
+  '4kmute': {quality:'2160', mode:'mute', ext:'mp4'}, // 4K vídeo-only (se disponível)
   '137': {quality:'1080', mode:'mute',  ext:'mp4'},  // 1080p vídeo-only
   '136': {quality:'720',  mode:'mute',  ext:'mp4'},  // 720p vídeo-only
   '135': {quality:'480',  mode:'mute',  ext:'mp4'},  // 480p vídeo-only
