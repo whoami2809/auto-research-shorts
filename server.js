@@ -1,9 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(cors()); app.use(express.json()); app.use(express.static('public'));
+
+const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
+fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
 let ytdl = null;
 try { ytdl = require('@distube/ytdl-core'); } catch(e) {}
@@ -193,161 +198,83 @@ app.get('/api/video-dl',async(req,res)=>{
 
   const isAudio = mode==='audio';
   const isMute  = mode==='mute';
-  const h = (quality && quality!=='max') ? parseInt(quality)||720 : 9999;
+  // "max" ou ausente = sem teto de altura (pega a maior disponível, ex.: 1080p+)
+  const h = (quality && quality!=='max') ? parseInt(quality)||1080 : 9999;
 
-  const videoId   = extractVideoId(url);
-  const isYouTube = !!videoId;
+  // Título vindo do frontend pode ser um placeholder de erro (ex.: "(não encontrado)")
+  // quando /api/info não conseguiu buscar metadados (isso só funciona hoje p/ YouTube).
+  // Nesse caso, ignoramos e caímos no default "video" do safeFilename.
+  const cleanTitle = (title && !/n[aã]o.?encontrad/i.test(title)) ? title : null;
 
-  // Formatos: itags específicos no YouTube, seletores genéricos nas demais plataformas
-  let fmtStr, fileExt;
+  // Seletor de formato único e genérico, funciona igual em qualquer plataforma (YouTube,
+  // TikTok, Instagram, Facebook, Kwai). Como agora sempre baixamos pra arquivo temporário
+  // (em vez de streamar puro pro stdout), o yt-dlp/ffmpeg pode mesclar vídeo+áudio com
+  // segurança em qualquer qualidade — inclusive 4K (2160p) e 8K (4320p), se o vídeo original
+  // tiver essa resolução disponível. Se não tiver, o seletor "height<=h" cai automaticamente
+  // pra maior qualidade disponível abaixo do teto pedido, sem erro.
+  let fmtStr;
   if(isAudio){
-    fmtStr  = isYouTube
-      ? '140/bestaudio[ext=m4a]/bestaudio'
-      : 'bestaudio[ext=m4a]/bestaudio/best';
-    fileExt = 'm4a';
+    fmtStr = 'bestaudio[ext=m4a]/bestaudio/best';
   } else if(isMute){
-    if(isYouTube){
-      fmtStr  = h>=1080 ? '137/bestvideo[height<=1080][ext=mp4]'
-              : h>=720  ? '136/137/bestvideo[height<=720][ext=mp4]'
-              : h>=480  ? '135/bestvideo[height<=480][ext=mp4]'
-              :           '134/bestvideo[height<=360][ext=mp4]';
-    } else {
-      fmtStr  = `bestvideo[height<=${h}][ext=mp4]/bestvideo[ext=mp4]/bestvideo`;
-    }
-    fileExt = 'mp4';
+    fmtStr = `bestvideo[height<=${h}][ext=mp4]/bestvideo[height<=${h}]/bestvideo`;
   } else {
-    if(isYouTube){
-      // 22 = 720p H.264+AAC progressivo | 18 = 360p, disponível em ~100% dos vídeos
-      fmtStr = h>=720 ? '22/18' : '18';
-    } else {
-      // TikTok/Instagram/Facebook/Kwai: geralmente já vem em MP4 único mesclado
-      fmtStr = `best[height<=${h}][ext=mp4]/best[ext=mp4]/best`;
-    }
-    fileExt = 'mp4';
+    fmtStr = `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]/best`;
   }
 
-  const filename    = safeFilename(title, fileExt);
-  const contentType = isAudio ? 'audio/mp4' : 'video/mp4';
-
-  // ── yt-dlp: stdout streaming (inicia imediatamente, sem timeout do Render) ───
-  if(ytdlpBin){
-    const args = [
-      '--extractor-args','youtube:player_client=ios,web',
-      '--no-check-certificates',
-      '-f', fmtStr,
-      '--no-playlist',
-      '-o', '-',          // stdout — streaming direto para o browser
-      url,
-    ];
-    console.log('[yt-dlp] format=%s file=%s', fmtStr, filename);
-
-    const proc = spawn(ytdlpBin, args);
-    let headersSent = false;
-    let stderrBuf   = '';
-
-    // Primeiro chunk: manda headers e começa a stremar
-    proc.stdout.once('data', chunk => {
-      if(!res.headersSent){
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        headersSent = true;
-      }
-      res.write(chunk);
-    });
-    proc.stdout.on('data', chunk => { if(headersSent) res.write(chunk); });
-    proc.stdout.on('end',  ()     => { if(!res.writableEnded) res.end(); });
-
-    proc.stderr.on('data', d => {
-      const s = d.toString().trim();
-      stderrBuf += s + '\n';
-      if(/\[download\].*%|ERROR|WARNING|ffmpeg|format/i.test(s))
-        console.log('[yt-dlp stderr]', s.slice(0,150));
-    });
-
-    proc.on('close', code => {
-      if(code !== 0 && !headersSent){
-        // yt-dlp falhou antes de enviar qualquer byte → tenta Piped (só funciona p/ YouTube)
-        console.warn('[yt-dlp] falhou code=%d\n%s', code, stderrBuf.slice(-500));
-        pipedFallback();
-      } else if(!res.writableEnded){
-        res.end();
-      }
-    });
-
-    req.on('close', () => { try{ proc.kill(); }catch(e){} });
-    return;
+  if(!ytdlpBin){
+    return res.status(503).json({error:'yt-dlp não está disponível no servidor'});
   }
 
-  // ── Piped (fallback quando yt-dlp não está instalado) ─────────────────────
-  pipedFallback();
+  const jobId       = Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  const outTemplate = path.join(DOWNLOAD_DIR, `${jobId}.%(ext)s`);
 
-  async function pipedFallback(){
-    if(res.headersSent || res.writableEnded) return;
+  const args = [
+    '--extractor-args','youtube:player_client=ios,web',
+    '--no-check-certificates',
+    '--merge-output-format','mp4',   // garante container mp4 quando precisar mesclar vídeo+áudio
+    '-f', fmtStr,
+    '--no-playlist',
+    '-o', outTemplate,
+    url,
+  ];
+  console.log('[yt-dlp] format=%s job=%s', fmtStr, jobId);
 
-    if(!videoId){
-      return res.status(400).json({error:'Plataforma não suportada sem yt-dlp instalado'});
-    }
+  const proc = spawn(ytdlpBin, args);
+  let stderrBuf = '';
+  proc.stderr.on('data', d => {
+    const s = d.toString().trim();
+    stderrBuf += s + '\n';
+    if(/\[download\].*%|ERROR|WARNING|ffmpeg|format/i.test(s))
+      console.log('[yt-dlp stderr]', s.slice(0,150));
+  });
 
-    try{
-      const data = await pipedStreams(videoId);
-      if(!data) throw new Error('Todas as instâncias Piped falharam');
-
-      let stream = null;
-      if(isAudio){
-        stream = (data.audioStreams||[]).find(s=>s.mimeType?.includes('mp4'))
-              || (data.audioStreams||[])[0];
-      } else if(isMute){
-        stream = (data.videoStreams||[])
-          .filter(s=>s.videoOnly && parseInt(s.quality)<=h)
-          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))[0]
-          || (data.videoStreams||[]).filter(s=>s.videoOnly)
-          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))[0];
-      } else {
-        // Preferência: stream combinado (videoOnly=false)
-        stream = (data.videoStreams||[])
-          .filter(s=>!s.videoOnly && parseInt(s.quality)<=h)
-          .sort((a,b)=>parseInt(b.quality)-parseInt(a.quality))[0];
-        // Fallback: qualquer combinado disponível
-        if(!stream){
-          stream = (data.videoStreams||[])
-            .filter(s=>!s.videoOnly)
-            .sort((a,b)=>parseInt(a.quality)-parseInt(b.quality))[0];
-        }
-      }
-
-      if(!stream?.url) throw new Error('Nenhum stream disponível nesta qualidade via Piped');
-
-      console.log('[piped] stream quality=%s videoOnly=%s', stream.quality, stream.videoOnly);
-
-      const upstream = await fetch(stream.url,{
-        headers:{'User-Agent':'Mozilla/5.0','Referer':'https://piped.video/'},
-        signal:AbortSignal.timeout(90000),
-      });
-      if(!upstream.ok) throw new Error(`Piped upstream HTTP ${upstream.status}`);
-
-      const ct = upstream.headers.get('Content-Type') || contentType;
-      const cl = upstream.headers.get('Content-Length');
-      res.setHeader('Content-Type', ct);
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      if(cl) res.setHeader('Content-Length', cl);
-
-      const reader = upstream.body.getReader();
-      req.on('close', ()=>reader.cancel());
-      const pump = async()=>{
-        try{
-          const{done,value} = await reader.read();
-          if(done){ if(!res.writableEnded) res.end(); return; }
-          if(!res.writableEnded){ if(res.write(Buffer.from(value))) pump(); else res.once('drain',pump); }
-        }catch(e){ if(!res.writableEnded) res.end(); }
-      };
-      pump();
-
-    }catch(e){
-      console.error('[piped fallback]', e.message);
+  proc.on('close', code => {
+    if(code !== 0){
+      console.warn('[yt-dlp] falhou code=%d\n%s', code, stderrBuf.slice(-500));
       if(!res.headersSent)
-        res.status(503).json({error:'Download falhou nos dois métodos. '+e.message});
+        res.status(500).json({error:'Falha no download. '+stderrBuf.slice(-300)});
+      return;
     }
-  }
+
+    // Descobre o arquivo real gerado (a extensão final depende do que o yt-dlp escolheu)
+    fs.readdir(DOWNLOAD_DIR, (err, files) => {
+      const match = !err && files.find(f => f.startsWith(jobId + '.'));
+      if(!match){
+        if(!res.headersSent) res.status(500).json({error:'Arquivo não encontrado após download'});
+        return;
+      }
+      const filePath = path.join(DOWNLOAD_DIR, match);
+      const ext      = path.extname(match).slice(1) || (isAudio ? 'm4a' : 'mp4');
+      const filename = safeFilename(cleanTitle, ext);
+
+      res.download(filePath, filename, downloadErr => {
+        if(downloadErr) console.error('[video-dl] erro ao enviar arquivo:', downloadErr.message);
+        fs.unlink(filePath, () => {}); // limpeza — disco do Render é efêmero mesmo, mas evita lixo entre requests
+      });
+    });
+  });
+
+  req.on('close', () => { try{ proc.kill(); }catch(e){} });
 });
 
 // ─── /api/frame (Lens) ────────────────────────────────────────────────────────
