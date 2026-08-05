@@ -176,15 +176,16 @@ ${text.slice(0,3000)}`}]
 //    136 → 720p vídeo-only
 //    137 → 1080p vídeo-only
 //
+//  Fora do YouTube (TikTok, Instagram, Facebook, Kwai, etc.), usamos seletores
+//  genéricos do yt-dlp (best/bestaudio/bestvideo). Essas plataformas quase
+//  sempre entregam o vídeo já como um único MP4 mesclado, então não é
+//  necessário DASH/merge na maioria dos casos — e quando for, o ffmpeg
+//  instalado no container resolve automaticamente.
+//
 //  Por que stdout e não arquivo temporário?
 //  → Render free tier tem timeout de 90s por request
 //  → Arquivo temp: servidor espera 100% baixado antes de enviar → timeout
 //  → stdout: streaming começa imediatamente → sem timeout
-//
-//  Por que progressivo e não DASH?
-//  → DASH = vídeo+áudio separados → precisa de ffmpeg para muxar
-//  → Sem ffmpeg → arquivo fragmentado/corrompido
-//  → Progressivo = arquivo único, stream byte-a-byte → sempre válido
 // ═══════════════════════════════════════════════════════════════════════════════
 app.get('/api/video-dl',async(req,res)=>{
   const {url, quality, mode, title} = req.query;
@@ -194,21 +195,34 @@ app.get('/api/video-dl',async(req,res)=>{
   const isMute  = mode==='mute';
   const h = (quality && quality!=='max') ? parseInt(quality)||720 : 9999;
 
-  // Formatos progressivos APENAS (MP4 completo, sem DASH, sem ffmpeg)
+  const videoId   = extractVideoId(url);
+  const isYouTube = !!videoId;
+
+  // Formatos: itags específicos no YouTube, seletores genéricos nas demais plataformas
   let fmtStr, fileExt;
   if(isAudio){
-    fmtStr  = '140/bestaudio[ext=m4a]/bestaudio';
+    fmtStr  = isYouTube
+      ? '140/bestaudio[ext=m4a]/bestaudio'
+      : 'bestaudio[ext=m4a]/bestaudio/best';
     fileExt = 'm4a';
   } else if(isMute){
-    fmtStr  = h>=1080 ? '137/bestvideo[height<=1080][ext=mp4]'
-            : h>=720  ? '136/137/bestvideo[height<=720][ext=mp4]'
-            : h>=480  ? '135/bestvideo[height<=480][ext=mp4]'
-            :           '134/bestvideo[height<=360][ext=mp4]';
+    if(isYouTube){
+      fmtStr  = h>=1080 ? '137/bestvideo[height<=1080][ext=mp4]'
+              : h>=720  ? '136/137/bestvideo[height<=720][ext=mp4]'
+              : h>=480  ? '135/bestvideo[height<=480][ext=mp4]'
+              :           '134/bestvideo[height<=360][ext=mp4]';
+    } else {
+      fmtStr  = `bestvideo[height<=${h}][ext=mp4]/bestvideo[ext=mp4]/bestvideo`;
+    }
     fileExt = 'mp4';
   } else {
-    // 22 = 720p H.264+AAC progressivo (não-DASH)
-    // 18 = 360p H.264+AAC progressivo (disponível em ~100% dos vídeos)
-    fmtStr  = h>=720 ? '22/18' : '18';
+    if(isYouTube){
+      // 22 = 720p H.264+AAC progressivo | 18 = 360p, disponível em ~100% dos vídeos
+      fmtStr = h>=720 ? '22/18' : '18';
+    } else {
+      // TikTok/Instagram/Facebook/Kwai: geralmente já vem em MP4 único mesclado
+      fmtStr = `best[height<=${h}][ext=mp4]/best[ext=mp4]/best`;
+    }
     fileExt = 'mp4';
   }
 
@@ -252,7 +266,7 @@ app.get('/api/video-dl',async(req,res)=>{
 
     proc.on('close', code => {
       if(code !== 0 && !headersSent){
-        // yt-dlp falhou antes de enviar qualquer byte → tenta Piped
+        // yt-dlp falhou antes de enviar qualquer byte → tenta Piped (só funciona p/ YouTube)
         console.warn('[yt-dlp] falhou code=%d\n%s', code, stderrBuf.slice(-500));
         pipedFallback();
       } else if(!res.writableEnded){
@@ -270,7 +284,6 @@ app.get('/api/video-dl',async(req,res)=>{
   async function pipedFallback(){
     if(res.headersSent || res.writableEnded) return;
 
-    const videoId = extractVideoId(url);
     if(!videoId){
       return res.status(400).json({error:'Plataforma não suportada sem yt-dlp instalado'});
     }
