@@ -10,6 +10,24 @@ app.use(cors()); app.use(express.json()); app.use(express.static('public'));
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
 
+// ─── Cookies do YouTube ──────────────────────────────────────────────────────
+// O Secret File do Render fica em /etc/secrets/cookies.txt, que é READ-ONLY.
+// O yt-dlp precisa reescrever o arquivo de cookies após o uso (refresh de sessão),
+// então copiamos pra uma cópia gravável e usamos essa cópia nas chamadas.
+let YTDLP_COOKIES_PATH = null;
+(function setupCookies(){
+  const src = process.env.YTDLP_COOKIES_FILE;
+  if (!src || !fs.existsSync(src)) { console.log('[cookies] YTDLP_COOKIES_FILE não configurado'); return; }
+  try {
+    const dest = path.join(DOWNLOAD_DIR, 'cookies-writable.txt');
+    fs.copyFileSync(src, dest);
+    YTDLP_COOKIES_PATH = dest;
+    console.log('[cookies] copiado pra local gravável:', dest);
+  } catch(e) {
+    console.warn('[cookies] falha ao copiar:', e.message);
+  }
+})();
+
 let ytdl = null;
 try { ytdl = require('@distube/ytdl-core'); } catch(e) {}
 
@@ -240,7 +258,7 @@ app.get('/api/video-dl',async(req,res)=>{
   // Cookies opcionais — se o arquivo existir (configurado via Secret File no Render +
   // variável de ambiente YTDLP_COOKIES_FILE apontando pro caminho), usamos pra autenticar
   // como uma conta logada de verdade, o que resolve o bloqueio de bot do YouTube de vez.
-  const cookiesPath = process.env.YTDLP_COOKIES_FILE;
+  const cookiesPath = YTDLP_COOKIES_PATH;
   if(cookiesPath && fs.existsSync(cookiesPath)){
     args.push('--cookies', cookiesPath);
   }
