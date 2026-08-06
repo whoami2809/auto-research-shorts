@@ -219,6 +219,55 @@ app.get('/api/video-dl',async(req,res)=>{
   // "max" ou ausente = sem teto de altura (pega a maior disponível, ex.: 1080p+)
   const h = (quality && quality!=='max') ? parseInt(quality)||1080 : 9999;
 
+  // ─── Caminho 1: YouTube via ytdl-core ──────────────────────────────────────
+  // Mesma biblioteca que já funciona no /api/audio (Whisper) — decodifica a
+  // assinatura do YouTube em JS puro, sem precisar de Node externo/Deno/EJS/
+  // scripts do GitHub. Cobre áudio, vídeo-only, e vídeo+áudio progressivo
+  // (geralmente até 720p). Se não achar formato adequado, cai no yt-dlp abaixo.
+  const videoId = extractVideoId(url);
+  if (videoId && ytdl) {
+    try {
+      const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+      const title = info.videoDetails?.title || null;
+      let format = null, kind = 'audio';
+
+      if (isAudio) {
+        const fmts = ytdl.filterFormats(info.formats, 'audioonly')
+          .sort((a,b)=>(b.audioBitrate||0)-(a.audioBitrate||0));
+        format = fmts[0];
+      } else if (isMute) {
+        const fmts = ytdl.filterFormats(info.formats, 'videoonly')
+          .filter(f => !f.height || f.height <= h)
+          .sort((a,b)=>(b.height||0)-(a.height||0));
+        format = fmts[0]; kind = 'video';
+      } else {
+        // progressivo = vídeo+áudio já mesclados num único stream, sem precisar de ffmpeg
+        const fmts = ytdl.filterFormats(info.formats, 'audioandvideo')
+          .filter(f => !f.height || f.height <= h)
+          .sort((a,b)=>(b.height||0)-(a.height||0));
+        format = fmts[0]; kind = 'video';
+      }
+
+      if (format) {
+        const ext = kind === 'audio' ? (format.container || 'm4a') : (format.container || 'mp4');
+        const filename = safeFilename(title, ext);
+        console.log('[ytdl-core] usando itag=%s (%sp) job=youtube:%s', format.itag, format.height||'-', videoId);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+        res.setHeader('Content-Type', (format.mimeType||'application/octet-stream').split(';')[0]);
+        const stream = ytdl.downloadFromInfo(info, { format });
+        stream.on('error', e => { console.warn('[ytdl-core] erro no stream:', e.message); if(!res.headersSent) res.status(500).end(); });
+        req.on('close', () => stream.destroy());
+        return stream.pipe(res);
+      }
+      console.log('[ytdl-core] nenhum formato compatível (qualidade pedida acima do progressivo disponível) — caindo pro yt-dlp');
+    } catch(e) {
+      console.warn('[ytdl-core] falhou, caindo pro yt-dlp:', e.message);
+    }
+  }
+
+  // ─── Caminho 2: yt-dlp (YouTube em qualidades altas / merge, e todas as outras
+  // plataformas — TikTok, Instagram, Facebook, Kwai, Threads, etc.) ───────────
+
   // Seletor de formato único e genérico, funciona igual em qualquer plataforma (YouTube,
   // TikTok, Instagram, Facebook, Kwai, Threads...). Como sempre baixamos pra arquivo
   // temporário (em vez de streamar puro pro stdout), o yt-dlp/ffmpeg pode mesclar
@@ -247,7 +296,11 @@ app.get('/api/video-dl',async(req,res)=>{
   // cada um tem um comportamento de verificação diferente, então aumenta a chance de um
   // deles passar sem precisar de cookies. Se mesmo assim falhar, dá pra configurar cookies
   // reais (ver YTDLP_COOKIES_FILE abaixo) — essa é a solução definitiva pro bloqueio.
-  const extractorArgs = 'youtube:player_client=ios,android,tv_embedded,web_embedded,web';
+  // O cliente "ios" (que estávamos usando primeiro) IGNORA cookies silenciosamente —
+  // ele usa autenticação OAuth própria, não cookies de navegador. É por isso que o log
+  // sempre mostrava "Skipping client ios since it does not support cookies". Trocado
+  // pra web,mweb,android — que respeitam os cookies de verdade.
+  const extractorArgs = 'youtube:player_client=web,mweb,android';
 
   const args = [
     '--extractor-args', extractorArgs,
