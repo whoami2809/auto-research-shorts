@@ -193,7 +193,7 @@ ${text.slice(0,3000)}`}]
 //  → stdout: streaming começa imediatamente → sem timeout
 // ═══════════════════════════════════════════════════════════════════════════════
 app.get('/api/video-dl',async(req,res)=>{
-  const {url, quality, mode, title} = req.query;
+  const {url, quality, mode, audioFormat, audioBitrate} = req.query;
   if(!url) return res.status(400).send('URL obrigatória');
 
   const isAudio = mode==='audio';
@@ -201,20 +201,13 @@ app.get('/api/video-dl',async(req,res)=>{
   // "max" ou ausente = sem teto de altura (pega a maior disponível, ex.: 1080p+)
   const h = (quality && quality!=='max') ? parseInt(quality)||1080 : 9999;
 
-  // Título vindo do frontend pode ser um placeholder de erro (ex.: "(não encontrado)")
-  // quando /api/info não conseguiu buscar metadados (isso só funciona hoje p/ YouTube).
-  // Nesse caso, ignoramos e caímos no default "video" do safeFilename.
-  const cleanTitle = (title && !/n[aã]o.?encontrad/i.test(title)) ? title : null;
-
   // Seletor de formato único e genérico, funciona igual em qualquer plataforma (YouTube,
-  // TikTok, Instagram, Facebook, Kwai). Como agora sempre baixamos pra arquivo temporário
-  // (em vez de streamar puro pro stdout), o yt-dlp/ffmpeg pode mesclar vídeo+áudio com
-  // segurança em qualquer qualidade — inclusive 4K (2160p) e 8K (4320p), se o vídeo original
-  // tiver essa resolução disponível. Se não tiver, o seletor "height<=h" cai automaticamente
-  // pra maior qualidade disponível abaixo do teto pedido, sem erro.
+  // TikTok, Instagram, Facebook, Kwai, Threads...). Como sempre baixamos pra arquivo
+  // temporário (em vez de streamar puro pro stdout), o yt-dlp/ffmpeg pode mesclar
+  // vídeo+áudio com segurança em qualquer qualidade — inclusive 4K/8K, se disponível.
   let fmtStr;
   if(isAudio){
-    fmtStr = 'bestaudio[ext=m4a]/bestaudio/best';
+    fmtStr = 'bestaudio/best';
   } else if(isMute){
     fmtStr = `bestvideo[height<=${h}][ext=mp4]/bestvideo[height<=${h}]/bestvideo`;
   } else {
@@ -225,18 +218,42 @@ app.get('/api/video-dl',async(req,res)=>{
     return res.status(503).json({error:'yt-dlp não está disponível no servidor'});
   }
 
-  const jobId       = Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-  const outTemplate = path.join(DOWNLOAD_DIR, `${jobId}.%(ext)s`);
+  const jobId = Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  // %(title)s embutido no template = o próprio yt-dlp nomeia o arquivo com o título real
+  // do vídeo (obtido dos metadados da plataforma), então não dependemos mais do frontend
+  // adivinhar/buscar o título. Limitado a 150 bytes pra evitar nomes gigantes.
+  const outTemplate = path.join(DOWNLOAD_DIR, `${jobId}__%(title).150B.%(ext)s`);
+
+  // YouTube passou a exigir verificação extra ("Sign in to confirm you're not a bot") em
+  // IPs de datacenter como os do Render. Tentamos vários "clientes" do player em cascata —
+  // cada um tem um comportamento de verificação diferente, então aumenta a chance de um
+  // deles passar sem precisar de cookies. Se mesmo assim falhar, dá pra configurar cookies
+  // reais (ver YTDLP_COOKIES_FILE abaixo) — essa é a solução definitiva pro bloqueio.
+  const extractorArgs = 'youtube:player_client=ios,android,tv_embedded,web_embedded,web';
 
   const args = [
-    '--extractor-args','youtube:player_client=ios,web',
+    '--extractor-args', extractorArgs,
     '--no-check-certificates',
-    '--merge-output-format','mp4',   // garante container mp4 quando precisar mesclar vídeo+áudio
-    '-f', fmtStr,
     '--no-playlist',
-    '-o', outTemplate,
-    url,
   ];
+
+  // Cookies opcionais — se o arquivo existir (configurado via Secret File no Render +
+  // variável de ambiente YTDLP_COOKIES_FILE apontando pro caminho), usamos pra autenticar
+  // como uma conta logada de verdade, o que resolve o bloqueio de bot do YouTube de vez.
+  const cookiesPath = process.env.YTDLP_COOKIES_FILE;
+  if(cookiesPath && fs.existsSync(cookiesPath)){
+    args.push('--cookies', cookiesPath);
+  }
+
+  if(isAudio){
+    const fmt = ['mp3','opus','m4a'].includes(audioFormat) ? audioFormat : 'm4a';
+    const kbps = parseInt(audioBitrate) || 128;
+    args.push('-f', fmtStr, '-x', '--audio-format', fmt, '--audio-quality', `${kbps}K`);
+  } else {
+    args.push('--merge-output-format','mp4', '-f', fmtStr);
+  }
+  args.push('-o', outTemplate, url);
+
   console.log('[yt-dlp] format=%s job=%s', fmtStr, jobId);
 
   const proc = spawn(ytdlpBin, args);
@@ -251,21 +268,29 @@ app.get('/api/video-dl',async(req,res)=>{
   proc.on('close', code => {
     if(code !== 0){
       console.warn('[yt-dlp] falhou code=%d\n%s', code, stderrBuf.slice(-500));
-      if(!res.headersSent)
-        res.status(500).json({error:'Falha no download. '+stderrBuf.slice(-300)});
+      if(!res.headersSent){
+        const isBotCheck = /Sign in to confirm|not a bot/i.test(stderrBuf);
+        res.status(500).json({
+          error: isBotCheck
+            ? 'O YouTube bloqueou o servidor por verificação anti-bot. Configure cookies (YTDLP_COOKIES_FILE) para resolver definitivamente.'
+            : 'Falha no download. '+stderrBuf.slice(-300)
+        });
+      }
       return;
     }
 
-    // Descobre o arquivo real gerado (a extensão final depende do que o yt-dlp escolheu)
+    // Descobre o arquivo real gerado — nome já vem com o título verdadeiro do vídeo,
+    // graças ao %(title)s no template de saída.
     fs.readdir(DOWNLOAD_DIR, (err, files) => {
-      const match = !err && files.find(f => f.startsWith(jobId + '.'));
+      const match = !err && files.find(f => f.startsWith(jobId + '__'));
       if(!match){
         if(!res.headersSent) res.status(500).json({error:'Arquivo não encontrado após download'});
         return;
       }
-      const filePath = path.join(DOWNLOAD_DIR, match);
-      const ext      = path.extname(match).slice(1) || (isAudio ? 'm4a' : 'mp4');
-      const filename = safeFilename(cleanTitle, ext);
+      const filePath   = path.join(DOWNLOAD_DIR, match);
+      const ext        = path.extname(match).slice(1) || (isAudio ? 'm4a' : 'mp4');
+      const realTitle  = match.slice((jobId + '__').length, -(ext.length + 1));
+      const filename   = safeFilename(realTitle, ext);
 
       res.download(filePath, filename, downloadErr => {
         if(downloadErr) console.error('[video-dl] erro ao enviar arquivo:', downloadErr.message);
