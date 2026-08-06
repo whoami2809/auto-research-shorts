@@ -55,13 +55,33 @@ function safeFilename(title, ext){
 }
 
 // ─── Piped ────────────────────────────────────────────────────────────────────
-const PIPED = [
+// Lista estática só como fallback caso a API de instâncias abaixo esteja fora do ar
+let PIPED = [
   'https://pipedapi.kavin.rocks',
+  'https://pipedapi.leptons.xyz',
+  'https://piped-api.privacy.com.de',
   'https://pipedapi.adminforge.de',
-  'https://piped-api.garudalinux.org',
   'https://api.piped.yt',
-  'https://pipedapi.tokhmi.xyz',
 ];
+
+// A lista de instâncias públicas do Piped muda com frequência (instâncias saem do ar
+// e novas aparecem). Em vez de manter uma lista fixa no código (que fica velha), busca
+// a lista oficial atualizada no início do servidor.
+(async function loadPipedInstances(){
+  try {
+    const r = await fetch('https://piped-instances.kavin.rocks/', { signal: AbortSignal.timeout(8000) });
+    if (r.ok) {
+      const list = await r.json();
+      const urls = (list || []).map(i => i.api_url).filter(Boolean);
+      if (urls.length) {
+        PIPED = urls.slice(0, 10);
+        console.log('[piped] lista de instâncias atualizada:', PIPED.length, 'instâncias ativas');
+      }
+    }
+  } catch(e) {
+    console.warn('[piped] não consegui buscar lista de instâncias, usando fallback fixo:', e.message);
+  }
+})();
 async function pipedStreams(videoId){
   const tryOne = async (api) => {
     const r = await fetch(`${api}/streams/${videoId}`, { signal: AbortSignal.timeout(6000) });
