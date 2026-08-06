@@ -220,12 +220,14 @@ app.get('/api/video-dl',async(req,res)=>{
   const h = (quality && quality!=='max') ? parseInt(quality)||1080 : 9999;
 
   // ─── Caminho 1: YouTube via ytdl-core ──────────────────────────────────────
-  // Mesma biblioteca que já funciona no /api/audio (Whisper) — decodifica a
-  // assinatura do YouTube em JS puro, sem precisar de Node externo/Deno/EJS/
-  // scripts do GitHub. Cobre áudio, vídeo-only, e vídeo+áudio progressivo
-  // (geralmente até 720p). Se não achar formato adequado, cai no yt-dlp abaixo.
+  // DESATIVADO por enquanto: o IP compartilhado do Render também está sendo
+  // rate-limitado (429) pelo endpoint que o ytdl-core usa, então essa tentativa
+  // só adicionava uma chamada de rede inteira desperdiçada antes de cair pro
+  // yt-dlp (que já está funcionando via cookies). Reative trocando pra "true"
+  // se esse bloqueio específico for embora no futuro.
+  const TRY_YTDLCORE_FIRST = false;
   const videoId = extractVideoId(url);
-  if (videoId && ytdl) {
+  if (TRY_YTDLCORE_FIRST && videoId && ytdl) {
     try {
       const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
       const title = info.videoDetails?.title || null;
@@ -310,6 +312,13 @@ app.get('/api/video-dl',async(req,res)=>{
     // Os scripts EJS agora vêm embutidos via pip (yt-dlp-ejs), sem depender do
     // GitHub em runtime — ver Dockerfile.
     '--js-runtimes','node',
+    // O "Unable to download webpage: 429" é retentado automaticamente pelo yt-dlp
+    // com backoff antes de desistir e cair pro próximo player_client — isso é o
+    // que está causando os 10-20s de demora. Reduzindo as tentativas, ele desiste
+    // rápido de um cliente bloqueado e já parte pro próximo.
+    '--extractor-retries','1',
+    '--retries','2',
+    '--socket-timeout','10',
   ];
 
   // Cookies opcionais — se o arquivo existir (configurado via Secret File no Render +
