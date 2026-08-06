@@ -877,6 +877,8 @@ function triggerServerDownload(itag, url){
   closeBtn.addEventListener('click', function(){ modal.style.display='none'; });
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.style.display='none'; });
 
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
   async function downloadOne(link, opt){
     var qs = 'url=' + encodeURIComponent(link);
     if(opt[0]==='audio'){
@@ -901,6 +903,11 @@ function triggerServerDownload(itag, url){
     return filename;
   }
 
+  // Intervalo entre cada link do lote — o YouTube limita requisições por JANELA DE
+  // TEMPO por IP, não por download simultâneo. Mesmo baixando um de cada vez, se
+  // forem muito próximos, todos tomam 429. Esse intervalo dá tempo do limite "resetar".
+  var GAP_MS = 8000;
+
   startBtn.addEventListener('click', async function(){
     var raw = textarea.value || '';
     var links = raw.split(/\s+/).map(function(s){ return s.trim(); })
@@ -913,13 +920,29 @@ function triggerServerDownload(itag, url){
     startBtn.disabled = true;
 
     for(var i=0;i<links.length;i++){
+      if(i > 0){
+        startBtn.textContent = '⏸ Aguardando ' + (GAP_MS/1000) + 's (evita bloqueio do YouTube)...';
+        await sleep(GAP_MS);
+      }
       startBtn.textContent = '⏳ Baixando ' + (i+1) + '/' + links.length;
       var row = document.createElement('div');
       row.textContent = '⏳ ' + links[i].slice(0,52) + '...';
       log.appendChild(row);
       log.scrollTop = log.scrollHeight;
       try{
-        var filename = await downloadOne(links[i], opt);
+        var filename;
+        try{
+          filename = await downloadOne(links[i], opt);
+        }catch(e1){
+          // se caiu em 429, tenta mais uma vez depois de uma pausa maior antes de desistir
+          if(/429|Too Many Requests/i.test(e1.message)){
+            row.textContent = '⏸ Bloqueio temporário — tentando de novo em 15s...';
+            await sleep(15000);
+            filename = await downloadOne(links[i], opt);
+          } else {
+            throw e1;
+          }
+        }
         row.textContent = '✅ ' + filename;
         row.style.color = 'var(--accent2)';
       }catch(e){
