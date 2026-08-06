@@ -432,7 +432,7 @@ input[type=range]{flex:1;accent-color:var(--accent);}
   </button>
   <button class="sb-btn" data-panel="baixar" title="Download">
     <div class="sb-dot"></div>
-    <svg viewBox="0 0 24 24"><path d="M12 3v13M5 16l7 7 7-7"/><path d="M3 21h18"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/></svg>
     baixar
   </button>
   <button class="sb-btn" data-panel="info" title="Info do vídeo">
@@ -528,12 +528,46 @@ input[type=range]{flex:1;accent-color:var(--accent);}
           <span class="tc-check"></span>
           <input type="checkbox" id="chkFrames" checked style="display:none">
         </label>
+        <label class="toggle-chip" id="multiBtn" style="cursor:pointer;">
+          <span class="tc-icon">📑</span><span>Múltiplos links</span>
+        </label>
+      </div>
+      <div id="platformIcons" style="display:flex;gap:14px;align-items:center;justify-content:center;margin-top:22px;opacity:.55;z-index:1;flex-wrap:wrap;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.14em;color:#5a5478;text-transform:uppercase;margin-right:2px;">suporta:</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="YouTube"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4L15.8 12Z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="TikTok"><path d="M16.6 5.8A4.8 4.8 0 0 1 15.2 2h-3.3v14.2a2.9 2.9 0 1 1-2.4-2.9V9.9a6.1 6.1 0 1 0 5.2 6V9.4a8 8 0 0 0 4.7 1.5V7.6a4.8 4.8 0 0 1-2.8-1.8Z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="Instagram"><path d="M12 2c2.7 0 3.1 0 4.1.1 1.1 0 1.8.2 2.5.4a5 5 0 0 1 1.8 1.1 5 5 0 0 1 1.1 1.8c.2.7.4 1.4.4 2.5.1 1 .1 1.4.1 4.1s0 3.1-.1 4.1c0 1.1-.2 1.8-.4 2.5a5 5 0 0 1-1.1 1.8 5 5 0 0 1-1.8 1.1c-.7.2-1.4.4-2.5.4-1 .1-1.4.1-4.1.1s-3.1 0-4.1-.1c-1.1 0-1.8-.2-2.5-.4a5 5 0 0 1-1.8-1.1 5 5 0 0 1-1.1-1.8c-.2-.7-.4-1.4-.4-2.5C2 15.1 2 14.7 2 12s0-3.1.1-4.1c0-1.1.2-1.8.4-2.5a5 5 0 0 1 1.1-1.8 5 5 0 0 1 1.8-1.1c.7-.2 1.4-.4 2.5-.4C8.9 2 9.3 2 12 2Zm0 3.8A6.2 6.2 0 1 0 12 18.2 6.2 6.2 0 0 0 12 5.8Zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-10.4a1.4 1.4 0 1 1-2.9 0 1.4 1.4 0 0 1 2.9 0Z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="Facebook"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="X (Twitter)"><path d="M18.9 2H22l-7.2 8.3L23.3 22h-6.6l-5.2-6.8L5.6 22H2.4l7.7-8.9L1 2h6.8l4.7 6.2Zm-1.2 18h1.7L7.4 3.9H5.6Z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="Reddit"><path d="M22 12a2 2 0 0 0-3.4-1.4 9 9 0 0 0-4.9-1.5l.8-3.8 2.6.6a1.5 1.5 0 1 0 .2-.9l-3-.7a.4.4 0 0 0-.5.3l-1 4.5a9 9 0 0 0-5 1.5A2 2 0 1 0 5 14.3 3 3 0 0 0 5 15c0 2.8 3.1 5 7 5s7-2.2 7-5a3 3 0 0 0 0-.7A2 2 0 0 0 22 12ZM8.5 14.5a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Zm7.1 2.6a4.3 4.3 0 0 1-3.6 1.4 4.3 4.3 0 0 1-3.6-1.4.5.5 0 0 1 .7-.7 3.3 3.3 0 0 0 2.9 1.1 3.3 3.3 0 0 0 2.9-1.1.5.5 0 0 1 .7.7Zm-.1-2.6a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="#8a80ab" title="Kwai"><path d="M4 3h4l4 5.5L16 3h4l-6.3 8.6L20.5 21H16l-4.3-6-4.4 6H3l6.6-9.2Z"/></svg>
       </div>
     </div>
   </div>
 
-  <!-- ─── PANEL: BAIXAR ─────────────────────────────────────────── -->
-  <div class="panel" id="panel-baixar">
+  <!-- ─── MODAL: MULTI DOWNLOAD ─────────────────────────────────── -->
+  <div id="multiModal" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(5,5,11,.82);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="width:92%;max-width:560px;background:linear-gradient(180deg,rgba(22,23,40,.97),rgba(12,13,25,.97));border:1px solid rgba(155,77,255,.3);border-radius:16px;padding:24px;box-shadow:0 0 60px rgba(155,77,255,.25);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <strong style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:.08em;color:#d8c7ff;">MULTI DOWNLOAD</strong>
+        <button id="multiClose" style="background:none;border:none;color:#8a80ab;font-size:18px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Cole um link por linha. Os downloads rodam um de cada vez (instância free do Render tem recursos limitados).</div>
+      <textarea id="multiUrls" placeholder="https://...&#10;https://...&#10;https://..." style="width:100%;min-height:140px;background:rgba(10,11,22,.8);border:1px solid rgba(155,77,255,.22);border-radius:10px;padding:12px;color:#d9cbff;font-family:'JetBrains Mono',monospace;font-size:12px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <select id="multiQuality" class="txt-select" style="flex:1;">
+          <option value="max|auto">Vídeo — Máxima (auto)</option>
+          <option value="1080|auto">Vídeo — 1080p</option>
+          <option value="720|auto">Vídeo — 720p</option>
+          <option value="audio|mp3|320">Áudio — 320kbps MP3</option>
+          <option value="audio|opus|160">Áudio — 160kbps Opus</option>
+          <option value="audio|m4a|128">Áudio — 128kbps AAC</option>
+        </select>
+      </div>
+      <button id="multiStart" class="txt-btn primary" style="width:100%;margin-top:14px;padding:12px;font-size:13px;">▶ Baixar todos</button>
+      <div id="multiLog" style="margin-top:14px;max-height:160px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;"></div>
+    </div>
+  </div>
     <div class="pi">
       <div class="panel-hdr"><span class="dot"></span> baixar</div>
       <div id="downloadPanel">
@@ -543,22 +577,23 @@ input[type=range]{flex:1;accent-color:var(--accent);}
           <button class="dl-tab-btn" data-tab="mute">📹 Só Vídeo</button>
         </div>
         <div class="dl-tab-pane active" id="dlPaneCombined">
+          <div class="dl-row" data-itag="max" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">Máxima disponível (auto)</span><span class="dl-row-detail">Melhor qualidade do vídeo original · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="8k" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">8K (4320p)</span><span class="dl-row-detail">Se disponível no vídeo original · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="4k" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">4K (2160p)</span><span class="dl-row-detail">Se disponível no vídeo original · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
-          <div class="dl-row" data-itag="max" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">Máxima (auto)</span><span class="dl-row-detail">Melhor qualidade disponível · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="1080combined" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">1080p Full HD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="22" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">720p HD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
-          <div class="dl-row" data-itag="18" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">360p SD</span><span class="dl-row-detail">H.264 · AAC · MP4</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
         </div>
         <div class="dl-tab-pane" id="dlPaneAudio">
-          <div class="dl-row" data-itag="140" data-ext="m4a"><div class="dl-row-info"><span class="dl-row-qual">128kbps AAC</span><span class="dl-row-detail">M4A · Alta qualidade</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
-          <div class="dl-row" data-itag="251" data-ext="webm"><div class="dl-row-info"><span class="dl-row-qual">160kbps Opus</span><span class="dl-row-detail">WebM · Alta qualidade</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="mp3-320" data-ext="mp3"><div class="dl-row-info"><span class="dl-row-qual">320kbps MP3</span><span class="dl-row-detail">Máxima qualidade de áudio · MP3</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="opus-160" data-ext="opus"><div class="dl-row-info"><span class="dl-row-qual">160kbps (Opus)</span><span class="dl-row-detail">Alta qualidade · Opus</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
+          <div class="dl-row" data-itag="aac-128" data-ext="m4a"><div class="dl-row-info"><span class="dl-row-qual">128kbps (AAC)</span><span class="dl-row-detail">Padrão · M4A</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
         </div>
         <div class="dl-tab-pane" id="dlPaneMute">
+          <div class="dl-row" data-itag="maxmute" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">Máxima disponível (auto)</span><span class="dl-row-detail">Melhor qualidade · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="8kmute" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">8K (4320p)</span><span class="dl-row-detail">Se disponível · H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="4kmute" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">4K (2160p)</span><span class="dl-row-detail">Se disponível · H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="137" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">1080p Full HD</span><span class="dl-row-detail">H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
           <div class="dl-row" data-itag="136" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">720p HD</span><span class="dl-row-detail">H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
-          <div class="dl-row" data-itag="135" data-ext="mp4"><div class="dl-row-info"><span class="dl-row-qual">480p</span><span class="dl-row-detail">H.264 · Sem áudio</span></div><button class="dl-row-btn">⬇ Baixar</button></div>
         </div>
         <div id="dlMsg" style="display:none"></div>
       </div>
@@ -789,18 +824,19 @@ var dlCurrentUrl = '';
 // ─── Download via servidor próprio (same-origin = sem nova aba) ───────────────
 // Mapeamento itag → quality + mode para /api/video-dl
 var ITAG_MAP = {
+  'max': {quality:'max',  mode:'auto',  ext:'mp4'},  // melhor qualidade disponível
   '8k':  {quality:'4320', mode:'auto',  ext:'mp4'},  // 8K + áudio (se disponível)
   '4k':  {quality:'2160', mode:'auto',  ext:'mp4'},  // 4K + áudio (se disponível)
-  'max': {quality:'max',  mode:'auto',  ext:'mp4'},  // melhor qualidade disponível
-  '22':  {quality:'720',  mode:'auto',  ext:'mp4'},  // 720p+áudio progressivo
-  '18':  {quality:'360',  mode:'auto',  ext:'mp4'},  // 360p+áudio progressivo
-  '140': {quality:'audio',mode:'audio', ext:'m4a'},  // 128kbps AAC
-  '251': {quality:'audio',mode:'audio', ext:'m4a'},  // áudio fallback
-  '8kmute': {quality:'4320', mode:'mute', ext:'mp4'}, // 8K vídeo-only (se disponível)
-  '4kmute': {quality:'2160', mode:'mute', ext:'mp4'}, // 4K vídeo-only (se disponível)
+  '1080combined': {quality:'1080', mode:'auto', ext:'mp4'}, // 1080p + áudio
+  '22':  {quality:'720',  mode:'auto',  ext:'mp4'},  // 720p+áudio
+  'maxmute': {quality:'max',  mode:'mute', ext:'mp4'}, // melhor qualidade, sem áudio
+  '8kmute':  {quality:'4320', mode:'mute', ext:'mp4'}, // 8K vídeo-only (se disponível)
+  '4kmute':  {quality:'2160', mode:'mute', ext:'mp4'}, // 4K vídeo-only (se disponível)
   '137': {quality:'1080', mode:'mute',  ext:'mp4'},  // 1080p vídeo-only
   '136': {quality:'720',  mode:'mute',  ext:'mp4'},  // 720p vídeo-only
-  '135': {quality:'480',  mode:'mute',  ext:'mp4'},  // 480p vídeo-only
+  'mp3-320':  {mode:'audio', ext:'mp3',  audioFormat:'mp3',  audioBitrate:'320'},
+  'opus-160': {mode:'audio', ext:'opus', audioFormat:'opus', audioBitrate:'160'},
+  'aac-128':  {mode:'audio', ext:'m4a',  audioFormat:'m4a',  audioBitrate:'128'},
 };
 
 function triggerServerDownload(itag, url){
@@ -809,10 +845,12 @@ function triggerServerDownload(itag, url){
   var title = (document.getElementById('videoTitle')||{}).textContent||'video';
   var dlUrl = '/api/video-dl'
     + '?url='     + encodeURIComponent(url)
-    + '&quality=' + map.quality
     + '&mode='    + map.mode
-    + '&title='   + encodeURIComponent(title.replace(/[<>:"/\\|?*]/g,'').slice(0,80));
+    + (map.quality      ? '&quality='     + map.quality      : '')
+    + (map.audioFormat  ? '&audioFormat=' + map.audioFormat  : '')
+    + (map.audioBitrate ? '&audioBitrate='+ map.audioBitrate : '');
   // <a download> com URL same-origin: browser baixa sem sair da página ✅
+  // O nome final do arquivo vem do servidor (título real do vídeo via yt-dlp).
   var a = document.createElement('a');
   a.href = dlUrl;
   a.download = (title.replace(/[^a-zA-Z0-9\s\-]/g,'').trim()||'video')+'.'+map.ext;
@@ -821,6 +859,79 @@ function triggerServerDownload(itag, url){
   a.click();
   document.body.removeChild(a);
 }
+
+// ─── Multi-download (vários links de uma vez) ─────────────────────────────────
+(function(){
+  var modal = document.getElementById('multiModal');
+  var openBtn = document.getElementById('multiBtn');
+  var closeBtn = document.getElementById('multiClose');
+  var startBtn = document.getElementById('multiStart');
+  var textarea = document.getElementById('multiUrls');
+  var qualitySelect = document.getElementById('multiQuality');
+  var log = document.getElementById('multiLog');
+  if(!modal||!openBtn) return;
+
+  openBtn.addEventListener('click', function(){ modal.style.display='flex'; });
+  closeBtn.addEventListener('click', function(){ modal.style.display='none'; });
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.style.display='none'; });
+
+  async function downloadOne(link, opt){
+    var qs = 'url=' + encodeURIComponent(link);
+    if(opt[0]==='audio'){
+      qs += '&mode=audio&audioFormat=' + opt[1] + '&audioBitrate=' + opt[2];
+    } else {
+      qs += '&mode=auto&quality=' + opt[0];
+    }
+    var res = await fetch('/api/video-dl?' + qs);
+    if(!res.ok){
+      var j = await res.json().catch(function(){ return {}; });
+      throw new Error(j.error || ('HTTP ' + res.status));
+    }
+    var cd = res.headers.get('Content-Disposition') || '';
+    var m = /filename="?([^"]+)"?/.exec(cd);
+    var filename = m ? decodeURIComponent(m[1]) : 'video';
+    var blob = await res.blob();
+    var blobUrl = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = blobUrl; a.download = filename; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(blobUrl); a.remove(); }, 4000);
+    return filename;
+  }
+
+  startBtn.addEventListener('click', async function(){
+    var raw = textarea.value || '';
+    var links = raw.split(/\s+/).map(function(s){ return s.trim(); })
+      .filter(function(s){ return /^https?:\/\//.test(s); });
+    links = links.filter(function(v,i){ return links.indexOf(v)===i; }); // dedupe
+    if(!links.length){ showToast('Cole ao menos um link válido','var(--warn)'); return; }
+
+    var opt = qualitySelect.value.split('|');
+    log.innerHTML = '';
+    startBtn.disabled = true;
+
+    for(var i=0;i<links.length;i++){
+      startBtn.textContent = '⏳ Baixando ' + (i+1) + '/' + links.length;
+      var row = document.createElement('div');
+      row.textContent = '⏳ ' + links[i].slice(0,52) + '...';
+      log.appendChild(row);
+      log.scrollTop = log.scrollHeight;
+      try{
+        var filename = await downloadOne(links[i], opt);
+        row.textContent = '✅ ' + filename;
+        row.style.color = 'var(--accent2)';
+      }catch(e){
+        row.textContent = '❌ ' + links[i].slice(0,40) + '... — ' + e.message;
+        row.style.color = 'var(--danger)';
+      }
+      log.scrollTop = log.scrollHeight;
+    }
+
+    startBtn.disabled = false;
+    startBtn.textContent = '▶ Baixar todos';
+    showToast('Multi-download concluído', 'var(--accent2)');
+  });
+})();
 
 function initDownloadPanel(){
   // Tabs
