@@ -302,15 +302,17 @@ app.get('/api/video-dl',async(req,res)=>{
   // ele usa autenticação OAuth própria, não cookies de navegador. É por isso que o log
   // sempre mostrava "Skipping client ios since it does not support cookies". Trocado
   // pra web,mweb,android — que respeitam os cookies de verdade.
-  const extractorArgs = 'youtube:player_client=web,mweb,android';
+  // Só "web" — mweb perde os formatos bons pra falta de PO Token e android é sempre
+  // pulado (não suporta cookies), então os dois só atrasavam sem ajudar em nada.
+  const extractorArgs = 'youtube:player_client=web';
 
   const args = [
     '--extractor-args', extractorArgs,
     '--no-check-certificates',
     '--no-playlist',
-    // usa o Node.js já instalado na imagem pra resolver o "n challenge" do YouTube.
-    // Os scripts EJS agora vêm embutidos via pip (yt-dlp-ejs), sem depender do
-    // GitHub em runtime — ver Dockerfile.
+    // Deno (instalado no Dockerfile) resolve o "n challenge" mais rápido que Node —
+    // força ele primeiro, Node fica como fallback caso o Deno falhe por algum motivo.
+    '--js-runtimes','deno',
     '--js-runtimes','node',
     // O "Unable to download webpage: 429" é retentado automaticamente pelo yt-dlp
     // com backoff antes de desistir e cair pro próximo player_client — isso é o
@@ -319,6 +321,9 @@ app.get('/api/video-dl',async(req,res)=>{
     '--extractor-retries','1',
     '--retries','2',
     '--socket-timeout','10',
+    // baixa os fragmentos (DASH/HLS) em paralelo em vez de sequencial — acelera a
+    // transferência em si depois que a extração termina, sem mudar formato/qualidade
+    '--concurrent-fragments','4',
   ];
 
   // Cookies opcionais — se o arquivo existir (configurado via Secret File no Render +
