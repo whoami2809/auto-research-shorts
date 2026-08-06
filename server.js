@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { spawn } = require('child_process');
+const { Readable } = require('stream');
 const fs = require('fs');
 const path = require('path');
 const app = express();
@@ -62,15 +63,20 @@ const PIPED = [
   'https://pipedapi.tokhmi.xyz',
 ];
 async function pipedStreams(videoId){
-  for(const api of PIPED){
-    try{
-      const r=await fetch(`${api}/streams/${videoId}`,{signal:AbortSignal.timeout(8000)});
-      if(!r.ok) continue;
-      const d=await r.json();
-      if(!d.error&&(d.videoStreams?.length||d.audioStreams?.length)){ console.log('[piped] OK:',api); return d; }
-    }catch(e){ console.log('[piped fail]',api,e.message.slice(0,50)); }
+  const tryOne = async (api) => {
+    const r = await fetch(`${api}/streams/${videoId}`, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const d = await r.json();
+    if (d.error || !(d.videoStreams?.length || d.audioStreams?.length)) throw new Error('sem streams');
+    console.log('[piped] OK:', api);
+    return d;
+  };
+  try {
+    return await Promise.any(PIPED.map(tryOne));
+  } catch (e) {
+    console.log('[piped] todas as instâncias falharam');
+    return null;
   }
-  return null;
 }
 
 // ─── /api/info ────────────────────────────────────────────────────────────────
@@ -264,6 +270,51 @@ app.get('/api/video-dl',async(req,res)=>{
       console.log('[ytdl-core] nenhum formato compatível (qualidade pedida acima do progressivo disponível) — caindo pro yt-dlp');
     } catch(e) {
       console.warn('[ytdl-core] falhou, caindo pro yt-dlp:', e.message);
+    }
+  }
+
+  // ─── Caminho 1.5: YouTube via Piped ─────────────────────────────────────────
+  // Instâncias públicas do Piped fazem a extração pelos SERVIDORES DELAS, não
+  // pelo IP do Render — então o bloqueio de 429/403 que o YouTube aplica no seu
+  // IP não afeta essa rota. É grátis (instâncias públicas mantidas pela
+  // comunidade). Se nenhuma instância responder ou não tiver o formato pedido,
+  // cai pro yt-dlp normalmente.
+  if (videoId) {
+    try {
+      const piped = await pipedStreams(videoId);
+      if (piped) {
+        let stream = null, kind = 'video';
+        if (isAudio) {
+          stream = (piped.audioStreams||[])
+            .slice().sort((a,b)=>(b.bitrate||0)-(a.bitrate||0))[0];
+          kind = 'audio';
+        } else if (isMute) {
+          stream = (piped.videoStreams||[])
+            .filter(s => s.videoOnly && (!s.height || s.height <= h))
+            .sort((a,b)=>(b.height||0)-(a.height||0))[0];
+        } else {
+          // progressivo (vídeo+áudio já juntos) — sem precisar mesclar com ffmpeg
+          stream = (piped.videoStreams||[])
+            .filter(s => s.videoOnly === false && (!s.height || s.height <= h))
+            .sort((a,b)=>(b.height||0)-(a.height||0))[0];
+        }
+
+        if (stream?.url) {
+          const upstream = await fetch(stream.url, { signal: AbortSignal.timeout(15000) });
+          if (upstream.ok && upstream.body) {
+            const ext = kind === 'audio' ? (stream.codec === 'opus' ? 'webm' : 'm4a') : 'mp4';
+            const filename = safeFilename(piped.title, ext);
+            console.log('[piped] usando stream %sp/%s job=youtube:%s', stream.height||'-', kind, videoId);
+            res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+            res.setHeader('Content-Type', stream.mimeType || 'application/octet-stream');
+            req.on('close', () => upstream.body.cancel?.());
+            return Readable.fromWeb(upstream.body).pipe(res);
+          }
+        }
+        console.log('[piped] sem formato compatível pra essa qualidade — caindo pro yt-dlp');
+      }
+    } catch(e) {
+      console.warn('[piped] falhou, caindo pro yt-dlp:', e.message);
     }
   }
 
