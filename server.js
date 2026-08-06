@@ -253,10 +253,10 @@ app.get('/api/video-dl',async(req,res)=>{
     '--extractor-args', extractorArgs,
     '--no-check-certificates',
     '--no-playlist',
-    // resolve o desafio "n challenge" do YouTube: usa o Node.js já instalado na imagem
-    // e baixa os scripts solucionadores EJS (não vêm no binário standalone do yt-dlp)
+    // usa o Node.js já instalado na imagem pra resolver o "n challenge" do YouTube.
+    // Os scripts EJS agora vêm embutidos via pip (yt-dlp-ejs), sem depender do
+    // GitHub em runtime — ver Dockerfile.
     '--js-runtimes','node',
-    '--remote-components','ejs:github',
   ];
 
   // Cookies opcionais — se o arquivo existir (configurado via Secret File no Render +
