@@ -294,12 +294,12 @@ app.get('/api/video-dl',async(req,res)=>{
   }
 
   // ─── Caminho 1.5: YouTube via Piped ─────────────────────────────────────────
-  // Instâncias públicas do Piped fazem a extração pelos SERVIDORES DELAS, não
-  // pelo IP do Render — então o bloqueio de 429/403 que o YouTube aplica no seu
-  // IP não afeta essa rota. É grátis (instâncias públicas mantidas pela
-  // comunidade). Se nenhuma instância responder ou não tiver o formato pedido,
-  // cai pro yt-dlp normalmente.
-  if (videoId) {
+  // DESATIVADO: em 2026 a rede pública de instâncias do Piped está quase morta
+  // (Google vem banindo os servidores que hospedam instâncias desde 2024) — na
+  // prática só sobrou 1 instância ativa e mesmo essa falha. Deixar isso ligado só
+  // adicionava demora (tentativa que sempre falha) sem nenhum benefício real.
+  const TRY_PIPED = false;
+  if (TRY_PIPED && videoId) {
     try {
       const piped = await pipedStreams(videoId);
       if (piped) {
