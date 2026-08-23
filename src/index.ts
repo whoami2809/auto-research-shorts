@@ -1,20 +1,8 @@
-import { Container, getContainer } from "@cloudflare/containers";
-
 export interface Env {
-  APP_CONTAINER: DurableObjectNamespace<AppContainer>;
   ASSETS: Fetcher;
   SUPABASE_URL: string;
   SUPABASE_PUBLISHABLE_KEY: string;
-}
-
-export class AppContainer extends Container {
-  defaultPort = 3000;
-  sleepAfter = "10m";
-  envVars = { NODE_ENV: "production", PORT: "3000" };
-
-  override onError(error: unknown): void {
-    console.error(JSON.stringify({ event: "container_error", error: String(error) }));
-  }
+  BACKEND_URL: string;
 }
 
 async function isAuthenticated(request: Request, env: Env): Promise<boolean> {
@@ -53,9 +41,10 @@ export default {
     }
 
     try {
-      return await getContainer(env.APP_CONTAINER, "production").fetch(request);
+      const backendUrl = new URL(url.pathname + url.search, env.BACKEND_URL);
+      return await fetch(new Request(backendUrl, request));
     } catch (error) {
-      console.error(JSON.stringify({ event: "container_fetch_error", error: String(error) }));
+      console.error(JSON.stringify({ event: "backend_fetch_error", error: String(error) }));
       return Response.json({ error: "Serviço temporariamente indisponível" }, { status: 503 });
     }
   },

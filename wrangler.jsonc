@@ -12,30 +12,9 @@
   },
   "vars": {
     "SUPABASE_URL": "https://vpsyazqueqjgtaavqzyk.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_fiahtjNuuCxrdZAR0ELCTA_9pBO0rR6"
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_fiahtjNuuCxrdZAR0ELCTA_9pBO0rR6",
+    "BACKEND_URL": "https://auto-research-shorts.onrender.com"
   },
-  "containers": [
-    {
-      "class_name": "AppContainer",
-      "image": "./Dockerfile",
-      "instance_type": "basic",
-      "max_instances": 1
-    }
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "APP_CONTAINER",
-        "class_name": "AppContainer"
-      }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["AppContainer"]
-    }
-  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
