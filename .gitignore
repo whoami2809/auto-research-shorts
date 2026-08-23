@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+.wrangler/
+.wrangler-config/
+.dev.vars*
+.env*
+downloads/
+worker-configuration.d.ts
