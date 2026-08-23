@@ -1,0 +1,13 @@
+node_modules
+.git
+.wrangler
+.wrangler-config
+.pnpm-store
+downloads
+src
+supabase
+worker-configuration.d.ts
+wrangler.jsonc
+tsconfig.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
