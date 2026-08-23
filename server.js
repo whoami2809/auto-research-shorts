@@ -375,6 +375,7 @@ app.get('/api/video-dl',async(req,res)=>{
   const outTemplate = path.join(DOWNLOAD_DIR, `${jobId}__%(title).150B.%(ext)s`);
 
   const args = [
+    '--verbose',
     '--no-check-certificates',
     '--no-playlist',
     // Deno (instalado no Dockerfile) resolve o "n challenge" mais rápido que Node —
@@ -400,7 +401,7 @@ app.get('/api/video-dl',async(req,res)=>{
   // alternativos com PO Token automático, preservando os formatos adaptativos sem
   // depender de cookies de conta. O provedor bgutil roda localmente na porta 4416.
   if(videoId){
-    args.push('--extractor-args','youtube:player_client=mweb,web_embedded;player_skip=webpage,configs');
+    args.push('--extractor-args','youtube:player_client=web,mweb,android_vr,web_embedded;player_skip=webpage,configs');
   }
 
   // Cookies de conta só são usados quando solicitados explicitamente. Para vídeos públicos,
@@ -426,7 +427,7 @@ app.get('/api/video-dl',async(req,res)=>{
   proc.stderr.on('data', d => {
     const s = d.toString().trim();
     stderrBuf += s + '\n';
-    if(/\[download\].*%|ERROR|WARNING|ffmpeg|format/i.test(s))
+    if(/\[download\].*%|ERROR|WARNING|ffmpeg|format|\[pot|PO Token|player client/i.test(s))
       console.log('[yt-dlp stderr]', s.slice(0,150));
   });
 
