@@ -1,3 +1,13 @@
+import { DurableObject } from "cloudflare:workers";
+
+// Mantido para preservar, sem apagar, o namespace criado durante a primeira
+// tentativa de Containers. Não recebe tráfego na configuração atual.
+export class AppContainer extends DurableObject {
+  async fetch(): Promise<Response> {
+    return Response.json({ error: "Container não habilitado neste plano" }, { status: 503 });
+  }
+}
+
 export interface Env {
   ASSETS: Fetcher;
   SUPABASE_URL: string;
