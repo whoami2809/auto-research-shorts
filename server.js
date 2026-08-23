@@ -36,9 +36,15 @@ let ytdlpBin = null;
 (async () => {
   for (const b of ['yt-dlp','/usr/local/bin/yt-dlp',`${process.env.HOME}/.local/bin/yt-dlp`]) {
     const version = await new Promise(r=>{
-      const p=spawn(b,['--version']);let out='';
+      const p=spawn(b,['--verbose','--version']);let out='',debug='';
       p.stdout.on('data',d=>{out+=d.toString();});
-      p.on('close',c=>r(c===0?out.trim():null));p.on('error',()=>r(null));
+      p.stderr.on('data',d=>{debug+=d.toString();});
+      p.on('close',c=>{
+        const pluginLine=debug.split(/\r?\n/).find(line=>/PO Token Providers|Plugin directories/i.test(line));
+        if(pluginLine)console.log('[yt-dlp]',pluginLine.trim());
+        r(c===0?out.trim():null);
+      });
+      p.on('error',()=>r(null));
     });
     if(version){ytdlpBin=b;console.log('[yt-dlp] OK: %s (%s)',b,version);break;}
   }
@@ -394,7 +400,7 @@ app.get('/api/video-dl',async(req,res)=>{
   // alternativos com PO Token automático, preservando os formatos adaptativos sem
   // depender de cookies de conta. O provedor bgutil roda localmente na porta 4416.
   if(videoId){
-    args.push('--extractor-args','youtube:player_client=mweb,web_embedded');
+    args.push('--extractor-args','youtube:player_client=mweb,web_embedded;player_skip=webpage,configs');
   }
 
   // Cookies de conta só são usados quando solicitados explicitamente. Para vídeos públicos,
