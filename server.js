@@ -393,7 +393,7 @@ app.get('/api/video-dl',async(req,res)=>{
   // de listar os streams DASH de 1080p/4K/8K. Para vídeos públicos, usamos clientes
   // alternativos que preservam os formatos adaptativos sem depender desses cookies.
   if(videoId){
-    args.push('--extractor-args','youtube:player_client=default,android_vr,web_embedded');
+    args.push('--extractor-args','youtube:player_client=android_vr,web_embedded;player_skip=webpage,configs');
   }
 
   // Cookies de conta só são usados quando solicitados explicitamente. Para vídeos públicos,
