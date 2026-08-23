@@ -428,6 +428,7 @@ body.auth-locked #authScreen{display:flex}
 .auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:26px 0 18px;padding:4px;border-radius:10px;background:rgba(4,5,12,.7)}
 .auth-tab{border:0;border-radius:7px;padding:10px;background:transparent;color:#77708e;font:11px 'JetBrains Mono',monospace;cursor:pointer}.auth-tab.active{background:rgba(116,53,255,.22);color:#d9cbff}
 .auth-field{display:block;margin:12px 0;color:#8d84a9;font:10px 'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase}.auth-field input{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1px solid rgba(155,77,255,.22);border-radius:9px;outline:0;background:rgba(5,6,15,.82);color:#eee7ff;font:13px 'JetBrains Mono',monospace}.auth-field input:focus{border-color:#8f52ff;box-shadow:0 0 0 3px rgba(143,82,255,.1)}
+.auth-field[hidden]{display:none!important}
 #authSubmit{width:100%;margin-top:12px;padding:13px;border:0;border-radius:9px;background:linear-gradient(90deg,#7435ff,#9f54ff);color:white;font:700 12px 'JetBrains Mono',monospace;cursor:pointer}#authSubmit:disabled{opacity:.55;cursor:wait}
 #authMessage{min-height:18px;margin-top:14px;color:#ff8f9b;font:11px/1.5 'JetBrains Mono',monospace;text-align:center}.auth-hint{margin-top:16px;color:#615a78;font:10px/1.6 'JetBrains Mono',monospace;text-align:center}
 #logoutBtn{pointer-events:auto;border:1px solid rgba(155,77,255,.25);border-radius:6px;padding:5px 9px;background:rgba(10,11,22,.55);color:#9388b3;font:9px 'JetBrains Mono',monospace;cursor:pointer}
