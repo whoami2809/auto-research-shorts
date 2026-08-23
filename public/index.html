@@ -135,12 +135,13 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
 /* Character — inside #panel-buscar only */
 #char-art{
   position:relative;align-self:stretch;min-width:0;
-  pointer-events:none;z-index:1;overflow:hidden;
+  pointer-events:none;z-index:1;overflow:visible;
 }
 #char-art::before{
-  content:"";position:absolute;left:0;top:8%;width:100%;height:88%;
-  background:radial-gradient(ellipse,rgba(155,77,255,.45) 0%,rgba(120,30,255,.18) 42%,transparent 72%);
-  filter:blur(36px);z-index:0;animation:pulse 4s ease-in-out infinite;
+  content:"";position:absolute;left:-28%;top:-2%;width:156%;height:108%;
+  background:radial-gradient(ellipse at 52% 58%,rgba(155,77,255,.38) 0%,rgba(120,30,255,.17) 38%,transparent 72%);
+  filter:blur(42px);z-index:0;animation:pulse 4s ease-in-out infinite;
+  -webkit-mask-image:radial-gradient(ellipse at 52% 58%,#000 0 48%,transparent 78%);mask-image:radial-gradient(ellipse at 52% 58%,#000 0 48%,transparent 78%);
 }
 @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
 #char-img{
@@ -163,14 +164,13 @@ input,textarea,select{font-family:inherit;color:var(--fg);}
 }
 /* Glassmorphism panel */
 .buscar-wrap::before{
-  content:"";position:absolute;inset:0;border-radius:28px;pointer-events:none;z-index:-1;
+  content:"";position:absolute;inset:0;border-radius:24px;pointer-events:none;z-index:-1;
   background:linear-gradient(145deg,rgba(25,20,43,.94),rgba(8,9,20,.96) 48%,rgba(6,7,16,.98));
   border:1px solid rgba(174,118,255,.32);box-shadow:0 30px 100px rgba(0,0,0,.52),inset 0 1px rgba(255,255,255,.04);
-  clip-path:polygon(4% 0,100% 0,100% 84%,96% 100%,0 100%,0 14%);
 }
 /* HUD corner top-left */
 .buscar-wrap .hud-tl,.buscar-wrap .hud-tr,.buscar-wrap .hud-bl,.buscar-wrap .hud-br{
-  position:absolute;width:22px;height:22px;pointer-events:none;z-index:2;
+  display:none;
 }
 .buscar-wrap .hud-tl{top:8px;left:8px;border-top:2px solid rgba(155,77,255,.8);border-left:2px solid rgba(155,77,255,.8);}
 .buscar-wrap .hud-tr{top:8px;right:8px;border-top:2px solid rgba(155,77,255,.8);border-right:2px solid rgba(155,77,255,.8);}
