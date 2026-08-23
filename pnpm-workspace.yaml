@@ -1,2 +1,5 @@
+packages:
+  - '.'
+
 minimumReleaseAgeExclude:
   - '@cloudflare/workers-types@5.20260823.1'
