@@ -41,6 +41,10 @@ export default {
         url.pathname = "/index.html";
         return env.ASSETS.fetch(new Request(url, request));
       }
+      if (url.pathname === "/privacidade") {
+        url.pathname = "/privacy.html";
+        return env.ASSETS.fetch(new Request(url, request));
+      }
       return env.ASSETS.fetch(request);
     }
 
