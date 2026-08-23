@@ -437,7 +437,7 @@ input[type=range]{flex:1;accent-color:var(--accent);}
   .sb-dot{top:5px;right:calc(50% - 20px);}
   #main{width:100%;height:100vh;height:100dvh;}
   .panel{height:auto;bottom:var(--mobile-nav-h);padding-bottom:env(safe-area-inset-bottom);overscroll-behavior:contain;}
-  #panel-buscar.active{padding:70px 12px 20px;align-items:flex-start;justify-content:flex-start;}
+  #panel-buscar.active{height:calc(100vh - var(--mobile-nav-h));height:calc(100dvh - var(--mobile-nav-h));padding:70px 12px 20px;align-items:flex-start;justify-content:flex-start;overflow-y:auto;}
   .pi,.pi.wide{padding:76px 16px 92px;}
   .panel-hdr{margin-bottom:24px;line-height:1.5;letter-spacing:.24em;}
   .buscar-wrap{padding:28px 20px 42px;gap:16px;border-radius:18px;}
@@ -1101,25 +1101,74 @@ var ITAG_MAP = {
   'aac-128':  {mode:'audio', ext:'m4a',  audioFormat:'m4a',  audioBitrate:'128'},
 };
 
-function triggerServerDownload(itag, url){
+function downloadFilename(response, fallback){
+  var cd=response.headers.get('Content-Disposition')||'';
+  var utf=/filename\*=UTF-8''([^;]+)/i.exec(cd);
+  var plain=/filename="?([^";]+)"?/i.exec(cd);
+  var name=utf?utf[1]:(plain?plain[1]:'');
+  try{name=decodeURIComponent(name);}catch(e){}
+  return name||fallback;
+}
+
+async function responseError(response){
+  var text=await response.text().catch(function(){return '';});
+  try{return JSON.parse(text).error||text||('HTTP '+response.status);}catch(e){return text||('HTTP '+response.status);}
+}
+
+async function triggerServerDownload(itag, url){
   var map = ITAG_MAP[itag];
-  if(!map){ showToast('Formato não suportado','var(--warn)'); return; }
+  if(!map){ showToast('Formato não suportado','var(--warn)'); return false; }
   var title = (document.getElementById('videoTitle')||{}).textContent||'video';
+  var fallback=(title.replace(/[^a-zA-Z0-9\s\-]/g,'').trim()||'video')+'.'+map.ext;
   var dlUrl = '/api/video-dl'
     + '?url='     + encodeURIComponent(url)
     + '&mode='    + map.mode
     + (map.quality      ? '&quality='     + map.quality      : '')
     + (map.audioFormat  ? '&audioFormat=' + map.audioFormat  : '')
     + (map.audioBitrate ? '&audioBitrate='+ map.audioBitrate : '');
-  // <a download> com URL same-origin: browser baixa sem sair da página ✅
-  // O nome final do arquivo vem do servidor (título real do vídeo via yt-dlp).
-  var a = document.createElement('a');
-  a.href = dlUrl;
-  a.download = (title.replace(/[^a-zA-Z0-9\s\-]/g,'').trim()||'video')+'.'+map.ext;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  var fileHandle=null;
+  if(window.showSaveFilePicker){
+    try{
+      fileHandle=await window.showSaveFilePicker({suggestedName:fallback});
+    }catch(e){
+      if(e&&e.name==='AbortError')return false;
+      fileHandle=null;
+    }
+  }
+
+  setDlMsg('\u23f3 Preparando '+(map.quality==='max'?'a melhor qualidade':(map.quality||'o áudio'))+'...','var(--accent2)');
+  showStatus('Baixando e processando a mídia...');
+  try{
+    // O wrapper de fetch envia o token do Supabase. O link direto usado antes não
+    // carregava Authorization e podia falhar silenciosamente na Cloudflare.
+    var response=await fetch(dlUrl);
+    if(!response.ok)throw new Error(await responseError(response));
+    var filename=downloadFilename(response,fallback);
+
+    // Chromium grava o stream direto no disco, sem guardar um vídeo 4K inteiro na
+    // memória. Outros navegadores continuam funcionando pelo fallback universal.
+    if(fileHandle&&response.body){
+      var writable=await fileHandle.createWritable();
+      await response.body.pipeTo(writable);
+    }else{
+      var blob=await response.blob();
+      var blobUrl=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=blobUrl;a.download=filename;a.style.display='none';
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(blobUrl);a.remove();},4000);
+    }
+    setDlMsg('\u2705 Download concluído: '+filename,'var(--success)');
+    showToast('\u2705 Download concluído','var(--success)');
+    return true;
+  }catch(e){
+    var message=e&&e.message?e.message:'Não foi possível baixar o vídeo.';
+    setDlMsg('\u274c '+message,'var(--danger)');
+    showToast('\u274c '+message,'var(--danger)');
+    return false;
+  }finally{
+    hideStatus();
+  }
 }
 
 // ─── Multi-download (vários links de uma vez) ─────────────────────────────────
@@ -1233,7 +1282,7 @@ function initDownloadPanel(){
 
   // Botão de download por linha
   document.querySelectorAll('.dl-row').forEach(function(row){
-    row.querySelector('.dl-row-btn').addEventListener('click', function(){
+    row.querySelector('.dl-row-btn').addEventListener('click', async function(){
       var itag = row.dataset.itag;
       var url = dlCurrentUrl || urlInput.value.trim();
       if(!url){ showToast('Cole um link primeiro','var(--warn)'); return; }
@@ -1241,8 +1290,8 @@ function initDownloadPanel(){
       var orig = btn.textContent;
       btn.disabled = true; btn.textContent = '\u23f3 Preparando...';
       showToast('\u23f3 Iniciando download...','var(--accent2)');
-      triggerServerDownload(itag, url);
-      setTimeout(function(){ btn.disabled = false; btn.textContent = orig; }, 4000);
+      try{await triggerServerDownload(itag, url);}
+      finally{btn.disabled = false;btn.textContent = orig;}
     });
   });
 }
@@ -1254,40 +1303,6 @@ function setDlMsg(msg,color){
   el.style.display='block';
   el.style.color=color||'var(--muted)';
   el.textContent=msg;
-}
-
-function startDownload(quality, mode){
-  var url = dlCurrentUrl || urlInput.value.trim();
-  if(!url){showToast('Cole um link primeiro','var(--warn)');return;}
-
-  // Feedback imediato
-  setDlMsg('\u23f3 Iniciando download... (pode demorar alguns segundos)','var(--accent2)');
-  showStatus('Preparando download '+quality+'...');
-
-  // Usa <a download> com URL do nosso servidor (mesmo origin = sem problemas de CORS)
-  // Servidor salva em arquivo temp, monta MP4 válido, depois envia — sem corrupção
-  var videoTitleEl = document.getElementById('videoTitle');
-  var videoTitleVal = videoTitleEl ? videoTitleEl.textContent.trim() : '';
-  var dlUrl = '/api/video-dl'
-    + '?url=' + encodeURIComponent(url)
-    + '&quality=' + encodeURIComponent(quality)
-    + '&mode=' + encodeURIComponent(mode || 'auto')
-    + '&title=' + encodeURIComponent(videoTitleVal||'video');
-
-  var a = document.createElement('a');
-  a.href = dlUrl;
-  // Filename is set server-side via Content-Disposition with the real title
-  a.download = mode === 'audio' ? 'audio.m4a' : 'video.mp4'; // fallback, server overrides
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  // Após 3s mostra confirmação (otimista — se falhar o browser mostra erro na barra)
-  setTimeout(function(){
-    hideStatus();
-    setDlMsg('\u2705 Se o download não aparecer em ~10 segundos, tente outra qualidade.','var(--success)');
-  }, 3000);
 }
 
 // ─── Whisper ──────────────────────────────────────────────────────────────────

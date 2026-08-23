@@ -35,8 +35,12 @@ try { ytdl = require('@distube/ytdl-core'); } catch(e) {}
 let ytdlpBin = null;
 (async () => {
   for (const b of ['yt-dlp','/usr/local/bin/yt-dlp',`${process.env.HOME}/.local/bin/yt-dlp`]) {
-    const ok = await new Promise(r=>{const p=spawn(b,['--version']);p.on('close',c=>r(c===0));p.on('error',()=>r(false));});
-    if(ok){ytdlpBin=b;console.log('[yt-dlp] OK:',b);break;}
+    const version = await new Promise(r=>{
+      const p=spawn(b,['--version']);let out='';
+      p.stdout.on('data',d=>{out+=d.toString();});
+      p.on('close',c=>r(c===0?out.trim():null));p.on('error',()=>r(null));
+    });
+    if(version){ytdlpBin=b;console.log('[yt-dlp] OK: %s (%s)',b,version);break;}
   }
   if(!ytdlpBin) console.warn('[yt-dlp] não encontrado');
 })();
@@ -237,7 +241,7 @@ ${text.slice(0,3000)}`}]
 //  → stdout: streaming começa imediatamente → sem timeout
 // ═══════════════════════════════════════════════════════════════════════════════
 app.get('/api/video-dl',async(req,res)=>{
-  const {url, quality, mode, audioFormat, audioBitrate} = req.query;
+  const {url, quality, mode, audioFormat, audioBitrate, useCookies} = req.query;
   if(!url) return res.status(400).send('URL obrigatória');
 
   const isAudio = mode==='audio';
@@ -364,21 +368,7 @@ app.get('/api/video-dl',async(req,res)=>{
   // adivinhar/buscar o título. Limitado a 150 bytes pra evitar nomes gigantes.
   const outTemplate = path.join(DOWNLOAD_DIR, `${jobId}__%(title).150B.%(ext)s`);
 
-  // YouTube passou a exigir verificação extra ("Sign in to confirm you're not a bot") em
-  // IPs de datacenter como os do Render. Tentamos vários "clientes" do player em cascata —
-  // cada um tem um comportamento de verificação diferente, então aumenta a chance de um
-  // deles passar sem precisar de cookies. Se mesmo assim falhar, dá pra configurar cookies
-  // reais (ver YTDLP_COOKIES_FILE abaixo) — essa é a solução definitiva pro bloqueio.
-  // O cliente "ios" (que estávamos usando primeiro) IGNORA cookies silenciosamente —
-  // ele usa autenticação OAuth própria, não cookies de navegador. É por isso que o log
-  // sempre mostrava "Skipping client ios since it does not support cookies". Trocado
-  // pra web,mweb,android — que respeitam os cookies de verdade.
-  // Só "web" — mweb perde os formatos bons pra falta de PO Token e android é sempre
-  // pulado (não suporta cookies), então os dois só atrasavam sem ajudar em nada.
-  const extractorArgs = 'youtube:player_client=web';
-
   const args = [
-    '--extractor-args', extractorArgs,
     '--no-check-certificates',
     '--no-playlist',
     // Deno (instalado no Dockerfile) resolve o "n challenge" mais rápido que Node —
@@ -397,11 +387,19 @@ app.get('/api/video-dl',async(req,res)=>{
     '--concurrent-fragments','4',
   ];
 
-  // Cookies opcionais — se o arquivo existir (configurado via Secret File no Render +
-  // variável de ambiente YTDLP_COOKIES_FILE apontando pro caminho), usamos pra autenticar
-  // como uma conta logada de verdade, o que resolve o bloqueio de bot do YouTube de vez.
+  // O cliente web passou a depender de PO Token para parte dos formatos e, em IPs de
+  // datacenter, costuma receber 429 já na página inicial. Forçá-lo junto com cookies
+  // rotacionados fazia o yt-dlp enxergar apenas o progressivo de 720p ou falhar antes
+  // de listar os streams DASH de 1080p/4K/8K. Para vídeos públicos, usamos clientes
+  // alternativos que preservam os formatos adaptativos sem depender desses cookies.
+  if(videoId){
+    args.push('--extractor-args','youtube:player_client=default,android_vr,web_embedded');
+  }
+
+  // Cookies de conta só são usados quando solicitados explicitamente. Para vídeos públicos,
+  // cookies expirados/rotacionados pioram a extração e podem fazer o YouTube limitar a conta.
   const cookiesPath = YTDLP_COOKIES_PATH;
-  if(cookiesPath && fs.existsSync(cookiesPath)){
+  if(useCookies==='true' && cookiesPath && fs.existsSync(cookiesPath)){
     args.push('--cookies', cookiesPath);
   }
 
@@ -429,11 +427,15 @@ app.get('/api/video-dl',async(req,res)=>{
     if(code !== 0){
       console.warn('[yt-dlp] falhou code=%d\n%s', code, stderrBuf.slice(-500));
       if(!res.headersSent){
+        const isRateLimited = /429|Too Many Requests/i.test(stderrBuf);
         const isBotCheck = /Sign in to confirm|not a bot/i.test(stderrBuf);
-        res.status(500).json({
-          error: isBotCheck
-            ? 'O YouTube bloqueou o servidor por verificação anti-bot. Configure cookies (YTDLP_COOKIES_FILE) para resolver definitivamente.'
-            : 'Falha no download. '+stderrBuf.slice(-300)
+        const invalidCookies = /cookies are no longer valid|cookies.*rotated/i.test(stderrBuf);
+        res.status(isRateLimited ? 429 : 500).json({
+          error: invalidCookies
+            ? 'A sessão do YouTube configurada no servidor expirou. Tente novamente sem autenticação de conta.'
+            : isRateLimited || isBotCheck
+              ? 'O YouTube limitou temporariamente o servidor. Aguarde alguns minutos e tente novamente.'
+              : 'Falha no download. '+stderrBuf.slice(-300)
         });
       }
       return;
@@ -459,7 +461,13 @@ app.get('/api/video-dl',async(req,res)=>{
     });
   });
 
-  req.on('close', () => { try{ proc.kill(); }catch(e){} });
+  // `req.close` também dispara após uma requisição GET normal e podia encerrar o yt-dlp
+  // durante downloads mais demorados. Só interrompemos se a resposta for abandonada.
+  res.on('close', () => {
+    if(!res.writableEnded){
+      try{ proc.kill(); }catch(e){}
+    }
+  });
 });
 
 // ─── /api/frame (Lens) ────────────────────────────────────────────────────────

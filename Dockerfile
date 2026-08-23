@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
       python3 python3-pip ffmpeg curl ca-certificates unzip \
       --no-install-recommends \
   && rm -rf /var/lib/apt/lists/* \
-  && pip3 install --break-system-packages --no-cache-dir -U "yt-dlp[default]" \
+  && pip3 install --break-system-packages --no-cache-dir -U --pre "yt-dlp[default]" \
   && yt-dlp --version \
   && curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh \
   && deno --version
