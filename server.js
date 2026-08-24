@@ -378,6 +378,10 @@ app.get('/api/video-dl',async(req,res)=>{
     '--verbose',
     '--no-check-certificates',
     '--no-playlist',
+    // O IP do Render recebe 429 do YouTube antes mesmo da extração. A simulação
+    // do handshake/headers reais do Chrome (via curl_cffi) permite carregar a
+    // página pública e obter Visitor Data anônimo sem cookies de conta.
+    '--impersonate','chrome',
     // Deno (instalado no Dockerfile) resolve o "n challenge" mais rápido que Node —
     // força ele primeiro, Node fica como fallback caso o Deno falhe por algum motivo.
     '--js-runtimes','deno',
@@ -394,14 +398,15 @@ app.get('/api/video-dl',async(req,res)=>{
     '--concurrent-fragments','4',
   ];
 
-  // O cliente web passou a depender de PO Token para parte dos formatos e, em IPs de
-  // datacenter, costuma receber 429 já na página inicial. Forçá-lo junto com cookies
-  // rotacionados fazia o yt-dlp enxergar apenas o progressivo de 720p ou falhar antes
-  // de listar os streams DASH de 1080p/4K/8K. Para vídeos públicos, usamos clientes
-  // alternativos com PO Token automático, preservando os formatos adaptativos sem
-  // depender de cookies de conta. O provedor bgutil roda localmente na porta 4416.
+  // O cliente web depende de PO Token em parte dos formatos. Com a página pública
+  // carregada por impersonation, o yt-dlp obtém Visitor Data anônimo e o provedor
+  // bgutil local consegue gerar o token. Não pulamos mais a webpage/configs, pois
+  // era justamente isso que removia os dados necessários e deixava só 360p.
   if(videoId){
-    args.push('--extractor-args','youtube:player_client=web,mweb,android_vr,web_embedded;player_skip=webpage,configs');
+    args.push(
+      '--extractor-args','youtube:player_client=web,web_embedded,mweb,android_vr',
+      '--extractor-args','youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416'
+    );
   }
 
   // Cookies de conta só são usados quando solicitados explicitamente. Para vídeos públicos,

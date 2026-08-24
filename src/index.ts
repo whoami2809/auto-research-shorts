@@ -15,6 +15,19 @@ export interface Env {
   BACKEND_URL: string;
 }
 
+async function serveHtml(request: Request, env: Env, pathname: string): Promise<Response> {
+  const assetUrl = new URL(request.url);
+  assetUrl.pathname = pathname;
+  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+  const headers = new Headers(asset.headers);
+  // O JavaScript de autenticação e download é inline. HTML antigo em cache ainda
+  // fazia navegação direta para /api/video-dl, sem Authorization, causando 401.
+  headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  headers.set("Pragma", "no-cache");
+  headers.set("Expires", "0");
+  return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
+}
+
 async function isAuthenticated(request: Request, env: Env): Promise<boolean> {
   const authorization = request.headers.get("Authorization");
   if (!authorization?.startsWith("Bearer ")) return false;
@@ -34,16 +47,13 @@ export default {
 
     if (!url.pathname.startsWith("/api/")) {
       if (url.pathname === "/" || url.pathname === "/landing") {
-        url.pathname = "/landing.html";
-        return env.ASSETS.fetch(new Request(url, request));
+        return serveHtml(request, env, "/landing.html");
       }
       if (url.pathname === "/app") {
-        url.pathname = "/index.html";
-        return env.ASSETS.fetch(new Request(url, request));
+        return serveHtml(request, env, "/index.html");
       }
       if (url.pathname === "/privacidade") {
-        url.pathname = "/privacy.html";
-        return env.ASSETS.fetch(new Request(url, request));
+        return serveHtml(request, env, "/privacy.html");
       }
       return env.ASSETS.fetch(request);
     }

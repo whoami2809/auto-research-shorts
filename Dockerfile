@@ -1,4 +1,4 @@
-FROM brainicism/bgutil-ytdlp-pot-provider:1.3.1
+FROM brainicism/bgutil-ytdlp-pot-provider:1.3.2
 
 USER root
 
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
       --no-install-recommends \
   && rm -rf /var/lib/apt/lists/* \
   && pip3 install --break-system-packages --no-cache-dir -U --pre "yt-dlp[default]" \
-  && pip3 install --break-system-packages --no-cache-dir -U "bgutil-ytdlp-pot-provider==1.3.1" \
+  && pip3 install --break-system-packages --no-cache-dir -U "bgutil-ytdlp-pot-provider==1.3.2" "curl_cffi==0.15.0" \
   && yt-dlp --version \
   && curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh \
   && deno --version
