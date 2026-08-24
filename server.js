@@ -429,6 +429,7 @@ app.get('/api/video-dl',async(req,res)=>{
   if(videoId){
     const youtubeArgs = [
       'player_client=web,web_embedded,mweb,android_vr',
+      'player_skip=webpage,configs',
       visitorData ? `visitor_data=${visitorData}` : null,
     ].filter(Boolean).join(';');
     args.push(
