@@ -41,6 +41,41 @@ async function isAuthenticated(request: Request, env: Env): Promise<boolean> {
   return response.ok;
 }
 
+async function getAnonymousYoutubeVisitorData(videoId: string): Promise<Response> {
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    return Response.json({ error: "ID de vídeo inválido" }, { status: 400 });
+  }
+
+  const youtubeResponse = await fetch(
+    `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&bpctr=9999999999&has_verified=1`,
+    {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+      },
+      redirect: "follow",
+    },
+  );
+
+  if (!youtubeResponse.ok) {
+    return Response.json(
+      { error: "Não foi possível iniciar a sessão anônima do YouTube", status: youtubeResponse.status },
+      { status: 502 },
+    );
+  }
+
+  const html = await youtubeResponse.text();
+  const visitorData = html.match(/"visitorData":"([^"\\]+)"/)?.[1];
+  if (!visitorData) {
+    return Response.json({ error: "Visitor Data anônimo não encontrado" }, { status: 502 });
+  }
+
+  return Response.json(
+    { visitorData },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -62,6 +97,13 @@ export default {
     const isPublicFrame = request.method === "GET" && /^\/api\/frame\/[^/]+$/.test(url.pathname);
     if (!isPublicFrame && !(await isAuthenticated(request, env))) {
       return Response.json({ error: "Sessão inválida ou expirada" }, { status: 401 });
+    }
+
+    // O Render está em uma faixa de IP bloqueada pelo YouTube. Esta rota busca
+    // somente Visitor Data anônimo a partir da borda Cloudflare; não lê cookies
+    // do navegador e continua protegida pelo login Supabase da aplicação.
+    if (request.method === "GET" && url.pathname === "/api/youtube-visitor") {
+      return getAnonymousYoutubeVisitorData(url.searchParams.get("videoId") || "");
     }
 
     try {

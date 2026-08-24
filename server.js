@@ -64,6 +64,29 @@ function safeFilename(title, ext){
   return ((title||'video').replace(/[<>:"/\\|?*\x00-\x1f]/g,'').trim().replace(/\s+/g,'_').slice(0,80)||'video')+'.'+ext;
 }
 
+async function fetchAnonymousVisitorData(req, videoId){
+  const authorization = req.get('authorization');
+  if(!authorization) return null;
+  const appUrl = process.env.PUBLIC_APP_URL || 'https://auto-research-shorts.darknet-web28.workers.dev';
+  try{
+    const response = await fetch(`${appUrl}/api/youtube-visitor?videoId=${encodeURIComponent(videoId)}`, {
+      headers: { authorization },
+      signal: AbortSignal.timeout(12000),
+    });
+    if(!response.ok){
+      console.warn('[youtube visitor] Cloudflare respondeu', response.status);
+      return null;
+    }
+    const data = await response.json();
+    if(typeof data.visitorData !== 'string' || !/^[a-zA-Z0-9_\-=.%]+$/.test(data.visitorData)) return null;
+    console.log('[youtube visitor] sessão anônima obtida via Cloudflare');
+    return data.visitorData;
+  }catch(error){
+    console.warn('[youtube visitor] indisponível:', error.message);
+    return null;
+  }
+}
+
 // ─── Piped ────────────────────────────────────────────────────────────────────
 // Lista estática só como fallback caso a API de instâncias abaixo esteja fora do ar
 let PIPED = [
@@ -263,6 +286,7 @@ app.get('/api/video-dl',async(req,res)=>{
   // se esse bloqueio específico for embora no futuro.
   const TRY_YTDLCORE_FIRST = false;
   const videoId = extractVideoId(url);
+  const visitorData = videoId ? await fetchAnonymousVisitorData(req, videoId) : null;
   if (TRY_YTDLCORE_FIRST && videoId && ytdl) {
     try {
       const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
@@ -403,8 +427,12 @@ app.get('/api/video-dl',async(req,res)=>{
   // bgutil local consegue gerar o token. Não pulamos mais a webpage/configs, pois
   // era justamente isso que removia os dados necessários e deixava só 360p.
   if(videoId){
+    const youtubeArgs = [
+      'player_client=web,web_embedded,mweb,android_vr',
+      visitorData ? `visitor_data=${visitorData}` : null,
+    ].filter(Boolean).join(';');
     args.push(
-      '--extractor-args','youtube:player_client=web,web_embedded,mweb,android_vr',
+      '--extractor-args',`youtube:${youtubeArgs}`,
       '--extractor-args','youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416'
     );
   }
