@@ -882,6 +882,16 @@ function setMode(nextMode) {
   message.textContent = '';
 }
 
+function getAuthErrorMessage(error) {
+  const errorMessage = String(error?.message || '');
+  if (/failed to fetch|fetch failed|network request failed|networkerror/i.test(errorMessage)) {
+    return 'Não foi possível conectar ao serviço de autenticação. Aguarde alguns instantes e tente novamente.';
+  }
+  if (/invalid login credentials/i.test(errorMessage)) return 'E-mail ou senha inválidos.';
+  if (/email not confirmed/i.test(errorMessage)) return 'Confirme seu e-mail antes de entrar.';
+  return errorMessage || 'Não foi possível autenticar.';
+}
+
 function showSession(session) {
   document.body.classList.toggle('auth-locked', !session);
   const email = session?.user?.email || '';
@@ -935,7 +945,7 @@ form.addEventListener('submit', async (event) => {
       if (error) throw error;
     }
   } catch (error) {
-    message.textContent = error?.message || 'Não foi possível autenticar.';
+    message.textContent = getAuthErrorMessage(error);
   } finally {
     submit.disabled = false;
   }
