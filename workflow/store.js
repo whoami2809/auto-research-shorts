@@ -7,7 +7,9 @@ const BUCKET = 'shorts-workflow';
 class SupabaseStore {
   constructor({env=process.env,fetchImpl=fetch}={}) {
     this.url = env.SUPABASE_URL || '';
-    this.key = env.SUPABASE_SERVICE_ROLE_KEY || '';
+    // Compatível com a chave server-side moderna do Supabase e com a legada.
+    // Nunca enviar nenhuma delas ao frontend ou registrar seu valor.
+    this.key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '';
     this.fetch = fetchImpl;
   }
   get ready() { return /^https:\/\/[a-z0-9]+\.supabase\.co$/.test(this.url) && !!this.key; }
