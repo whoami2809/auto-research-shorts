@@ -23,7 +23,7 @@ function apiErrorMessage(payload, status) {
   const detail = typeof payload?.error === 'string' ? payload.error : payload?.error?.message;
   if (status >= 500) return `Pedido não concluído (HTTP ${status}). O servidor do workflow não respondeu corretamente; verifique o backend e tente Atualizar lista novamente.`;
   return (typeof detail === 'string' && detail.trim() ? detail.slice(0, 2000) + ' ' : '') +
-    (status === 401 ? 'Sessão expirada. Entre novamente em /app.' : `Pedido não concluído (HTTP ${status}).`);
+    (status === 401 ? 'O servidor não aceitou esta sessão. Ela foi preservada localmente; atualize o /app ou saia e entre novamente.' : `Pedido não concluído (HTTP ${status}).`);
 }
 function validateFields(body) {
   for (const [field, limit] of Object.entries(LIMITS)) if (typeof body[field] === 'string' && body[field].length > limit) throw new Error(`O campo ${field} permite até ${limit} caracteres. Revise o texto antes de salvar.`);
@@ -64,7 +64,7 @@ function lensURL(value, expires) {
 
 async function boot() {
   const $ = id => document.getElementById(id);
-  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, redirectingToLogin: false };
+  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false };
   const cards = new Map();
   const attempts = new Map();
   const warnings = new Map();
@@ -74,13 +74,6 @@ async function boot() {
   const notice = (text, error = false) => { $('notice').textContent = text; $('notice').dataset.error = String(error); };
   const path = () => '/api/workflow/jobs/' + encodeURIComponent(state.job.id);
   function cancel() { clearTimeout(state.timer); state.generation++; for (const controller of state.requests) controller.abort(); state.requests.clear(); }
-  function redirectToLogin() {
-    if (state.redirectingToLogin) return;
-    state.redirectingToLogin = true;
-    cancel();
-    try { sessionStorage.setItem('workflow_return_after_login', '/workflow'); } catch { /* Storage may be unavailable; /app remains the safe destination. */ }
-    window.location.replace('/app');
-  }
   async function api(url, options = {}, publicRequest = false) {
     const { rawMime, timeoutMs = 30000, blob: wantsBlob, authRetry = false, ...request } = options;
     const controller = new AbortController(); state.requests.add(controller);
@@ -106,8 +99,12 @@ async function boot() {
         }
       }
       if (response.status === 401 && !publicRequest && !recoveredSession) {
-        try { await state.client?.auth.signOut({ scope: 'local' }); } catch { /* A limpeza local não pode impedir o novo login. */ }
-        redirectToLogin();
+        // Uma rejeição 401 não deve destruir a sessão local do usuário.
+        // O backend continua protegido; apenas bloqueamos novas consultas
+        // até que a sessão seja recuperada manualmente no /app.
+        state.authRejected = true;
+        clearTimeout(state.timer);
+        controls();
       }
       if (!response.ok) {
         let payload;
@@ -122,7 +119,7 @@ async function boot() {
     } finally { clearTimeout(timeout); state.requests.delete(controller); }
   }
   function controls() {
-    $('app').disabled = !state.session;
+    $('app').disabled = !state.session || state.authRejected;
     $('run').disabled = state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
     const unresolved = attempts.has(runKey());
     for (const kind of ['base', 'voice']) {
@@ -365,11 +362,11 @@ async function boot() {
     // Default Supabase storage shares /app's session on this origin.
     state.client = createClient(config.url, config.key);
     const { data, error } = await state.client.auth.getSession(); if (error) throw new Error('Não foi possível recuperar sua sessão. Entre em /app.');
-    state.session = data.session; controls();
+    state.session = data.session; state.authRejected = false; controls();
     state.client.auth.onAuthStateChange((event, session) => {
       state.session = session;
-      if (!session) { cancel(); resetImports(); state.job = null; state.dirty.clear(); $('editor').reset(); renderStages([]); renderArtifacts([]); $('jobs').replaceChildren(); notice('Entre no aplicativo para acessar seus projetos.'); }
-      else if (event === 'SIGNED_IN') setTimeout(() => initialize().catch(report), 0);
+      if (!session) { state.authRejected = false; cancel(); resetImports(); state.job = null; state.dirty.clear(); $('editor').reset(); renderStages([]); renderArtifacts([]); $('jobs').replaceChildren(); notice('Entre no aplicativo para acessar seus projetos.'); }
+      else if (event === 'SIGNED_IN') { state.authRejected = false; setTimeout(() => initialize().catch(report), 0); }
       controls();
     });
     if (state.session) await initialize(); else notice('Entre no aplicativo e volte a esta página para acessar seus projetos.');
