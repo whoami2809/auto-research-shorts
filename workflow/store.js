@@ -16,8 +16,8 @@ class SupabaseStore {
     if (!this.ready) fail('CONFIG_MISSING','Persistência do workflow não configurada no servidor.',503);
     let response;
     try { response = await this.fetch(this.url+path,{...options,headers:this.headers(options.headers),redirect:'error',signal:AbortSignal.timeout(15000)}); }
-    catch { fail('STORAGE_UNAVAILABLE','Armazenamento temporariamente indisponível.',503); }
-    if (!response.ok) fail('STORAGE_UNAVAILABLE','Não foi possível acessar o armazenamento do workflow.',503);
+    catch { console.warn('[workflow-store] request failed code=STORAGE_UNAVAILABLE'); fail('STORAGE_UNAVAILABLE','Armazenamento temporariamente indisponível.',503); }
+    if (!response.ok) { console.warn(`[workflow-store] response failed code=STORAGE_UNAVAILABLE status=${response.status}`); fail('STORAGE_UNAVAILABLE','Não foi possível acessar o armazenamento do workflow.',503); }
     return response;
   }
   async rows(query) { return (await this.request(`/rest/v1/${TABLE}?${query}`)).json(); }

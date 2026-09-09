@@ -374,7 +374,13 @@ async function boot() {
   async function initialize() {
     const data = await api('/api/workflow/capabilities'); state.capabilities = data.stages || [];
     $('storage').textContent = data.storageReady === true ? 'Armazenamento disponível' : 'Armazenamento indisponível';
-    renderStages(state.stages); await listJobs(); notice('Escolha um projeto ou crie um novo.');
+    renderStages(state.stages);
+    if (data.storageReady !== true) {
+      $('jobs').replaceChildren(node('li', 'Persistência indisponível no backend. Configure a conexão segura do Supabase no Render e atualize esta página.'));
+      notice('Backend conectado, mas o armazenamento do workflow está indisponível. Nenhuma sessão foi encerrada.', true);
+      return;
+    }
+    await listJobs(); notice('Escolha um projeto ou crie um novo.');
   }
 }
 if (typeof document !== 'undefined') boot();
