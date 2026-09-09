@@ -23,7 +23,7 @@ function apiErrorMessage(payload, status) {
   const detail = typeof payload?.error === 'string' ? payload.error : payload?.error?.message;
   if (status >= 500) return `Pedido não concluído (HTTP ${status}). O servidor do workflow não respondeu corretamente; verifique o backend e tente Atualizar lista novamente.`;
   return (typeof detail === 'string' && detail.trim() ? detail.slice(0, 2000) + ' ' : '') +
-    (status === 401 ? 'O servidor não aceitou esta sessão. Ela foi preservada localmente; atualize o /app ou saia e entre novamente.' : `Pedido não concluído (HTTP ${status}).`);
+    (status === 401 ? 'O servidor não aceitou esta sessão. Ela foi preservada localmente. Entre novamente no /app ou atualize a página.' : `Pedido não concluído (HTTP ${status}).`);
 }
 function validateFields(body) {
   for (const [field, limit] of Object.entries(LIMITS)) if (typeof body[field] === 'string' && body[field].length > limit) throw new Error(`O campo ${field} permite até ${limit} caracteres. Revise o texto antes de salvar.`);
