@@ -981,7 +981,13 @@ form.addEventListener('submit', async (event) => {
 document.getElementById('logoutBtn').addEventListener('click', async () => { await supabase.auth.signOut(); });
 const { data: { session } } = await supabase.auth.getSession();
 showSession(session);
-supabase.auth.onAuthStateChange((_event, nextSession) => showSession(nextSession));
+supabase.auth.onAuthStateChange((_event, nextSession) => {
+  showSession(nextSession);
+  if (_event === 'SIGNED_IN' && nextSession && sessionStorage.getItem('workflow_return_after_login') === '/workflow') {
+    sessionStorage.removeItem('workflow_return_after_login');
+    window.location.assign('/workflow');
+  }
+});
 </script>
 <script>
 // ─── Referências ──────────────────────────────────────────────────────────────

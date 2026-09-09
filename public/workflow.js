@@ -75,7 +75,7 @@ async function boot() {
   const path = () => '/api/workflow/jobs/' + encodeURIComponent(state.job.id);
   function cancel() { clearTimeout(state.timer); state.generation++; for (const controller of state.requests) controller.abort(); state.requests.clear(); }
   async function api(url, options = {}, publicRequest = false) {
-    const { rawMime, timeoutMs = 30000, blob: wantsBlob, ...request } = options;
+    const { rawMime, timeoutMs = 30000, blob: wantsBlob, authRetry = false, ...request } = options;
     const controller = new AbortController(); state.requests.add(controller);
     const generation = state.generation;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -87,7 +87,22 @@ async function boot() {
         headers.Authorization = 'Bearer ' + data.session.access_token;
       }
       if (request.body) headers['Content-Type'] = rawMime || 'application/json';
-      const response = await fetch(url, { ...request, headers, signal: controller.signal, credentials: 'same-origin', redirect: 'error', cache: 'no-store' });
+      let response = await fetch(url, { ...request, headers, signal: controller.signal, credentials: 'same-origin', redirect: 'error', cache: 'no-store' });
+      // Renova uma vez a sessão expirada sem repetir a operação do usuário.
+      let recoveredSession = false;
+      if (response.status === 401 && !publicRequest && !authRetry && state.client) {
+        const refreshed = await state.client.auth.refreshSession();
+        if (!refreshed.error && refreshed.data.session?.access_token) {
+          headers.Authorization = 'Bearer ' + refreshed.data.session.access_token;
+          response = await fetch(url, { ...request, headers, signal: controller.signal, credentials: 'same-origin', redirect: 'error', cache: 'no-store' });
+          recoveredSession = response.ok;
+        }
+      }
+      if (response.status === 401 && !publicRequest && !recoveredSession) {
+        try { await state.client?.auth.signOut({ scope: 'local' }); } catch { /* A limpeza local não pode impedir o novo login. */ }
+        sessionStorage.setItem('workflow_return_after_login', '/workflow');
+        window.location.assign('/app');
+      }
       if (!response.ok) {
         let payload;
         try { payload = await response.json(); } catch { /* Non-JSON failure uses the HTTP fallback. */ }
