@@ -52,15 +52,19 @@ async function serveHtml(request: Request, env: Env, pathname: string): Promise<
 async function isAuthenticated(request: Request, env: Env): Promise<boolean> {
   const authorization = request.headers.get("Authorization");
   if (!authorization?.startsWith("Bearer ")) return false;
-
-  const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      Authorization: authorization,
-      apikey: env.SUPABASE_PUBLISHABLE_KEY,
-    },
-    redirect: 'error', signal: AbortSignal.timeout(10000),
-  });
-  return response.ok;
+  try {
+    const response = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        Authorization: authorization,
+        apikey: env.SUPABASE_PUBLISHABLE_KEY,
+      },
+      redirect: 'error', signal: AbortSignal.timeout(10000),
+    });
+    return response.ok;
+  } catch {
+    // Falha de rede não pode virar erro 500 nem liberar nenhuma rota protegida.
+    return false;
+  }
 }
 
 async function getAnonymousYoutubeVisitorData(videoId: string): Promise<Response> {
