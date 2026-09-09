@@ -64,7 +64,7 @@ function lensURL(value, expires) {
 
 async function boot() {
   const $ = id => document.getElementById(id);
-  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false };
+  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, redirectingToLogin: false };
   const cards = new Map();
   const attempts = new Map();
   const warnings = new Map();
@@ -74,6 +74,13 @@ async function boot() {
   const notice = (text, error = false) => { $('notice').textContent = text; $('notice').dataset.error = String(error); };
   const path = () => '/api/workflow/jobs/' + encodeURIComponent(state.job.id);
   function cancel() { clearTimeout(state.timer); state.generation++; for (const controller of state.requests) controller.abort(); state.requests.clear(); }
+  function redirectToLogin() {
+    if (state.redirectingToLogin) return;
+    state.redirectingToLogin = true;
+    cancel();
+    try { sessionStorage.setItem('workflow_return_after_login', '/workflow'); } catch { /* Storage may be unavailable; /app remains the safe destination. */ }
+    window.location.replace('/app');
+  }
   async function api(url, options = {}, publicRequest = false) {
     const { rawMime, timeoutMs = 30000, blob: wantsBlob, authRetry = false, ...request } = options;
     const controller = new AbortController(); state.requests.add(controller);
@@ -100,8 +107,7 @@ async function boot() {
       }
       if (response.status === 401 && !publicRequest && !recoveredSession) {
         try { await state.client?.auth.signOut({ scope: 'local' }); } catch { /* A limpeza local não pode impedir o novo login. */ }
-        sessionStorage.setItem('workflow_return_after_login', '/workflow');
-        window.location.assign('/app');
+        redirectToLogin();
       }
       if (!response.ok) {
         let payload;
