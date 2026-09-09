@@ -123,9 +123,11 @@ export default {
     if (url.pathname === '/api/config' && request.method === 'GET') return Response.json({supabaseUrl:env.SUPABASE_URL,supabasePublishableKey:env.SUPABASE_PUBLISHABLE_KEY},{headers:{'Cache-Control':'no-store'}});
     // Internal job dispatch is only called directly by ShortsWorkflow, never proxied from the public edge.
     if (url.pathname.startsWith('/api/workflow-dispatch/')) return Response.json({error:'Não encontrado'},{status:404});
-    // Frames precisam ser acessíveis pelo Google Lens após um upload autenticado.
+    // Somente o workflow usa o backend como autoridade final de autenticação.
+    // As rotas legadas continuam protegidas também na borda.
+    const isWorkflowRoute = url.pathname === '/api/workflow' || url.pathname.startsWith('/api/workflow/');
     const isPublicFrame = request.method === "GET" && /^\/api\/frame\/[^/]+$/.test(url.pathname);
-    if (!isPublicFrame && !(await isAuthenticated(request, env))) {
+    if (!isWorkflowRoute && !isPublicFrame && !(await isAuthenticated(request, env))) {
       return Response.json({ error: "Sessão inválida ou expirada" }, { status: 401 });
     }
 
@@ -133,8 +135,15 @@ export default {
     // somente Visitor Data anônimo a partir da borda Cloudflare; não lê cookies
     // do navegador e continua protegida pelo login Supabase da aplicação.
     if (request.method === "GET" && url.pathname === "/api/youtube-visitor") {
+      if (!(await isAuthenticated(request, env))) {
+        return Response.json({ error: "Sessão inválida ou expirada" }, { status: 401 });
+      }
       return getAnonymousYoutubeVisitorData(url.searchParams.get("videoId") || "");
     }
+
+    // A rota de workflow é encaminhada ao Render, que é a autoridade única
+    // de autenticação desse grupo. O middleware do backend continua obrigatório
+    // e valida o mesmo Bearer antes de qualquer operação.
 
     try {
       const backendUrl = new URL(url.pathname + url.search, env.BACKEND_URL);
