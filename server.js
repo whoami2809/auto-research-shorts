@@ -4,9 +4,41 @@ const { spawn } = require('child_process');
 const { Readable } = require('stream');
 const fs = require('fs');
 const path = require('path');
+const {randomBytes}=require('node:crypto');
+const {authenticate,authConfig,paidAllowed}=require('./workflow/auth');
+const {SupabaseStore}=require('./workflow/store');
+const {Engine}=require('./workflow/engine');
+const {createRouter,dispatchRoute}=require('./workflow/router');
+const {officialUrl}=require('./workflow/contracts');
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.use(cors()); app.use(express.json()); app.use(express.static('public'));
+app.disable('x-powered-by');
+const publicOrigin=process.env.PUBLIC_APP_URL||'https://auto-research-shorts.darknet-web28.workers.dev';
+app.use(cors({origin:publicOrigin,methods:['GET','POST','PATCH'],allowedHeaders:['Authorization','Content-Type']}));
+app.use(express.json({limit:'128kb'}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'workflow-v1'}));
+app.get('/api/config',(req,res)=>res.set('Cache-Control','no-store').json(authConfig()));
+const workflowStore=new SupabaseStore({env:{...process.env,SUPABASE_URL:authConfig().supabaseUrl}});
+const editorialProviders=require('./workflow/providers').createProviders();
+const mediaProviders=require('./workflow/media').createMediaProviders({store:workflowStore});
+const workflowEngine=new Engine({store:workflowStore,providers:{...editorialProviders,...mediaProviders},paidAllowed});
+app.post('/api/workflow-dispatch/:id',dispatchRoute({store:workflowStore,engine:workflowEngine}));
+const authMiddleware=authenticate();
+app.use('/api',(req,res,next)=>{
+  if(req.method==='GET'&&/^\/frame\/[a-f0-9]{64}$/.test(req.path)) return next();
+  return authMiddleware(req,res,next);
+});
+app.use('/api/workflow',createRouter({store:workflowStore,engine:workflowEngine,validateImport:mediaProviders.validateImport}));
+app.use(express.static('public'));
+
+// Suporte direto para a rota do workflow no servidor Express (mantido
+// compatível com links como /workflow no ambiente local).
+app.get('/workflow', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'workflow.html'));
+});
+app.get('/workflow/', (req, res) => {
+  res.redirect('/workflow');
+});
 
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
@@ -55,9 +87,12 @@ const frameCache=new Map(), FRAME_TTL=15*60*1000;
 function cleanFrames(){const now=Date.now();for(const[id,f]of frameCache)if(now>f.exp)frameCache.delete(id);}
 
 function extractVideoId(url){
-  for(const p of[/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,/youtu\.be\/([a-zA-Z0-9_-]{11})/,/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,/[?&]v=([a-zA-Z0-9_-]{11})/]){
-    const m=url.match(p); if(m) return m[1];
-  } return null;
+  try {
+    const parsed=new URL(officialUrl(url));
+    if(!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(parsed.hostname)) return null;
+    const id=parsed.hostname==='youtu.be'?parsed.pathname.slice(1):parsed.pathname.startsWith('/shorts/')?parsed.pathname.split('/')[2]:parsed.searchParams.get('v');
+    return /^[a-zA-Z0-9_-]{11}$/.test(id||'')?id:null;
+  }catch{return null;}
 }
 
 function safeFilename(title, ext){
@@ -100,7 +135,7 @@ let PIPED = [
 // A lista de instâncias públicas do Piped muda com frequência (instâncias saem do ar
 // e novas aparecem). Em vez de manter uma lista fixa no código (que fica velha), busca
 // a lista oficial atualizada no início do servidor.
-(async function loadPipedInstances(){
+async function loadPipedInstances(){
   try {
     const r = await fetch('https://piped-instances.kavin.rocks/', { signal: AbortSignal.timeout(8000) });
     if (r.ok) {
@@ -114,7 +149,7 @@ let PIPED = [
   } catch(e) {
     console.warn('[piped] não consegui buscar lista de instâncias, usando fallback fixo:', e.message);
   }
-})();
+}
 async function pipedStreams(videoId){
   const tryOne = async (api) => {
     const r = await fetch(`${api}/streams/${videoId}`, { signal: AbortSignal.timeout(6000) });
@@ -206,6 +241,7 @@ app.get('/api/tags',async(req,res)=>{
 // Usa Claude para tradução natural (requer ANTHROPIC_API_KEY no Render)
 // Fallback: retorna erro 503 → frontend usa Google Translate
 app.post('/api/translate',async(req,res)=>{
+  if(!paidAllowed(req.workflowUser)) return res.status(403).json({error:'Conta não autorizada para IA paga.'});
   const{text,targetLang}=req.body;
   if(!text) return res.status(400).json({error:'Texto obrigatório'});
   const key=process.env.ANTHROPIC_API_KEY;
@@ -272,6 +308,7 @@ ${text.slice(0,3000)}`}]
 app.get('/api/video-dl',async(req,res)=>{
   const {url, quality, mode, audioFormat, audioBitrate, useCookies} = req.query;
   if(!url) return res.status(400).send('URL obrigatória');
+  try {officialUrl(url);}catch{return res.status(400).json({error:'Use uma URL HTTPS oficial de YouTube, TikTok, Instagram ou Facebook.'});}
 
   const isAudio = mode==='audio';
   const isMute  = mode==='mute';
@@ -399,8 +436,7 @@ app.get('/api/video-dl',async(req,res)=>{
   const outTemplate = path.join(DOWNLOAD_DIR, `${jobId}__%(title).150B.%(ext)s`);
 
   const args = [
-    '--verbose',
-    '--no-check-certificates',
+    '--ignore-config',
     '--no-playlist',
     // O IP do Render recebe 429 do YouTube antes mesmo da extração. A simulação
     // do handshake/headers reais do Chrome (via curl_cffi) permite carregar a
@@ -450,9 +486,9 @@ app.get('/api/video-dl',async(req,res)=>{
     const kbps = parseInt(audioBitrate) || 128;
     args.push('-f', fmtStr, '-x', '--audio-format', fmt, '--audio-quality', `${kbps}K`);
   } else {
-    args.push('--merge-output-format','mp4', '-f', fmtStr);
+    args.push('--merge-output-format','mp4','--remux-video','mp4', '-f', fmtStr);
   }
-  args.push('-o', outTemplate, url);
+  args.push('-o', outTemplate, '--',url);
 
   console.log('[yt-dlp] format=%s job=%s', fmtStr, jobId);
 
@@ -460,14 +496,12 @@ app.get('/api/video-dl',async(req,res)=>{
   let stderrBuf = '';
   proc.stderr.on('data', d => {
     const s = d.toString().trim();
-    stderrBuf += s + '\n';
-    if(/\[download\].*%|ERROR|WARNING|ffmpeg|format|\[pot|PO Token|player client/i.test(s))
-      console.log('[yt-dlp stderr]', s.slice(0,150));
+    stderrBuf = (stderrBuf+s+'\n').slice(-8192);
   });
 
   proc.on('close', code => {
     if(code !== 0){
-      console.warn('[yt-dlp] falhou code=%d\n%s', code, stderrBuf.slice(-500));
+      console.warn('[yt-dlp] falhou code=%d', code);
       if(!res.headersSent){
         const isRateLimited = /429|Too Many Requests/i.test(stderrBuf);
         const isBotCheck = /Sign in to confirm|not a bot/i.test(stderrBuf);
@@ -477,7 +511,7 @@ app.get('/api/video-dl',async(req,res)=>{
             ? 'A sessão do YouTube configurada no servidor expirou. Tente novamente sem autenticação de conta.'
             : isRateLimited || isBotCheck
               ? 'O YouTube limitou temporariamente o servidor. Aguarde alguns minutos e tente novamente.'
-              : 'Falha no download. '+stderrBuf.slice(-300)
+              : 'Não foi possível baixar este vídeo. Confira a disponibilidade da publicação.'
         });
       }
       return;
@@ -514,21 +548,27 @@ app.get('/api/video-dl',async(req,res)=>{
 
 // ─── /api/frame (Lens) ────────────────────────────────────────────────────────
 app.post('/api/frame',express.raw({type:'*/*',limit:'10mb'}),(req,res)=>{
+  if(!Buffer.isBuffer(req.body)||req.body.length<24) return res.status(400).json({error:'Envie uma imagem PNG ou JPEG válida.'});
+  const png=req.body.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+  const jpeg=req.body[0]===255&&req.body[1]===216&&req.body[2]===255&&req.body.at(-2)===255&&req.body.at(-1)===217;
+  if(!png&&!jpeg) return res.status(415).json({error:'Formato de imagem não reconhecido.'});
   cleanFrames();
-  while(frameCache.size>=300){
+  while(frameCache.size>=20||[...frameCache.values()].reduce((n,f)=>n+f.data.length,0)+req.body.length>40*1024*1024){
     const o=[...frameCache.entries()].sort((a,b)=>a[1].exp-b[1].exp)[0];
     if(o) frameCache.delete(o[0]);
   }
-  const id=Date.now().toString(36)+Math.random().toString(36).substr(2,8);
-  frameCache.set(id,{data:req.body,exp:Date.now()+FRAME_TTL});
-  res.json({id,url:`/api/frame/${id}`});
+  const id=randomBytes(32).toString('hex');
+  const exp=Date.now()+FRAME_TTL;
+  frameCache.set(id,{data:req.body,mime:png?'image/png':'image/jpeg',exp});
+  res.json({id,url:`/api/frame/${id}`,expires_at:new Date(exp).toISOString()});
 });
 app.get('/api/frame/:id',(req,res)=>{
   cleanFrames(); const frame=frameCache.get(req.params.id);
   if(!frame) return res.status(404).send('Frame expirado');
   res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Content-Type','image/png');
-  res.setHeader('Cache-Control','public, max-age=900');
+  res.setHeader('Content-Type',frame.mime);
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('Cache-Control','no-store');
   res.send(frame.data);
 });
 

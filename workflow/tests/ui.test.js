@@ -1,0 +1,179 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { resolve } = require('node:path');
+const vm = require('node:vm');
+const root = resolve(__dirname, '../../public');
+const js = readFileSync(resolve(root, 'workflow.js'), 'utf8');
+const html = readFileSync(resolve(root, 'workflow.html'), 'utf8');
+const css = readFileSync(resolve(root, 'workflow.css'), 'utf8');
+const app = readFileSync(resolve(root, 'index.html'), 'utf8');
+const context = vm.createContext({ URL, atob, Date });
+vm.runInContext(js, context);
+const invoke = (name, ...args) => { context.args = args; return vm.runInContext(`${name}(...args)`, context); };
+
+test('links: quatro plataformas oficiais, HTTPS e limite de 25', () => {
+  for (const url of ['https://www.youtube.com/watch?v=x', 'https://youtu.be/x', 'https://www.tiktok.com/@x/video/1', 'https://instagram.com/reel/x', 'https://m.facebook.com/x']) assert.equal(invoke('officialURL', url), url);
+  for (const url of ['https://youtube.com.evil.test/x', 'http://youtube.com/x', 'https://youtube.com:444/x', 'https://user:pass@youtube.com/x', 'https://127.0.0.1/x', 'javascript:alert(1)', 'https://notyoutube.com/x']) assert.throws(() => invoke('officialURL', url));
+  assert.equal(invoke('parseLinks', Array(25).fill('https://youtu.be/x').join('\n')).length, 25);
+  assert.throws(() => invoke('parseLinks', Array(26).fill('https://youtu.be/x').join('\n')));
+});
+test('config aceita somente chave pública, rejeita serviço e payload inválido', () => {
+  const config = key => ({ supabaseUrl: 'https://project.supabase.co', supabasePublishableKey: key });
+  const jwt = role => 'e30.' + Buffer.from(JSON.stringify({ role })).toString('base64url') + '.signature';
+  assert.equal(invoke('publicConfig', config(jwt('anon'))).key, jwt('anon'));
+  assert.equal(invoke('publicConfig', config('sb_publishable_example')).key, 'sb_publishable_example');
+  for (const key of [jwt('service_role'), 'sb_secret_example', 'garbage', null, jwt('authenticated')]) assert.throws(() => invoke('publicConfig', config(key)));
+  assert.throws(() => invoke('publicConfig', { ...config(jwt('anon')), supabaseUrl: 'http://localhost' }));
+});
+test('Lens recusa destino externo, credenciais e link expirado', () => {
+  const future = new Date(Date.now() + 60000).toISOString();
+  assert.equal(invoke('lensURL', 'https://lens.google.com/uploadbyurl?url=x', future), 'https://lens.google.com/uploadbyurl?url=x');
+  for (const url of ['javascript:alert(1)', 'https://lens.google.com.evil.test/', 'https://user@lens.google.com/', 'http://lens.google.com/']) assert.throws(() => invoke('lensURL', url, future));
+  assert.throws(() => invoke('lensURL', 'https://lens.google.com/', '2000-01-01'));
+  assert.throws(() => invoke('lensURL', 'https://lens.google.com/', 'invalid'));
+});
+test('DOM: dados externos não viram HTML e não há JavaScript inline', () => {
+  assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\s*\(/);
+  assert.doesNotMatch(html, /\son\w+\s*=|javascript:|<script(?![^>]*\bsrc=)/i);
+  assert.match(js, /\.textContent =/);
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(ids.length, new Set(ids).size);
+  for (const match of js.matchAll(/\$\('([^']+)'\)/g)) assert.ok(ids.includes(match[1]), 'ID presente: ' + match[1]);
+});
+test('Supabase fixado na mesma major usada pelo site; sessão padrão e autenticação bearer', () => {
+  assert.match(app, /@supabase\/supabase-js@2(?:\/|\.)/);
+  assert.match(js, /@supabase\/supabase-js@2\.116\.0\/\+esm/);
+  assert.match(js, /createClient\(config\.url, config\.key\)/);
+  assert.match(js, /headers\.Authorization = 'Bearer '/);
+  assert.match(js, /api\('\/api\/config', \{\}, true\)/);
+  assert.match(js, /redirect: 'error'/);
+  assert.doesNotMatch(js, /localStorage\.setItem|console\.log/);
+});
+test('consentimentos, escolhas e API de execução independentes', () => {
+  assert.doesNotMatch(html, /\bchecked\b/);
+  assert.match(js, /request_id: uuid\(\)/);
+  assert.match(js, /pendingRun\(attempts, runKey\(\), endpoint, body, \(\) => crypto\.randomUUID\(\)\)/);
+  assert.match(js, /allow_paid: \$\('allow-paid'\)\.checked/);
+  assert.match(js, /allow_frame_upload: \$\('allow-frame-upload'\)\.checked/);
+  assert.match(js, /if \(!individual\) body\.steps = steps/);
+  assert.match(js, /run\(\[name\], true\)/);
+  assert.match(js, /lens\.addEventListener\('click'/);
+  assert.match(js, /URL\.createObjectURL\(blob\)/);
+  assert.match(js, /URL\.revokeObjectURL\(href\)/);
+});
+test('polling com intervalo, cancelamento e somente em estados ativos', () => {
+  assert.match(js, /new AbortController\(\)/);
+  assert.match(js, /visibilitychange/);
+  assert.match(js, /document\.hidden\) cancel\(\)/);
+  assert.match(js, /generation !== state\.generation/);
+  assert.match(js, /\['queued', 'running'\]\.includes\(stage\.status\)/);
+  assert.match(js, /4000\)/);
+  assert.doesNotMatch(js, /setInterval/);
+});
+test('PATCH parcial e edição preservada durante resposta e polling', () => {
+  assert.match(js, /if \(!state\.dirty\.has\(field\)\)/);
+  assert.match(js, /creating \|\| state\.dirty\.has\(field\)/);
+  assert.match(js, /\$\(field\)\.value === value\) state\.dirty\.delete\(field\)/);
+  assert.match(js, /creating \? 'POST' : 'PATCH'/);
+  assert.match(js, /state\.dirty\.size > 0/);
+  for (const status of ['pending', 'queued', 'running', 'ready', 'failed', 'waiting_input', 'unknown', 'stale']) assert.ok(vm.runInContext(`Object.hasOwn(STATUS, '${status}')`, context));
+  assert.match(html, /hash/);
+  assert.match(html, /Nenhuma etapa é refeita automaticamente/);
+});
+test('acessibilidade e responsividade', () => {
+  assert.match(html, /lang="pt-BR"/);
+  assert.match(html, /aria-live="polite"/);
+  assert.match(html, /href="#workspace"/);
+  assert.match(css, /:focus-visible/);
+  assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /max-width:540px/);
+});
+test('limites HTML e validação de textos programáticos seguem a API', () => {
+  for (const [field, limit] of Object.entries({ name: 120, channel: 80, title: 180, transcript: 20000, script: 20000 })) {
+    assert.match(html, new RegExp(`id="${field}"[^>]*maxlength="${limit}"`));
+    assert.doesNotThrow(() => invoke('validateFields', { [field]: 'x'.repeat(limit) }));
+    assert.throws(() => invoke('validateFields', { [field]: 'x'.repeat(limit + 1) }));
+  }
+  assert.match(js, /validateFields\(body\)/);
+});
+test('saída editorial aninhada e legada, sem sobrescrever edições', () => {
+  assert.equal(invoke('editorialText', { data: { script: 'Roteiro gerado' } }, 'script'), 'Roteiro gerado');
+  assert.equal(invoke('editorialText', { data: { title: 'Título gerado' } }, 'title'), 'Título gerado');
+  assert.equal(invoke('editorialText', { script: 'Legado' }, 'script'), 'Legado');
+  assert.equal(invoke('editorialText', 'Texto direto', 'script'), 'Texto direto');
+  assert.equal(invoke('editorialText', { data: { title: ['não é texto'] } }, 'title'), null);
+  assert.match(js, /const output = stage\?\.output\?\.data \?\? stage\?\.output/);
+  assert.match(js, /!state\.dirty\.has\(field\) && !\$\(field\)\.value\.trim\(\) && value\?\.trim\(\)/);
+  assert.match(js, /state\.dirty\.has\(field\) \|\| \$\(field\)\.value\.trim\(\)/);
+});
+test('erros da API e aviso 202 persistem como texto; motivo disponível também aparece', () => {
+  assert.match(invoke('apiErrorMessage', { error: 'O título excede 180 caracteres.' }, 400), /O título excede 180 caracteres/);
+  assert.match(invoke('apiErrorMessage', { error: { message: 'Etapa bloqueada.' } }, 403), /Etapa bloqueada/);
+  assert.match(invoke('apiErrorMessage', null, 502), /HTTP 502/);
+  assert.match(invoke('apiErrorMessage', {}, 401), /Entre novamente/);
+  assert.match(js, /capability\?\.reason \|\| \(capability\?\.available === true/);
+  assert.match(js, /capability\.available !== true/);
+  assert.match(js, /warnings\.set\(key, warning\)/);
+  assert.match(js, /\$\('run-warning'\)\.textContent = warnings\.get\(runKey\(\)\)/);
+  assert.match(html, /id="run-warning" role="status" aria-live="polite"/);
+});
+test('tentativa incerta preserva ID, endpoint, etapas e consentimentos até resposta', () => {
+  const attempts = new Map(); let generated = 0;
+  const uuid = () => 'id-' + ++generated;
+  const initial = invoke('pendingRun', attempts, 'user/job-a', '/jobs/a/run', { steps: ['voz'], allow_paid: true, allow_frame_upload: false }, uuid);
+  const retry = invoke('pendingRun', attempts, 'user/job-a', '/jobs/a/stages/frames/run', { steps: ['frames'], allow_paid: false }, uuid);
+  assert.equal(retry, initial);
+  assert.equal(retry.body.request_id, 'id-1');
+  assert.equal(retry.endpoint, '/jobs/a/run');
+  assert.equal(retry.body.allow_paid, true);
+  assert.deepEqual(retry.body.steps, ['voz']);
+  assert.equal(generated, 1);
+  assert.notEqual(invoke('pendingRun', attempts, 'user/job-b', '/jobs/b/run', {}, uuid).body.request_id, initial.body.request_id);
+  attempts.delete('user/job-a');
+  assert.notEqual(invoke('pendingRun', attempts, 'user/job-a', '/jobs/a/run', {}, uuid).body.request_id, initial.body.request_id);
+  assert.match(js, /api\(attempt\.endpoint, \{ method: 'POST', body: JSON\.stringify\(attempt\.body\) \}\)/);
+  assert.match(js, /\$\('retry-run'\)\.addEventListener\('click'/);
+  assert.match(js, /!\[408, 429\]\.includes\(error\.status\)/);
+  assert.match(js, /state\.busy \|\| unresolved/);
+});
+test('importação limita tamanho e MIME sem ler ou enviar arquivos reais', () => {
+  const file = (type, size = 1024) => ({ name: 'selecionado', type, size });
+  assert.equal(invoke('importMime', 'base', file('video/mp4', 50 * 1024 * 1024)), 'video/mp4');
+  assert.equal(invoke('importMime', 'voice', file('audio/mpeg')), 'audio/mpeg');
+  assert.equal(invoke('importMime', 'voice', file('audio/wav')), 'audio/wav');
+  assert.equal(invoke('importMime', 'voice', file('audio/x-wav')), 'audio/wav');
+  for (const size of [0, -1, NaN, Infinity, 50 * 1024 * 1024 + 1]) assert.throws(() => invoke('importMime', 'base', file('video/mp4', size)));
+  for (const type of ['audio/mpeg', 'video/webm', 'application/octet-stream', 'text/html', '']) assert.throws(() => invoke('importMime', 'base', file(type)));
+  assert.throws(() => invoke('importMime', 'voice', file('video/mp4')));
+  assert.throws(() => invoke('importMime', 'base', null));
+  assert.throws(() => invoke('importMime', 'other', file('video/mp4')));
+});
+test('importação usa seleção individual, botão explícito e corpo binário autenticado', () => {
+  const inputs = [...html.matchAll(/<input[^>]*type="file"[^>]*>/g)].map(match => match[0]);
+  assert.equal(inputs.length, 2);
+  for (const input of inputs) assert.doesNotMatch(input, /\bmultiple\b|\bdirectory\b/);
+  assert.match(html, /id="import-base-file"[^>]*accept="video\/mp4,\.mp4"/);
+  assert.match(html, /id="import-voice-file"[^>]*accept="audio\/mpeg,audio\/wav,\.mp3,\.wav"/);
+  assert.match(html, /apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto/);
+  assert.match(js, /\.addEventListener\('change', controls\)/);
+  assert.match(js, /\.addEventListener\('click', \(\) => action\(\(\) => importMedia\(kind\)\)\)/);
+  assert.match(js, /const file = input\.files\?\.\[0\]/);
+  assert.match(js, /api\(path\(\) \+ '\/import\?kind=' \+ kind, \{ method: 'POST', body: file, rawMime, timeoutMs: 130000 \}\)/);
+  assert.match(js, /headers\['Content-Type'\] = rawMime \|\| 'application\/json'/);
+  assert.match(js, /timeoutMs = 30000/);
+  assert.match(js, /setTimeout\(\(\) => controller\.abort\(\), timeoutMs\)/);
+  assert.match(js, /headers\.Authorization = 'Bearer '/);
+  assert.doesNotMatch(js, /FileReader|readAsDataURL|showDirectoryPicker|new FormData/);
+});
+test('importação exige projeto salvo, preserva mídia e só aplica estados da API', () => {
+  const source = js.slice(js.indexOf('async function importMedia(kind)'), js.indexOf('async function run(steps'));
+  assert.match(source, /if \(!state\.job \|\| state\.dirty\.size\) throw/);
+  assert.match(source, /if \(attempts\.has\(runKey\(\)\)\) throw/);
+  assert.match(source, /kind === 'base' && importedBases\.has\(runKey\(\)\)/);
+  assert.match(source, /stage\.name === 'voz' && stage\.status === 'ready'/);
+  assert.match(source, /error\.status === 409/);
+  assert.match(source, /fill\(data\.job\); renderStages\(data\.stages\); renderArtifacts\(data\.artifacts\)/);
+  assert.doesNotMatch(source, /\brun\(|status\s*=\s*'ready'|JSON\.stringify\(file\)/);
+  assert.match(js, /cancel\(\); resetImports\(\); state\.job = job/);
+});

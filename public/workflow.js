@@ -1,0 +1,362 @@
+// Same major CDN reference as /app, resolved and pinned on implementation.
+const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
+const STAGES = { roteiro: 'Roteiro', titulos: 'Títulos', seo: 'SEO', voz: 'Voz', frames: 'Frames', busca: 'Pesquisa', downloads: 'Downloads', organizar: 'Organização' };
+const STATUS = { pending: 'Pendente', queued: 'Na fila', running: 'Em execução', ready: 'Pronta', failed: 'Falhou', waiting_input: 'Aguarda sua entrada', unknown: 'Estado desconhecido', stale: 'Desatualizada' };
+const FIELDS = ['name', 'transcript', 'script', 'title', 'links', 'channel'];
+const OFFICIAL = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'facebook.com'];
+const LIMITS = { name: 120, channel: 80, title: 180, transcript: 20000, script: 20000 };
+const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
+function importMime(kind, file) {
+  if (!['base', 'voice'].includes(kind)) throw new Error('Tipo de importação inválido.');
+  if (!file || !Number.isFinite(file.size) || file.size <= 0) throw new Error('Selecione um arquivo não vazio.');
+  if (file.size > MAX_IMPORT_BYTES) throw new Error('O arquivo excede o limite de 50 MiB.');
+  const mime = file.type === 'audio/x-wav' || file.type === 'audio/wave' ? 'audio/wav' : file.type;
+  if (!(kind === 'base' ? ['video/mp4'] : ['audio/mpeg', 'audio/wav']).includes(mime)) throw new Error(kind === 'base' ? 'Selecione um vídeo MP4 (video/mp4).' : 'Selecione uma narração MP3 ou WAV (audio/mpeg ou audio/wav).');
+  // Browser metadata is only a precheck. The server validates the actual media.
+  return mime;
+}
+function editorialText(output, field) {
+  const data = output?.data ?? output;
+  return typeof data === 'string' ? data : typeof data?.[field] === 'string' ? data[field] : null;
+}
+function apiErrorMessage(payload, status) {
+  const detail = typeof payload?.error === 'string' ? payload.error : payload?.error?.message;
+  if (status >= 500) return `Pedido não concluído (HTTP ${status}). O servidor do workflow não respondeu corretamente; verifique o backend e tente Atualizar lista novamente.`;
+  return (typeof detail === 'string' && detail.trim() ? detail.slice(0, 2000) + ' ' : '') +
+    (status === 401 ? 'Sessão expirada. Entre novamente em /app.' : `Pedido não concluído (HTTP ${status}).`);
+}
+function validateFields(body) {
+  for (const [field, limit] of Object.entries(LIMITS)) if (typeof body[field] === 'string' && body[field].length > limit) throw new Error(`O campo ${field} permite até ${limit} caracteres. Revise o texto antes de salvar.`);
+}
+// One unresolved request per user/project. Reuse its complete payload on manual retry.
+function pendingRun(attempts, key, endpoint, body, uuid) {
+  if (!attempts.has(key)) attempts.set(key, { endpoint, body: { ...body, request_id: uuid() } });
+  return attempts.get(key);
+}
+
+function officialURL(value) {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || !OFFICIAL.some(host => url.hostname === host || url.hostname.endsWith('.' + host))) throw new Error('Use links HTTPS oficiais de YouTube, TikTok, Instagram ou Facebook.');
+  return url.href;
+}
+function parseLinks(value) {
+  const lines = value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  if (lines.length > 25) throw new Error('O limite é de 25 links por projeto.');
+  return lines.map(officialURL);
+}
+function publicConfig(config) {
+  const url = new URL(config.supabaseUrl);
+  const key = config.supabasePublishableKey;
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || (url.port && url.port !== '443')) throw new Error('Configuração de autenticação inválida.');
+  if (typeof key !== 'string') throw new Error('Chave pública ausente.');
+  if (!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) {
+    let role;
+    try { role = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role; } catch { /* Reject malformed keys. */ }
+    if (role !== 'anon' || key.split('.').length !== 3) throw new Error('Somente chave pública é permitida.');
+  }
+  return { url: url.href, key };
+}
+function lensURL(value, expires) {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.hostname !== 'lens.google.com' || url.port || url.username || url.password || !Number.isFinite(Date.parse(expires)) || Date.parse(expires) <= Date.now()) throw new Error('Link Lens inválido ou expirado.');
+  return url.href;
+}
+
+async function boot() {
+  const $ = id => document.getElementById(id);
+  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false };
+  const cards = new Map();
+  const attempts = new Map();
+  const warnings = new Map();
+  const importedBases = new Set();
+  const runKey = () => JSON.stringify([state.session?.user?.id, state.job?.id]);
+  const node = (tag, text, className) => { const el = document.createElement(tag); if (text !== undefined) el.textContent = String(text); if (className) el.className = className; return el; };
+  const notice = (text, error = false) => { $('notice').textContent = text; $('notice').dataset.error = String(error); };
+  const path = () => '/api/workflow/jobs/' + encodeURIComponent(state.job.id);
+  function cancel() { clearTimeout(state.timer); state.generation++; for (const controller of state.requests) controller.abort(); state.requests.clear(); }
+  async function api(url, options = {}, publicRequest = false) {
+    const { rawMime, timeoutMs = 30000, blob: wantsBlob, ...request } = options;
+    const controller = new AbortController(); state.requests.add(controller);
+    const generation = state.generation;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const headers = { Accept: 'application/json' };
+      if (!publicRequest) {
+        const { data, error } = await state.client.auth.getSession();
+        if (error || !data.session) throw new Error('Entre novamente em /app para continuar.');
+        headers.Authorization = 'Bearer ' + data.session.access_token;
+      }
+      if (request.body) headers['Content-Type'] = rawMime || 'application/json';
+      const response = await fetch(url, { ...request, headers, signal: controller.signal, credentials: 'same-origin', redirect: 'error', cache: 'no-store' });
+      if (!response.ok) {
+        let payload;
+        try { payload = await response.json(); } catch { /* Non-JSON failure uses the HTTP fallback. */ }
+        const error = new Error(apiErrorMessage(payload, response.status));
+        error.status = response.status;
+        throw error;
+      }
+      const result = wantsBlob ? await response.blob() : await response.json();
+      if (generation !== state.generation) throw new DOMException('Consulta interrompida', 'AbortError');
+      return result;
+    } finally { clearTimeout(timeout); state.requests.delete(controller); }
+  }
+  function controls() {
+    $('app').disabled = !state.session;
+    $('run').disabled = state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
+    const unresolved = attempts.has(runKey());
+    for (const kind of ['base', 'voice']) {
+      const input = $('import-' + kind + '-file');
+      const preserved = kind === 'base' ? importedBases.has(runKey()) : state.stages.some(stage => stage.name === 'voz' && stage.status === 'ready');
+      const blocked = state.busy || unresolved || !state.job || state.dirty.size > 0 || preserved;
+      input.disabled = blocked;
+      $('import-' + kind).disabled = blocked || !input.files?.length;
+    }
+    $('save').disabled = state.busy || unresolved;
+    $('retry-run').hidden = !unresolved;
+    $('retry-run').disabled = state.busy;
+    $('run-warning').textContent = warnings.get(runKey()) || '';
+    $('run-warning').hidden = !$('run-warning').textContent;
+    $('new').disabled = state.busy;
+    $('base_url').disabled = state.busy;
+    $('dirty').textContent = state.dirty.size ? 'Alterações não salvas' : state.job ? 'Sem alterações locais' : 'Novo projeto';
+    for (const [name, card] of cards) {
+      const capability = state.capabilities.find(item => item.name === name);
+      const stage = state.stages.find(item => item.name === name);
+      const blocked = !capability || capability.available !== true;
+      const active = ['queued', 'running'].includes(stage?.status);
+      if (blocked || active) { state.selected.delete(name); card.check.checked = false; }
+      card.check.disabled = blocked || state.busy || active;
+      card.run.disabled = blocked || unresolved || state.busy || !state.job || state.dirty.size > 0 || ['queued', 'running'].includes(stage?.status);
+    }
+    $('run').disabled = unresolved || state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
+  }
+  function schedule() {
+    clearTimeout(state.timer);
+    if (!document.hidden && state.session && state.job && state.stages.some(stage => ['queued', 'running'].includes(stage.status))) state.timer = setTimeout(() => { if (state.busy) schedule(); else refreshJob().catch(report); }, 4000);
+  }
+  function report(error) { notice(error.name === 'AbortError' ? 'Consulta interrompida. Se havia uma ação em andamento, atualize o projeto para conferir o resultado antes de repetir.' : error.message, true); }
+  async function action(fn) {
+    if (state.busy) return;
+    cancel();
+    state.busy = true; controls();
+    try { await fn(); } catch (error) { report(error); } finally { state.busy = false; controls(); schedule(); }
+  }
+  function renderStages(stages) {
+    state.stages = Array.isArray(stages) ? stages : [];
+    for (const [name, card] of cards) {
+      const stage = state.stages.find(item => item.name === name);
+      const status = Object.hasOwn(STATUS, stage?.status) ? stage.status : 'unknown';
+      const capability = state.capabilities.find(item => item.name === name);
+      card.root.dataset.status = status;
+      card.badge.textContent = STATUS[status] + (stage?.revision != null ? ' · revisão ' + stage.revision : '');
+      card.message.textContent = [capability?.reason || (capability?.available === true ? '' : 'Etapa indisponível.'), stage?.message || '', status === 'stale' ? 'A entrada ou seu hash mudou. Revise antes de executar novamente.' : ''].filter(Boolean).join(' ');
+      const output = stage?.output?.data ?? stage?.output;
+      card.output.textContent = output == null ? 'Sem saída registrada.' : typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+      card.copy.hidden = !['roteiro', 'titulos'].includes(name) || stage?.output == null;
+      if (status === 'ready' && ['roteiro', 'titulos'].includes(name)) {
+        const field = name === 'titulos' ? 'title' : 'script';
+        const value = editorialText(stage.output, field);
+        if (!state.dirty.has(field) && !$(field).value.trim() && value?.trim()) {
+          $(field).value = value; state.dirty.add(field);
+        }
+      }
+    }
+    controls(); schedule();
+  }
+  function fill(job) {
+    for (const field of FIELDS) if (!state.dirty.has(field)) $(field).value = field === 'links' ? (Array.isArray(job.links) ? job.links.join('\n') : '') : job[field] ?? '';
+    if (!state.dirty.has('base_url')) $('base_url').value = job.base_url || '';
+    $('base_url').readOnly = Boolean(state.job);
+    $('save').textContent = state.job ? 'Salvar alterações' : 'Criar projeto';
+    controls();
+  }
+  async function refreshJob() {
+    if (!state.job || document.hidden || state.refreshing) return;
+    state.refreshing = true;
+    const generation = state.generation;
+    try {
+      const data = await api(path());
+      if (generation !== state.generation) return;
+      state.job = data.job; fill(data.job); renderStages(data.stages); renderArtifacts(data.artifacts || []);
+      notice('Estado atualizado pelo servidor.');
+    } finally { state.refreshing = false; schedule(); }
+  }
+  async function listJobs() {
+    const data = await api('/api/workflow/jobs');
+    $('jobs').replaceChildren();
+    if (!data.jobs?.length) $('jobs').append(node('li', 'Nenhum projeto. Crie o primeiro para começar.'));
+    for (const job of data.jobs || []) {
+      const item = node('li'); const button = node('button', job.name || job.id); button.type = 'button';
+      button.setAttribute('aria-current', String(state.job?.id === job.id));
+      const date = new Date(job.created_at); if (!Number.isNaN(date.valueOf())) button.append(node('time', date.toLocaleString('pt-BR')));
+      button.addEventListener('click', () => {
+        if (state.busy) return;
+        if (state.dirty.size) { notice('Salve as alterações antes de trocar de projeto.', true); return; }
+        action(async () => { cancel(); resetImports(); state.job = job; state.selected.clear(); for (const card of cards.values()) card.check.checked = false; $('allow-paid').checked = false; $('allow-frame-upload').checked = false; await refreshJob(); await listJobs(); });
+      });
+      item.append(button); $('jobs').append(item);
+    }
+  }
+  function resetImports() {
+    for (const kind of ['base', 'voice']) $('import-' + kind + '-file').value = '';
+    $('import-status').textContent = 'Escolha um arquivo e use o botão correspondente. Os estados após o envio serão informados pelo servidor.';
+  }
+  async function importMedia(kind) {
+    if (!state.job || state.dirty.size) throw new Error('Salve o projeto e todas as alterações antes de importar.');
+    if (attempts.has(runKey())) throw new Error('Resolva a solicitação de execução anterior antes de importar.');
+    if (kind === 'base' && importedBases.has(runKey())) throw new Error('O vídeo-base deste projeto já foi importado e não pode ser substituído.');
+    if (kind === 'voice' && state.stages.some(stage => stage.name === 'voz' && stage.status === 'ready')) throw new Error('A voz já está pronta e será preservada.');
+    const input = $('import-' + kind + '-file');
+    const file = input.files?.[0];
+    const rawMime = importMime(kind, file);
+    const key = runKey();
+    $('import-status').textContent = `Enviando somente ${file.name} para o armazenamento privado deste projeto…`;
+    try {
+      const data = await api(path() + '/import?kind=' + kind, { method: 'POST', body: file, rawMime, timeoutMs: 130000 });
+      if (!data.job || !Array.isArray(data.stages) || !Array.isArray(data.artifacts)) throw new Error('Resposta de importação incompleta. Atualize o estado antes de tentar novamente.');
+      if (kind === 'base') importedBases.add(key);
+      input.value = '';
+      state.job = data.job; fill(data.job); renderStages(data.stages); renderArtifacts(data.artifacts);
+      $('import-status').textContent = 'Importação registrada pelo servidor. Confira os estados e arquivos abaixo; nenhuma etapa foi iniciada automaticamente.';
+      notice('Importação registrada pelo servidor.');
+    } catch (error) {
+      $('import-status').textContent = error.status === 409
+        ? 'O servidor recusou a importação (409). O vídeo-base é único e uma voz pronta é preservada. Atualize o estado do projeto. ' + error.message
+        : 'Importação não confirmada. Atualize o estado do projeto antes de tentar novamente. Não há reenvio automático.';
+      throw error;
+    }
+  }
+  for (const kind of ['base', 'voice']) {
+    $('import-' + kind + '-file').addEventListener('change', controls);
+    $('import-' + kind).addEventListener('click', () => action(() => importMedia(kind)));
+  }
+  async function run(steps, individual = false) {
+    if (!state.job || state.dirty.size) throw new Error('Salve o conteúdo antes de executar.');
+    if (attempts.has(runKey())) throw new Error('Use o botão de reenviar a mesma solicitação para resolver a execução anterior.');
+    if (!steps.length || steps.some(name => !state.capabilities.some(cap => cap.name === name && cap.available === true))) throw new Error('Escolha etapas disponíveis.');
+    if (steps.some(name => state.stages.some(stage => stage.name === name && ['queued', 'running'].includes(stage.status)))) throw new Error('Uma etapa escolhida já está na fila ou em execução. Atualize o estado.');
+    const body = { allow_paid: $('allow-paid').checked, allow_frame_upload: $('allow-frame-upload').checked };
+    if (!individual) body.steps = steps;
+    const endpoint = path() + (individual ? '/stages/' + encodeURIComponent(steps[0]) + '/run' : '/run');
+    const attempt = pendingRun(attempts, runKey(), endpoint, body, () => crypto.randomUUID());
+    await submitRun(runKey(), attempt);
+  }
+  async function submitRun(key, attempt) {
+    // No automatic retry. A manual retry preserves ID, endpoint, steps and consents.
+    try {
+      const data = await api(attempt.endpoint, { method: 'POST', body: JSON.stringify(attempt.body) });
+      if (!Array.isArray(data.stages)) throw new Error('Resposta sem estados de execução.');
+      attempts.delete(key);
+      const warning = typeof data.warning === 'string' ? data.warning : typeof data.warning?.message === 'string' ? data.warning.message : '';
+      warnings.set(key, warning);
+      if (key === runKey()) {
+        renderStages(data.stages); notice(warning || 'Solicitação recebida. Consulte o estado de cada etapa.');
+        $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
+      }
+    } catch (error) {
+      if (error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status)) {
+        attempts.delete(key); warnings.set(key, error.message);
+      } else {
+        warnings.set(key, `Resultado incerto da solicitação ${attempt.body.request_id}. Atualize o estado ou use o botão abaixo para reenviar o mesmo pedido, com as etapas e autorizações originais. Não há repetição automática. Salvar fica bloqueado até obter a resposta.`);
+      }
+      throw error;
+    }
+  }
+  function renderArtifacts(artifacts) {
+    $('artifacts').replaceChildren();
+    if (!artifacts.length) $('artifacts').append(node('li', 'Nenhum arquivo registrado neste projeto.'));
+    for (const artifact of artifacts) {
+      const item = node('li'); item.append(node('strong', artifact.name));
+      item.append(node('p', `${artifact.mime || 'Tipo não informado'} · ${Number.isFinite(artifact.size) ? artifact.size.toLocaleString('pt-BR') + ' bytes' : 'Tamanho não informado'}`));
+      const download = node('button', 'Baixar arquivo'); download.type = 'button';
+      download.addEventListener('click', () => action(async () => {
+        const blob = await api(path() + '/artifacts/' + encodeURIComponent(artifact.id), { blob: true });
+        const href = URL.createObjectURL(blob); const anchor = node('a'); anchor.href = href;
+        anchor.download = String(artifact.name || 'arquivo').replace(/[\\/\x00-\x1f]/g, '_');
+        document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(href), 60000);
+      })); item.append(download);
+      if (artifact.mime === 'image/png' && /(?:^|[\/\\])frame_\d+\.png$/i.test(artifact.name)) {
+        const lens = node('button', 'Autorizar este frame no Lens: ' + artifact.name); lens.type = 'button';
+        lens.addEventListener('click', () => action(async () => {
+          const data = await api(path() + '/lens/' + encodeURIComponent(artifact.id), { method: 'POST' });
+          const anchor = node('a', 'Abrir pesquisa no Lens'); anchor.href = lensURL(data.url, data.expires_at); anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
+          anchor.addEventListener('click', event => { try { lensURL(data.url, data.expires_at); } catch (error) { event.preventDefault(); report(error); } });
+          item.append(anchor); item.append(node('p', 'Link expira em ' + new Date(data.expires_at).toLocaleString('pt-BR')));
+        })); item.append(lens);
+      }
+      $('artifacts').append(item);
+    }
+  }
+  for (const [name, label] of Object.entries(STAGES)) {
+    const root = node('article', undefined, 'stage'); const wrapper = node('label'); const check = node('input'); check.type = 'checkbox';
+    wrapper.append(check, node('span', label)); const badge = node('span', STATUS.unknown, 'badge'); const message = node('p');
+    const details = node('details'); const output = node('pre'); details.append(node('summary', 'Ver saída'), output);
+    const copy = node('button', name === 'titulos' ? 'Usar saída no título' : 'Usar saída no roteiro'); copy.type = 'button'; copy.hidden = true;
+    copy.addEventListener('click', () => {
+      const field = name === 'titulos' ? 'title' : 'script';
+      if (state.dirty.has(field) || $(field).value.trim()) { notice('O editor já contém texto. A saída não substitui seu conteúdo; copie apenas o trecho desejado.', true); return; }
+      const result = state.stages.find(stage => stage.name === name)?.output;
+      const value = editorialText(result, field);
+      if (typeof value !== 'string') { notice('Selecione e copie o texto desejado da saída para o editor.', true); return; }
+      $(field).value = value; state.dirty.add(field); controls(); $(field).focus();
+    });
+    const runButton = node('button', 'Executar ' + label.toLowerCase()); runButton.type = 'button';
+    runButton.addEventListener('click', () => action(() => run([name], true)));
+    check.addEventListener('change', () => { check.checked ? state.selected.add(name) : state.selected.delete(name); controls(); });
+    root.append(wrapper, badge, message, details, copy, runButton); $('flow').append(root);
+    cards.set(name, { root, check, badge, message, output, copy, run: runButton });
+  }
+  for (const field of [...FIELDS, 'base_url']) $(field).addEventListener('input', () => { state.dirty.add(field); controls(); });
+  $('editor').addEventListener('submit', event => {
+    event.preventDefault(); action(async () => {
+      const creating = !state.job; const body = {}; const sent = new Map();
+      if (attempts.has(runKey())) throw new Error('Resolva a solicitação de execução anterior antes de salvar alterações.');
+      for (const field of FIELDS) if (creating || state.dirty.has(field)) { sent.set(field, $(field).value); body[field] = field === 'links' ? parseLinks($(field).value) : $(field).value; }
+      if (!body.name?.trim() && (creating || state.dirty.has('name'))) throw new Error('Informe o nome do projeto.');
+      validateFields(body);
+      if (creating && $('base_url').value.trim()) body.base_url = officialURL($('base_url').value.trim());
+      sent.set('base_url', $('base_url').value);
+      const data = await api(creating ? '/api/workflow/jobs' : path(), { method: creating ? 'POST' : 'PATCH', body: JSON.stringify(body) });
+      state.job = data.job;
+      for (const [field, value] of sent) if ($(field).value === value) state.dirty.delete(field);
+      fill(data.job); notice('Conteúdo salvo pelo servidor.'); await listJobs(); await refreshJob();
+    });
+  });
+  $('new').addEventListener('click', () => {
+    if (state.dirty.size) { notice('Salve as alterações antes de criar outro projeto.', true); return; }
+    cancel(); resetImports(); state.job = null; state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
+    for (const card of cards.values()) card.check.checked = false;
+    fill({}); renderStages([]); renderArtifacts([]); $('name').focus();
+  });
+  $('refresh').addEventListener('click', () => action(async () => { await listJobs(); await refreshJob(); }));
+  $('run').addEventListener('click', () => action(() => run([...state.selected])));
+  $('retry-run').addEventListener('click', () => action(async () => {
+    const key = runKey(); const attempt = attempts.get(key);
+    if (attempt) await submitRun(key, attempt);
+  }));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancel(); else if (state.session) refreshJob().catch(report); });
+  window.addEventListener('pagehide', cancel);
+  window.addEventListener('beforeunload', event => { if (state.dirty.size || attempts.size) { event.preventDefault(); event.returnValue = ''; } });
+  renderStages([]);
+  try {
+    const config = publicConfig(await api('/api/config', {}, true));
+    const { createClient } = await import(SUPABASE_CDN);
+    // Default Supabase storage shares /app's session on this origin.
+    state.client = createClient(config.url, config.key);
+    const { data, error } = await state.client.auth.getSession(); if (error) throw new Error('Não foi possível recuperar sua sessão. Entre em /app.');
+    state.session = data.session; controls();
+    state.client.auth.onAuthStateChange((event, session) => {
+      state.session = session;
+      if (!session) { cancel(); resetImports(); state.job = null; state.dirty.clear(); $('editor').reset(); renderStages([]); renderArtifacts([]); $('jobs').replaceChildren(); notice('Entre no aplicativo para acessar seus projetos.'); }
+      else if (event === 'SIGNED_IN') setTimeout(() => initialize().catch(report), 0);
+      controls();
+    });
+    if (state.session) await initialize(); else notice('Entre no aplicativo e volte a esta página para acessar seus projetos.');
+  } catch (error) { report(error); }
+  async function initialize() {
+    const data = await api('/api/workflow/capabilities'); state.capabilities = data.stages || [];
+    $('storage').textContent = data.storageReady === true ? 'Armazenamento disponível' : 'Armazenamento indisponível';
+    renderStages(state.stages); await listJobs(); notice('Escolha um projeto ou crie um novo.');
+  }
+}
+if (typeof document !== 'undefined') boot();

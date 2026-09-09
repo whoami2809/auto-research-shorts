@@ -572,6 +572,18 @@ body.auth-locked #authScreen{display:flex}
     <svg viewBox="0 0 24 24"><rect x="2" y="7" width="3" height="10" rx="1"/><rect x="19" y="7" width="3" height="10" rx="1"/><rect x="6" y="2" width="12" height="20" rx="2"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg>
     frames
   </button>
+  <button class="sb-btn" data-panel="workflow" title="Workflow completo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="6" r="2"/>
+      <circle cx="18" cy="6" r="2"/>
+      <circle cx="6" cy="18" r="2"/>
+      <circle cx="18" cy="18" r="2"/>
+      <path d="M6 8v8M18 8v8M8 6h8M8 18h8"/>
+      <path d="M12 6v12"/>
+      <path d="M6 12h12"/>
+    </svg>
+    workflow
+  </button>
 </nav>
 
 <!-- ═══ MAIN CONTENT ══════════════════════════════════════════════════ -->
@@ -587,6 +599,7 @@ body.auth-locked #authScreen{display:flex}
     </div>
     <div class="hud-top-center">CANAL ZUEFY</div>
     <div class="hud-top-right">
+        <a id="workflowTopLink" href="/workflow" style="color:#d8c7ff;text-decoration:none">WORKFLOW</a>
       <div class="user-menu" id="userMenu">
         <button id="userMenuButton" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="userPopover">
           <span class="user-avatar" id="userAvatar" aria-hidden="true">U</span>
@@ -819,6 +832,20 @@ body.auth-locked #authScreen{display:flex}
     </div>
   </div>
 
+  <!-- ─── PANEL: WORKFLOW ─────────────────────────────────────────── -->
+  <div class="panel" id="panel-workflow">
+    <div class="pi">
+      <div class="panel-hdr"><span class="dot"></span> workflow</div>
+      <div class="notice">
+        <strong>🚀 Acesso direto ao fluxo completo</strong><br>
+        Execute roteiro, títulos, SEO, voz, frames, busca e empacotamento a partir de uma tela única.
+      </div>
+      <div style="margin-top:16px;">
+        <a id="workflowPanelLink" class="txt-btn primary" href="/workflow" style="display:inline-block;text-decoration:none;">Abrir WORKFLOW</a>
+      </div>
+    </div>
+  </div>
+
 </div><!-- #main -->
 
 <div id="toastContainer"></div>
@@ -1005,11 +1032,30 @@ document.querySelectorAll('.toggle-chip').forEach(function(chip){
   });
 });
 // Sidebar navigation
+function getWorkflowHref(){
+  if(location && location.protocol==='file:'){
+    return new URL('workflow.html', window.location.href).href;
+  }
+  return '/workflow';
+}
+
+function applyWorkflowLinks(){
+  var workflowHref=getWorkflowHref();
+  var topLink=document.getElementById('workflowTopLink');
+  var panelLink=document.getElementById('workflowPanelLink');
+  if(topLink) topLink.href=workflowHref;
+  if(panelLink) panelLink.href=workflowHref;
+}
+
 document.querySelectorAll('.sb-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
-    var p=this.dataset.panel;if(p)switchPanel(p);
+    var p=this.dataset.panel;
+    if(p==='workflow'){location.href=getWorkflowHref();return;}
+    if(p)switchPanel(p);
   });
 });
+
+applyWorkflowLinks();
 // Sliders
 document.getElementById('frameCount').addEventListener('input',function(e){document.getElementById('sliderFC').textContent=e.target.value;});
 document.getElementById('frameInterval').addEventListener('input',function(e){document.getElementById('sliderFI').textContent=e.target.value+'s';});
@@ -1657,7 +1703,7 @@ async function openLens(blob,idx){
   var frame=extractedFrames[idx];
 
   // Se já foi pré-carregado durante a extração, abre instantaneamente
-  if(frame&&frame.lensUrl){
+  if(frame&&frame.lensUrl&&frame.lensExpiresAt>Date.now()){
     window.open('https://lens.google.com/uploadbyurl?url='+encodeURIComponent(frame.lensUrl),'_blank');
     showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
     return;
@@ -1667,9 +1713,9 @@ async function openLens(blob,idx){
   var newTab=window.open('about:blank','_blank');
 
   try{
-    // Converte para JPEG para upload mais rápido
-    var jpegBlob=await new Promise(function(res){canvas.toBlob(function(b){res(b);},'image/jpeg',0.85);});
-    var ab=await jpegBlob.arrayBuffer();
+    // O frame extraído é PNG; envie exatamente esse formato ao Lens.
+    var pngBlob=await framePng(blob);
+    var ab=await pngBlob.arrayBuffer();
     var r=await fetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:AbortSignal.timeout(10000)});
     if(!r.ok)throw new Error('upload falhou');
     var data=await r.json();
@@ -1678,7 +1724,7 @@ async function openLens(blob,idx){
     if(newTab&&!newTab.closed){
       newTab.location.href='https://lens.google.com/uploadbyurl?url='+encodeURIComponent(publicUrl);
     }
-    if(frame)frame.lensUrl=publicUrl;
+    if(frame){frame.lensUrl=publicUrl;frame.lensExpiresAt=Date.parse(data.expires_at);}
     showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
   }catch(e){
     // Se falhar: tenta clipboard
@@ -1693,23 +1739,20 @@ async function openLens(blob,idx){
   }
 }
 
-// Pré-upload JPEG em background quando frame é capturado (torna Lens instantâneo)
-function preUploadFrameForLens(blob,frameIdx){
+// Garante PNG real para o Lens sem alterar o frame visualmente.
+async function framePng(blob){
+  if(blob&&blob.type==='image/png')return blob;
+  // Decode this exact frame, never the shared canvas which may already show the next frame.
+  var bitmap=await createImageBitmap(blob);
   try{
-    canvas.toBlob(async function(jpegBlob){
-      if(!jpegBlob)return;
-      try{
-        var ab=await jpegBlob.arrayBuffer();
-        var r=await fetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab});
-        if(r.ok){
-          var data=await r.json();
-          if(extractedFrames[frameIdx]){
-            extractedFrames[frameIdx].lensUrl=window.location.origin+data.url;
-          }
-        }
-      }catch(e){/* silencioso */}
-    },'image/jpeg',0.85);
-  }catch(e){}
+    var localCanvas=document.createElement('canvas');
+    localCanvas.width=bitmap.width;localCanvas.height=bitmap.height;
+    localCanvas.getContext('2d').drawImage(bitmap,0,0);
+    return await new Promise(function(resolve,reject){localCanvas.toBlob(function(b){b?resolve(b):reject(new Error('Imagem inválida'));},'image/png');});
+  }finally{bitmap.close();}
+}
+function preUploadFrameForLens(blob,frameIdx){
+  // Upload is now demand-driven: only the frame whose Lens button is clicked leaves the browser.
 }
 
 extractBtn.addEventListener('click',async function(){

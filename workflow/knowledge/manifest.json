@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "algorithm": "sha256",
+  "normalization": "UTF-8 decode; CRLF to LF; String.trimEnd(); UTF-8 encode",
+  "files": [
+    {
+      "path": "shorts-traduzir-remodelar/SKILL.md",
+      "source": "etapas/roteiro/skills/shorts-traduzir-remodelar/SKILL.md",
+      "sha256": "c97dfd4ad85418a2462a2ba1bff1fd4f7841a812d7b46aa2a35923cbea5aabd4"
+    },
+    {
+      "path": "shorts-traduzir-remodelar/references/instrucoes-originais.md",
+      "source": "etapas/roteiro/skills/shorts-traduzir-remodelar/references/instrucoes-originais.md",
+      "sha256": "e2e97539dc603e74cb3c0de1219d508ed1be504530bdf45cbcd5195ae2528189"
+    },
+    {
+      "path": "shorts-titulos/SKILL.md",
+      "source": "etapas/roteiro/skills/shorts-titulos/SKILL.md",
+      "sha256": "90453fb6beaab57b52dea1960f41c498716b8b029283029a7f784a771bf58d48"
+    },
+    {
+      "path": "shorts-titulos/references/instrucoes-originais.md",
+      "source": "etapas/roteiro/skills/shorts-titulos/references/instrucoes-originais.md",
+      "sha256": "f332502870263c036e0b065b43a148fb551a4ef0380d72fb76f26b4923f6329d"
+    },
+    {
+      "path": "shorts-seo/SKILL.md",
+      "source": "etapas/roteiro/skills/shorts-seo/SKILL.md",
+      "sha256": "4b072afb8a638361dbbf0f3d6a0e2413c3eac66169bdd644f3d894acbf07b8cc"
+    },
+    {
+      "path": "shorts-seo/references/instrucoes-originais.md",
+      "source": "etapas/roteiro/skills/shorts-seo/references/instrucoes-originais.md",
+      "sha256": "d9bffffe921a50995e7530d52337233caa36692560308fa74f870677ef57bc21"
+    }
+  ]
+}

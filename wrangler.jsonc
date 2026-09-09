@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-23",
   "compatibility_flags": ["nodejs_compat"],
+  "workflows": [{"name":"shorts-workflow","binding":"SHORTS_WORKFLOW","class_name":"ShortsWorkflow"}],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

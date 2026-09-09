@@ -6,3 +6,7 @@ node_modules/
 .env*
 downloads/
 worker-configuration.d.ts
+supabase/.temp/
+__pycache__/
+*.pyc
+*.log

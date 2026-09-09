@@ -9,5 +9,8 @@ supabase
 worker-configuration.d.ts
 wrangler.jsonc
 tsconfig.json
-pnpm-lock.yaml
-pnpm-workspace.yaml
+.env*
+.dev.vars*
+*.log
+workflow/tests
+supabase/.temp

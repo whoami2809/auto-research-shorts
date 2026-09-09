@@ -25,8 +25,13 @@ RUN apt-get update && apt-get install -y \
 ENV YTDL_NO_UPDATE=1
 
 WORKDIR /ars
-COPY package*.json ./
-RUN npm install --production
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN node -e "if(Number(process.versions.node.split('.')[0])<22)process.exit(1)" \
+  && npm install --global pnpm@11.19.0 --ignore-scripts \
+  && pnpm install --prod --frozen-lockfile --ignore-scripts
+COPY workflow/requirements.txt ./workflow/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r workflow/requirements.txt
+ENV WF_PYTHON=/usr/bin/python3 WF_FFMPEG_PATH=/usr/bin/ffmpeg WF_FFPROBE_PATH=/usr/bin/ffprobe
 COPY . .
 EXPOSE 3000
 EXPOSE 4416
