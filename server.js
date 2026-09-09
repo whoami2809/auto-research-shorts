@@ -16,9 +16,11 @@ app.disable('x-powered-by');
 const publicOrigin=process.env.PUBLIC_APP_URL||'https://auto-research-shorts.darknet-web28.workers.dev';
 app.use(cors({origin:publicOrigin,methods:['GET','POST','PATCH'],allowedHeaders:['Authorization','Content-Type']}));
 app.use(express.json({limit:'128kb'}));
-app.get('/health',(req,res)=>res.json({ok:true,version:'workflow-v1'}));
 app.get('/api/config',(req,res)=>res.set('Cache-Control','no-store').json(authConfig()));
 const workflowStore=new SupabaseStore({env:{...process.env,SUPABASE_URL:authConfig().supabaseUrl}});
+// Diagnóstico sem segredos: informa apenas a disponibilidade estrutural das
+// dependências necessárias para o workflow.
+app.get('/health',(req,res)=>res.json({ok:true,version:'workflow-v1',workflowStorageConfigured:workflowStore.ready}));
 const editorialProviders=require('./workflow/providers').createProviders();
 const mediaProviders=require('./workflow/media').createMediaProviders({store:workflowStore});
 const workflowEngine=new Engine({store:workflowStore,providers:{...editorialProviders,...mediaProviders},paidAllowed});
