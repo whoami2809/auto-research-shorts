@@ -70,7 +70,22 @@ function lensURL(value, expires) {
 
 async function boot() {
   const $ = id => document.getElementById(id);
-  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro' };
+  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro', activeView: 'start' };
+  const viewHashes = { start: 'start-heading', editor: 'editor-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
+  function viewFromHash() {
+    const hash = window.location.hash.slice(1);
+    return Object.entries(viewHashes).find(([, id]) => id === hash)?.[0] || 'start';
+  }
+  function selectWorkflowView(view, replaceHash = true) {
+    if (!Object.hasOwn(viewHashes, view)) view = 'start';
+    state.activeView = view;
+    for (const section of document.querySelectorAll('.workflow-section')) section.classList.toggle('is-active', section.dataset.workflowView === view);
+    for (const link of document.querySelectorAll('.workflow-nav-item')) link.setAttribute('aria-current', String(link.dataset.workflowView === view));
+    if (replaceHash && window.location.hash !== '#' + viewHashes[view]) history.replaceState(null, '', '#' + viewHashes[view]);
+  }
+  for (const link of document.querySelectorAll('.workflow-nav-item')) link.addEventListener('click', event => { event.preventDefault(); selectWorkflowView(link.dataset.workflowView); });
+  window.addEventListener('hashchange', () => selectWorkflowView(viewFromHash(), false));
+  selectWorkflowView(viewFromHash(), false);
   const cards = new Map();
   const attempts = new Map();
   const warnings = new Map();
@@ -365,12 +380,13 @@ async function boot() {
       fill(data.job); notice('Conteúdo salvo pelo servidor.'); await listJobs(); await refreshJob();
     });
   });
-  $('master-run').addEventListener('click', () => action(async () => {
+  $('master-run').addEventListener('click', () => { selectWorkflowView('flow'); return action(async () => {
     if (!state.job || state.dirty.size) throw new Error('Salve o projeto antes de analisar o link-base.');
     if (!state.selected.size) throw new Error('Selecione pelo menos uma etapa nos cartões abaixo.');
     await run([...state.selected], false);
-  }));
+  }); });
   $('new').addEventListener('click', () => {
+    selectWorkflowView('editor');
     if (state.dirty.size) { notice('Salve as alterações antes de criar outro projeto.', true); return; }
     cancel(); resetImports(); state.job = null; state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
     for (const card of cards.values()) card.check.checked = false;

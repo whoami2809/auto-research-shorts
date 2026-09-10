@@ -8,26 +8,31 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="/workflow.css">
-  <script type="module" src="/workflow.js?v=20260910-workflow-tabs-1"></script>
+  <script type="module" src="/workflow.js?v=20260910-workflow-shell-2"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
   <header><a class="brand" href="/app">ZUEFY <small>SHORTS / WORKFLOW</small></a><a class="back-link" href="/app">← Voltar para a aba principal</a></header>
   <main id="workspace">
-    <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Comece de qualquer ponto. Salve o projeto, escolha uma etapa e execute somente o que precisa agora.</p></div>
+    <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Comece pelo link-base e abra somente a função que você precisa agora.</p></div>
     <p id="notice" role="status" aria-live="polite">Verificando sessão…</p>
     <noscript>Ative o JavaScript para acessar seus projetos.</noscript>
     <fieldset id="app" disabled>
       <legend class="sr-only">Painel de produção</legend>
       <div class="layout">
-        <aside class="panel"><p class="panel-kicker">SHORTS / WORKFLOW</p><h2>Projetos</h2><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button><nav class="workflow-nav" aria-label="Navegação do projeto"><a href="#editor-heading">📝 Conteúdo</a><a href="#import-heading">📁 Mídia</a><a href="#flow-heading">⚡ Etapas</a><a href="#artifacts-heading">📦 Resultados</a></nav><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></aside>
+        <aside class="panel workflow-sidebar"><p class="panel-kicker">SHORTS / WORKFLOW</p><h2>Projetos</h2><div class="project-actions"><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button></div><nav class="workflow-nav" aria-label="Navegação do projeto"><a class="workflow-nav-item" data-workflow-view="start" href="#start-heading"><span class="workflow-nav-icon">⌕</span><span>Buscar</span></a><a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon">📝</span><span>Conteúdo</span></a><a class="workflow-nav-item" data-workflow-view="import" href="#import-heading"><span class="workflow-nav-icon">📁</span><span>Mídia</span></a><a class="workflow-nav-item" data-workflow-view="flow" href="#flow-heading"><span class="workflow-nav-icon">⚡</span><span>Etapas</span></a><a class="workflow-nav-item" data-workflow-view="artifacts" href="#artifacts-heading"><span class="workflow-nav-icon">📦</span><span>Resultados</span></a></nav><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></aside>
         <div class="content">
-          <section class="panel" aria-labelledby="editor-heading">
+          <section class="panel workflow-section workflow-start" data-workflow-view="start" aria-labelledby="start-heading">
+            <div class="workflow-start-card">
+              <p class="panel-kicker">BUSCAR / LINK-BASE</p><h2 id="start-heading">Analise. Extraia. Organize.</h2><p class="workflow-start-copy">Cole o link do vídeo-base para começar. Depois, abra cada função pela barra lateral.</p>
+              <label class="base-search-label">URL do vídeo-base<small class="field-help">Use uma publicação oficial do YouTube, TikTok, Instagram ou Facebook.</small><div class="base-search"><span aria-hidden="true">↗</span><input id="base_url" type="url" placeholder="Cole aqui o link do vídeo…" aria-describedby="base-help"></div></label>
+              <p id="base-help" class="hint">Salvar o link não baixa o vídeo.</p><button id="master-run" class="master-action" type="button" disabled>Analisar link-base →</button><p class="hint master-help">A ação mestre usa o link salvo e chama somente as etapas selecionadas.</p>
+            </div>
+          </section>
+          <section class="panel workflow-section" data-workflow-view="editor" aria-labelledby="editor-heading">
             <div class="section-head"><div><p class="panel-kicker">01 · IDENTIFICAÇÃO</p><h2 id="editor-heading">Identifique o seu short</h2></div><span id="dirty" role="status">Novo projeto</span></div>
             <form id="editor">
               <div class="pair"><label>Nome do projeto<small class="field-help">Nome interno para encontrar este short depois.</small><input id="name" required maxlength="120" autocomplete="off" aria-describedby="name-help"></label><label>Canal<small class="field-help">Canal de destino. Ajuda a organizar o projeto e a configuração de voz.</small><input id="channel" maxlength="80" autocomplete="off" aria-describedby="channel-help"></label></div>
-              <label>URL do vídeo-base<small class="field-help">Link do vídeo que inspirou o short. É a referência principal do projeto.</small><input id="base_url" type="url" placeholder="https://www.youtube.com/watch?v=…" aria-describedby="base-help"></label>
-              <p id="base-help" class="hint">Use uma publicação oficial do YouTube, TikTok, Instagram ou Facebook. Salvar o link não baixa o vídeo.</p><button id="master-run" class="master-action" type="button" disabled>Analisar link-base →</button><p class="hint master-help">A ação mestre usa o link salvo e chama somente as etapas que você selecionar abaixo.</p>
               <label>Links de referência<small class="field-help">Cole os links que você encontrou manualmente no Lens, um por linha.</small><textarea id="links" rows="3" aria-describedby="links-help"></textarea></label>
               <p id="links-help" class="hint">Eles ficam registrados para a etapa Pesquisa/Downloads. Salvar não autoriza nem inicia downloads.</p>
               <label>Transcrição<small class="field-help">Texto original para consulta ou para alimentar a criação do roteiro.</small><textarea id="transcript" rows="5" maxlength="20000"></textarea></label>
@@ -36,7 +41,7 @@
               <div class="actions"><button class="primary" id="save" type="submit">Criar projeto</button><span class="hint">Somente campos alterados são enviados ao salvar.</span></div>
             </form>
           </section>
-          <section class="panel" aria-labelledby="import-heading">
+          <section class="panel workflow-section" data-workflow-view="import" aria-labelledby="import-heading">
             <div class="section-head"><div><p class="panel-kicker">02 · ENTRADAS OPCIONAIS</p><h2 id="import-heading">Importe o que você já tem</h2></div></div>
             <p id="import-help" class="hint">Use esta área somente se já tiver o vídeo-base ou a narração prontos. Salve o projeto antes. Ao clicar em Importar, apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto. Limite: 50 MiB por arquivo. Selecionar um arquivo não inicia o envio.</p>
             <div class="pair">
@@ -45,7 +50,7 @@
             </div>
             <p id="import-status" role="status" aria-live="polite" class="hint">Escolha um arquivo e use o botão correspondente. Os estados após o envio serão informados pelo servidor.</p>
           </section>
-          <section class="panel" aria-labelledby="flow-heading">
+          <section class="panel workflow-section" data-workflow-view="flow" aria-labelledby="flow-heading">
             <div class="section-head"><div><p class="panel-kicker">03 · AÇÕES</p><h2 id="flow-heading">Faça somente o próximo passo</h2></div><span id="storage">Armazenamento não verificado</span></div>
             <p class="hint lead-hint">Cada cartão é independente: marque várias etapas para executar em conjunto ou use o botão do próprio cartão para executar apenas uma.</p>
             <div id="stage-tabs" class="stage-tabs" role="tablist" aria-label="Funções do workflow"></div><div id="flow" class="flow stage-panels"></div>
@@ -59,7 +64,7 @@
             <button type="button" id="retry-run" hidden>Consultar ou reenviar a mesma solicitação</button>
             <p class="hint">Miniatura: adiada. Geração de thumbnail ainda não disponível.</p>
           </section>
-          <section class="panel" aria-labelledby="artifacts-heading"><div class="section-head"><div><p class="panel-kicker">04 · RESULTADOS</p><h2 id="artifacts-heading">Veja e baixe os resultados</h2></div></div><p class="hint">Aqui aparecem os arquivos gerados. O botão do Lens envia somente o frame PNG indicado, nunca o projeto inteiro.</p><ul id="artifacts" class="artifacts"></ul></section>
+          <section class="panel workflow-section" data-workflow-view="artifacts" aria-labelledby="artifacts-heading"><div class="section-head"><div><p class="panel-kicker">04 · RESULTADOS</p><h2 id="artifacts-heading">Veja e baixe os resultados</h2></div></div><p class="hint">Aqui aparecem os arquivos gerados. O botão do Lens envia somente o frame PNG indicado, nunca o projeto inteiro.</p><ul id="artifacts" class="artifacts"></ul></section>
         </div>
       </div>
     </fieldset>

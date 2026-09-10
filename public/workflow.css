@@ -46,3 +46,63 @@ main{max-width:none;width:100%;padding-left:clamp(14px,2vw,32px);padding-right:c
 @media(max-width:900px){main{padding-top:20px}.layout{grid-template-columns:1fr}.panel{padding:18px}.stage-tabs{margin-right:-4px}.stage-panels .stage{min-height:0}.workflow-nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.workflow-nav a{text-align:center;font-size:11px;padding:9px 4px}.jobs{grid-template-columns:1fr}}
 @media(max-width:540px){main{padding-left:10px;padding-right:10px}.intro{margin-top:6px}.intro>p{font-size:12px}.workflow-nav{grid-template-columns:repeat(2,minmax(0,1fr))}.stage-tab{padding:8px 10px;font-size:11px}.stage-panel-heading{display:block}.stage-panels .stage>button{width:100%}}
 @media(max-width:540px){header{align-items:flex-start;gap:12px;flex-wrap:wrap}.back-link{margin-left:0;width:100%;font-size:11px}}
+
+/* Workflow visual system: the main app's focused rail and one-purpose views. */
+#workspace{max-width:none;width:100%;padding-left:clamp(16px,3vw,48px);padding-right:clamp(16px,3vw,48px)}
+#workspace>.intro{max-width:1400px;margin-left:auto;margin-right:auto}
+#workspace>#notice,#workspace>noscript{max-width:1400px;margin-left:auto;margin-right:auto}
+.layout{grid-template-columns:232px minmax(0,1fr);gap:22px;max-width:1400px;margin:0 auto;align-items:stretch}
+.workflow-sidebar{position:sticky;top:18px;height:fit-content;max-height:calc(100vh - 36px);overflow:auto;padding:18px 14px;background:linear-gradient(180deg,rgba(14,15,28,.94),rgba(7,8,17,.92));box-shadow:14px 0 70px rgba(0,0,0,.16),inset 0 1px rgba(255,255,255,.025)}
+.workflow-sidebar h2{margin-bottom:14px}
+.project-actions{display:grid;gap:8px}
+.project-actions button{width:100%;min-height:42px}
+.workflow-nav{display:grid;gap:8px;margin:22px 0 16px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.workflow-nav-item{display:flex;align-items:center;gap:10px;min-height:42px;padding:10px 12px;border:1px solid transparent;border-radius:12px;text-decoration:none;color:var(--muted);background:rgba(5,5,11,.22);font-size:12px;font-weight:800;transition:.2s}
+.workflow-nav-item:hover,.workflow-nav-item:focus-visible{color:var(--fg);border-color:var(--border-strong);background:rgba(155,77,255,.12);box-shadow:0 0 18px rgba(155,77,255,.12)}
+.workflow-nav-item[aria-current=true]{color:#ded0ff;border-color:rgba(175,118,255,.48);background:linear-gradient(180deg,rgba(155,77,255,.25),rgba(155,77,255,.08));box-shadow:0 0 26px rgba(155,77,255,.16),inset 0 0 18px rgba(155,77,255,.08)}
+.workflow-nav-icon{width:20px;text-align:center;font-size:15px;line-height:1;color:var(--violet)}
+.workflow-section{display:none;min-height:520px;animation:workflowViewIn .2s ease}
+.workflow-section.is-active{display:block}
+@keyframes workflowViewIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.workflow-start.is-active{display:grid;place-items:center;min-height:calc(100vh - 260px);background:transparent;border:0;box-shadow:none;padding:0}
+.workflow-start-card{width:min(100%,760px);padding:clamp(28px,5vw,56px) clamp(22px,5vw,52px) 42px;border-radius:24px;position:relative;background:linear-gradient(145deg,rgba(25,20,43,.94),rgba(8,9,20,.96) 55%,rgba(6,7,16,.98));border:1px solid rgba(174,118,255,.32);box-shadow:0 30px 100px rgba(0,0,0,.52),inset 0 1px rgba(255,255,255,.04)}
+.workflow-start-card:before{content:"";position:absolute;inset:18px;border:1px solid rgba(155,77,255,.1);border-radius:16px;pointer-events:none}
+.workflow-start-card>*{position:relative;z-index:1}
+.workflow-start-card h2{font:clamp(34px,5vw,62px)/.98 'Bebas Neue',sans-serif;letter-spacing:1px;color:#f1ecff;text-shadow:0 0 18px rgba(255,255,255,.14),0 0 40px rgba(155,77,255,.48);margin:12px 0 14px}
+.workflow-start-copy{max-width:580px;color:#958aad;font-size:13px;line-height:1.7;margin:0 0 26px}
+.base-search-label{gap:8px;font-size:13px}
+.base-search{height:64px;display:flex;align-items:center;gap:10px;padding:0 16px;border:1px solid rgba(155,77,255,.25);border-radius:10px;background:linear-gradient(180deg,rgba(22,23,40,.86),rgba(12,13,25,.82));box-shadow:inset 0 0 0 1px rgba(255,255,255,.03),0 18px 70px rgba(0,0,0,.28);transition:.2s}
+.base-search:focus-within{border-color:rgba(189,132,255,.9);box-shadow:0 0 38px rgba(155,77,255,.28),inset 0 0 24px rgba(155,77,255,.06)}
+.base-search>span{color:#a38acb;font-size:20px}
+.base-search input{border:0;background:transparent;padding:0;min-width:0;font-size:13px;outline:0;box-shadow:none!important}
+.workflow-start .master-action{min-height:56px;margin-top:4px}
+.workflow-start .master-help{margin-bottom:0}
+.workflow-sidebar .jobs{margin-top:8px}
+.workflow-sidebar .jobs li{min-width:0}
+.content{display:block;min-width:0}
+.content>.workflow-section:not(.workflow-start){min-height:0}
+.workflow-section .section-head{margin-bottom:20px}
+
+@media(max-width:900px){
+  #workspace{padding-top:20px}
+  .layout{grid-template-columns:1fr;gap:14px}
+  .workflow-sidebar{position:relative;top:auto;max-height:none;overflow:visible}
+  .workflow-nav{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .workflow-nav-item{justify-content:center;flex-direction:column;gap:5px;padding:9px 5px;text-align:center;font-size:10px}
+  .workflow-nav-icon{font-size:14px}
+  .workflow-start.is-active{min-height:calc(100dvh - 300px)}
+}
+@media(max-width:540px){
+  #workspace{padding:12px 10px 30px}
+  #workspace>.intro{margin-top:4px}
+  #workspace>.intro h1{font-size:38px}
+  .workflow-sidebar{padding:16px 12px;border-radius:14px}
+  .workflow-nav{grid-template-columns:repeat(2,minmax(0,1fr));margin:18px 0 14px}
+  .workflow-nav-item{min-height:44px;flex-direction:row;justify-content:flex-start;text-align:left;font-size:11px}
+  .workflow-start.is-active{min-height:0;display:block;padding:0}
+  .workflow-start-card{border-radius:18px;padding:28px 18px 34px}
+  .workflow-start-card:before{inset:10px;border-radius:12px}
+  .workflow-start-card h2{font-size:40px}
+  .base-search{height:auto;min-height:58px;padding:0 12px}
+  .workflow-section{min-height:0}
+}
