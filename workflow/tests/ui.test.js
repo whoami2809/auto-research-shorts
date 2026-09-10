@@ -90,6 +90,8 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /class="workflow-rail"/);
   assert.match(html, /class="workflow-topbar"/);
   assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 5);
+  assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
+  assert.doesNotMatch(html, /href="#import-heading"[^>]*>.*<span>Mídia<\/span>/s);
   assert.match(html, /class="project-queue"/);
   assert.match(html, /id="start-stage-options"/);
   assert.match(js, /Prévia local carregada/);
