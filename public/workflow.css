@@ -139,3 +139,16 @@ body{display:flex;min-height:100vh;overflow-x:hidden}
 
 .start-stage-picker{margin:22px 0 4px;padding:14px 14px 12px;border:1px solid rgba(155,77,255,.2);border-radius:14px;background:rgba(5,5,11,.3)}.start-stage-picker legend{padding:0 8px;color:#cdbbfa;font-size:11px;font-weight:800}.start-stage-picker .hint{margin:0 0 12px;font-size:11px}.start-stage-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.start-stage-options label{display:flex;align-items:center;gap:7px;min-height:36px;padding:7px 8px;border:1px solid rgba(155,77,255,.16);border-radius:9px;background:rgba(14,15,28,.52);color:#b9acd6;font-size:10px;line-height:1.25;cursor:pointer}.start-stage-options label:hover{border-color:rgba(175,118,255,.46);color:#f1ecff}.start-stage-options label.is-unavailable{opacity:.46}.start-stage-options input{width:16px;height:16px;flex:0 0 auto;accent-color:var(--accent)}
 @media(max-width:680px){.start-stage-options{grid-template-columns:repeat(2,minmax(0,1fr))}.start-stage-picker{padding-inline:10px}}
+
+.editorial-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}.editorial-card{display:flex;flex-direction:column;min-width:0;padding:16px;border:1px solid rgba(155,77,255,.22);border-radius:14px;background:linear-gradient(145deg,rgba(22,17,39,.76),rgba(5,5,11,.48))}.editorial-card-head{display:flex;align-items:start;justify-content:space-between;gap:10px}.editorial-card h3{margin:3px 0 0;font-size:18px}.editorial-card .panel-kicker{margin:0}.editorial-status{color:#bba5ff;font:10px 'JetBrains Mono',monospace;white-space:nowrap}.editorial-card .field-help{min-height:38px;margin:12px 0}.editorial-output{min-height:150px;max-height:260px;margin:0 0 14px;padding:11px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid rgba(155,77,255,.16);border-radius:9px;background:rgba(5,5,11,.72);color:#ded0ff;font:11px/1.6 'JetBrains Mono',monospace}.editorial-run{width:100%;margin-top:auto}.jobs li.job-row{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:6px;align-items:stretch}
+
+/* Project actions stay compact and separate from the draggable project target. */
+.jobs li.job-row{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:6px;align-items:stretch}
+.jobs li.job-row>.job-open{min-width:0;width:100%;text-align:left;cursor:grab;touch-action:none}
+.jobs li.job-row>.job-open:active{cursor:grabbing}
+.project-queue .jobs li.job-row>.job-delete{width:34px;min-width:34px;min-height:34px!important;height:34px;align-self:center;padding:4px;border-color:rgba(248,113,113,.28);color:#fca5a5;font-size:18px;line-height:1}
+.project-queue .jobs li.job-row>.job-delete:hover:enabled{border-color:rgba(248,113,113,.72);background:rgba(127,29,29,.32);box-shadow:0 0 18px rgba(248,113,113,.14)}
+.start-stage-options label.is-unavailable{opacity:.7;border-style:dashed}
+.start-stage-options label.is-unavailable:after{content:' · configuração pendente';color:#9a8bb8;font-size:9px;font-weight:400}
+@media(max-width:900px){.editorial-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:540px){.jobs li.job-row{grid-template-columns:minmax(0,1fr) 36px}.project-queue .jobs li.job-row>.job-delete{width:36px;min-width:36px}.editorial-grid{grid-template-columns:1fr}.editorial-output{min-height:120px}}

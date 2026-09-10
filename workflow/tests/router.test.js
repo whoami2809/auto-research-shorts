@@ -21,6 +21,16 @@ test('HTTP API checks ownership before access; candidate flags cannot invoke pro
   const res=await fetch(base+'/jobs/'+id+'/run',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({steps:['voz'],approved:true,allow_paid:false,request_id:randomUUID()})});
   assert.equal(res.status,403);assert.equal(enqueues,1);
 });
+test('project deletion is routed through the owner-scoped store',async(t)=>{
+  const owner=randomUUID(),id=randomUUID();let deleted;
+  const store={ready:true,list:async()=>[],delete:async(user,job)=>{deleted={user,job};}};
+  const app=express();app.use(express.json());app.use((req,res,next)=>{req.workflowUser={id:owner};next();});
+  app.use('/api/workflow',createRouter({store,engine:{enqueue:async()=>{}}}));
+  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>server.close());
+  const base=`http://127.0.0.1:${server.address().port}/api/workflow`;
+  const response=await fetch(base+'/jobs/'+id,{method:'DELETE'});
+  assert.equal(response.status,204);assert.deepEqual(deleted,{user:owner,job:id});
+});
 test('dispatch requires a valid scoped capability before any queue effect',async()=>{
   let lookups=0,effects=0,status;
   const handler=dispatchRoute({store:{findDispatch:async()=>{lookups++;return null;}},engine:{tick:async()=>{effects++;}}});

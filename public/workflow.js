@@ -203,7 +203,7 @@ async function boot() {
   const localPreview = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const thumbnailEditor = initThumbnailEditor();
   const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro', activeView: 'start' };
-  const viewHashes = { start: 'start-heading', editor: 'editor-heading', downloads: 'downloads-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
+  const viewHashes = { start: 'start-heading', editor: 'editor-heading', editorial: 'editorial-heading', downloads: 'downloads-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
   function viewFromHash() {
     const hash = window.location.hash.slice(1);
     return Object.entries(viewHashes).find(([, id]) => id === hash)?.[0] || 'start';
@@ -284,7 +284,8 @@ async function boot() {
       $('import-' + kind).disabled = blocked || !input.files?.length;
     }
     $('refresh').disabled = (!localPreview && backendLocked) || state.busy;
-    $('master-run').disabled = state.busy || unresolved || !state.selected.size || (!localPreview && (!state.job || state.dirty.size > 0));
+    const blockingDirty = [...state.dirty].some(field => field !== 'base_url');
+    $('master-run').disabled = state.busy || unresolved || !state.selected.size || (!localPreview && (!state.job || blockingDirty));
     $('retry-run').hidden = !unresolved;
     $('retry-run').disabled = state.busy;
     $('run-warning').textContent = warnings.get(runKey()) || '';
@@ -294,11 +295,18 @@ async function boot() {
     for (const [name, card] of cards) {
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
-      const blocked = !capability || capability.available !== true;
+      const blocked = !localPreview && (!capability || capability.available !== true);
       const active = ['queued', 'running'].includes(stage?.status);
-      if (blocked || active) { state.selected.delete(name); card.check.checked = false; }
+      if (active) { state.selected.delete(name); card.check.checked = false; }
       card.check.disabled = blocked || state.busy || active;
-      card.run.disabled = blocked || unresolved || state.busy || !state.job || state.dirty.size > 0 || ['queued', 'running'].includes(stage?.status);
+      card.run.disabled = blocked || unresolved || state.busy || (!localPreview && (!state.job || state.dirty.size > 0)) || ['queued', 'running'].includes(stage?.status);
+    }
+    for (const name of ['roteiro', 'titulos', 'seo']) {
+      const button = $('editorial-run-' + name);
+      if (!button) continue;
+      const capability = state.capabilities.find(item => item.name === name);
+      const stage = state.stages.find(item => item.name === name);
+      button.disabled = state.busy || unresolved || (!localPreview && (!state.job || state.dirty.size > 0 || capability?.available !== true)) || ['queued', 'running'].includes(stage?.status);
     }
     syncStartStageOptions();
     $('run').disabled = unresolved || state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
@@ -313,9 +321,11 @@ async function boot() {
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
       input.checked = state.selected.has(name);
+      const active = ['queued', 'running'].includes(stage?.status);
       const available = localPreview || capability?.available === true;
-      input.disabled = !available || state.busy || ['queued', 'running'].includes(stage?.status);
-      option.classList.toggle('is-unavailable', input.disabled && !available);
+      input.disabled = state.busy || active;
+      option.classList.toggle('is-unavailable', !available);
+      option.title = available ? '' : (capability?.reason || 'Etapa indisponível no servidor. A seleção será mantida para quando a configuração estiver pronta.');
     }
   }
   function downloadEntries() {
@@ -346,6 +356,8 @@ async function boot() {
     const localBlocked = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const enabled = Boolean(consent?.checked) && !localBlocked && Boolean(state.session) && !state.authRejected && !state.busy;
     for (const button of document.querySelectorAll('#download-candidates button[data-download-url]')) button.disabled = !enabled;
+    const hasValidEntries = downloadEntries().some(entry => !entry.error);
+    $('download-all').disabled = !enabled || !hasValidEntries;
     const status = $('download-status');
     if (status && localBlocked) status.textContent = 'Prévia local: abra o endereço publicado para habilitar downloads autenticados.';
     else if (status && !consent?.checked) status.textContent = 'Marque a confirmação e clique em um vídeo para iniciar uma requisição.';
@@ -366,11 +378,22 @@ async function boot() {
       throw error;
     } finally { button.textContent = 'Baixar vídeo'; }
   }
+  $('download-all').addEventListener('click', () => action(async () => {
+    const entries = downloadEntries().filter(entry => !entry.error);
+    if (!entries.length) throw new Error('Cole pelo menos um link oficial válido antes de baixar.');
+    const buttons = [...document.querySelectorAll('#download-candidates button[data-download-url]')];
+    for (const [index, entry] of entries.entries()) {
+      $('download-status').textContent = `Baixando vídeo ${index + 1} de ${entries.length}…`;
+      const button = buttons.find(candidate => candidate.dataset.downloadUrl === entry.url);
+      await downloadVideo(entry.url, button || $('download-all'));
+    }
+    $('download-status').textContent = `${entries.length} download${entries.length === 1 ? '' : 's'} concluído${entries.length === 1 ? '' : 's'}.`;
+  }));
   function renderStartStageOptions() {
     const container = $('start-stage-options');
     if (!container || container.children.length) return;
     for (const [name, label] of Object.entries(STAGES)) {
-      const option = document.createElement('label'); option.dataset.stage = name;
+      const option = document.createElement('label'); option.dataset.stage = name; option.setAttribute('aria-label', label);
       const input = document.createElement('input'); input.type = 'checkbox'; input.addEventListener('change', () => {
         const card = cards.get(name);
         input.checked ? state.selected.add(name) : state.selected.delete(name);
@@ -404,6 +427,11 @@ async function boot() {
       const output = stage?.output?.data ?? stage?.output;
       card.output.textContent = output == null ? 'Sem saída registrada.' : typeof output === 'string' ? output : JSON.stringify(output, null, 2);
       card.copy.hidden = !['roteiro', 'titulos'].includes(name) || stage?.output == null;
+      if (['roteiro', 'titulos', 'seo'].includes(name)) {
+        const editorialOutput = $('editorial-output-' + name); const editorialStatus = $('editorial-status-' + name);
+        if (editorialOutput) editorialOutput.textContent = stage?.output == null ? (stage?.message || 'Sem saída registrada.') : typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+        if (editorialStatus) editorialStatus.textContent = STATUS[status];
+      }
       if (status === 'ready' && ['roteiro', 'titulos'].includes(name)) {
         const field = name === 'titulos' ? 'title' : 'script';
         const value = editorialText(stage.output, field);
@@ -419,7 +447,7 @@ async function boot() {
   function fill(job) {
     for (const field of FIELDS) if (!state.dirty.has(field)) $(field).value = field === 'links' ? (Array.isArray(job.links) ? job.links.join('\n') : '') : job[field] ?? '';
     if (!state.dirty.has('base_url')) $('base_url').value = job.base_url || '';
-    $('base_url').readOnly = Boolean(state.job);
+    $('base_url').readOnly = false;
     controls();
   }
   async function refreshJob() {
@@ -438,8 +466,8 @@ async function boot() {
     $('jobs').replaceChildren();
     if (!data.jobs?.length) $('jobs').append(node('li', 'Nenhum projeto. Crie o primeiro para começar.'));
     for (const job of data.jobs || []) {
-      const item = node('li'); item.dataset.jobId = job.id; item.draggable = true;
-      const button = node('button', job.name || job.id); button.type = 'button'; button.title = 'Abrir projeto e arrastar para reorganizar';
+      const item = node('li'); item.className = 'job-row'; item.dataset.jobId = job.id; item.draggable = true;
+      const button = node('button', job.name || job.id); button.type = 'button'; button.className = 'job-open'; button.title = 'Abrir projeto e arrastar para reorganizar';
       button.setAttribute('aria-current', String(state.job?.id === job.id));
       const date = new Date(job.created_at); if (!Number.isNaN(date.valueOf())) button.append(node('time', date.toLocaleString('pt-BR')));
       button.addEventListener('click', () => {
@@ -447,6 +475,18 @@ async function boot() {
         if (state.busy) return;
         if (state.dirty.size) { notice('Salve as alterações antes de trocar de projeto.', true); return; }
         action(async () => { cancel(); resetImports(); state.job = job; state.selected.clear(); for (const card of cards.values()) card.check.checked = false; $('allow-paid').checked = false; $('allow-frame-upload').checked = false; await refreshJob(); await listJobs(); });
+      });
+      const remove = node('button', '×'); remove.type = 'button'; remove.className = 'job-delete'; remove.title = 'Excluir projeto'; remove.setAttribute('aria-label', 'Excluir projeto ' + (job.name || job.id));
+      const stopDrag = event => event.stopPropagation();
+      remove.addEventListener('pointerdown', stopDrag);
+      remove.addEventListener('click', event => {
+        event.preventDefault(); event.stopPropagation();
+        if (state.busy || !window.confirm(`Excluir o projeto “${job.name || job.id}”? Esta ação não pode ser desfeita.`)) return;
+        action(async () => {
+          await api('/api/workflow/jobs/' + encodeURIComponent(job.id), { method: 'DELETE' });
+          if (state.job?.id === job.id) clearProjectSelection();
+          await listJobs(); notice('Projeto excluído.');
+        });
       });
       let pointerStart = null; let pointerDragging = false;
       const clearDropTargets = () => document.querySelectorAll('.jobs li.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
@@ -459,8 +499,14 @@ async function boot() {
       item.addEventListener('pointerdown', event => { if (event.button !== 0) return; pointerStart = {x:event.clientX,y:event.clientY}; pointerDragging = false; item.setPointerCapture?.(event.pointerId); });
       item.addEventListener('pointermove', event => { if (!pointerStart) return; if (!pointerDragging && Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y) > 8) { pointerDragging = true; state.draggingJob = job.id; item.classList.add('is-dragging'); } if (!pointerDragging) return; const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.jobs li'); clearDropTargets(); if (target && target !== item) target.classList.add('is-drop-target'); });
       item.addEventListener('pointerup', event => { if (!pointerDragging) { pointerStart = null; return; } const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.jobs li'); const targetId = target?.dataset.jobId; pointerStart = null; pointerDragging = false; state.draggingJob = null; state.suppressJobClick = true; item.classList.remove('is-dragging'); clearDropTargets(); if (targetId && targetId !== job.id) moveTo(targetId); });
-      item.append(button); $('jobs').append(item);
+      item.append(button, remove); $('jobs').append(item);
     }
+  }
+  function clearProjectSelection() {
+    cancel(); state.job = null; state.stages = []; state.dirty.clear(); state.selected.clear(); resetImports(); $('editor').reset();
+    for (const card of cards.values()) card.check.checked = false;
+    $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
+    renderStages([]); renderArtifacts([]); selectWorkflowView('start');
   }
   function resetImports() {
     for (const kind of ['base', 'voice']) $('import-' + kind + '-file').value = '';
@@ -505,6 +551,15 @@ async function boot() {
     const endpoint = path() + (individual ? '/stages/' + encodeURIComponent(steps[0]) + '/run' : '/run');
     const attempt = pendingRun(attempts, runKey(), endpoint, body, () => crypto.randomUUID());
     await submitRun(runKey(), attempt);
+  }
+  async function executeStage(name) {
+    if (localPreview) {
+      state.activeStage = name;
+      renderStages([{ name, status: 'pending', message: 'Etapa selecionada para execução local.' }]);
+      selectWorkflowView('flow'); notice('Prévia local: etapa selecionada. O endereço publicado executa a etapa no servidor.');
+      return;
+    }
+    await run([name], true);
   }
   async function submitRun(key, attempt) {
     // No automatic retry. A manual retry preserves ID, endpoint, steps and consents.
@@ -573,7 +628,7 @@ async function boot() {
       $(field).value = value; state.dirty.add(field); controls(); $(field).focus();
     });
     const runButton = node('button', 'Executar ' + label.toLowerCase()); runButton.type = 'button';
-    runButton.addEventListener('click', () => action(() => run([name], true)));
+    runButton.addEventListener('click', () => action(() => executeStage(name)));
     check.addEventListener('change', () => { check.checked ? state.selected.add(name) : state.selected.delete(name); controls(); });
     root.append(wrapper, explain, badge, message, details, copy, runButton); $('flow').append(root);
     cards.set(name, { root, check, badge, message, output, copy, run: runButton });
@@ -592,7 +647,7 @@ async function boot() {
       for (const field of FIELDS) if (creating || state.dirty.has(field)) { sent.set(field, $(field).value); body[field] = field === 'links' ? parseLinks($(field).value) : $(field).value; }
       if (!body.name?.trim() && (creating || state.dirty.has('name'))) throw new Error('Informe o nome do projeto.');
       validateFields(body);
-      if (creating && $('base_url').value.trim()) body.base_url = officialURL($('base_url').value.trim());
+      if (creating || state.dirty.has('base_url')) body.base_url = $('base_url').value.trim() ? officialURL($('base_url').value.trim()) : '';
       sent.set('base_url', $('base_url').value);
       const data = await api(creating ? '/api/workflow/jobs' : path(), { method: creating ? 'POST' : 'PATCH', body: JSON.stringify(body) });
       state.job = data.job;
@@ -600,6 +655,18 @@ async function boot() {
       fill(data.job); notice('Conteúdo salvo pelo servidor.'); await listJobs(); await refreshJob();
     });
   });
+  async function prepareAnalysis() {
+    if (!state.job) throw new Error('Crie ou selecione um projeto antes de analisar o link-base.');
+    const blockingDirty = [...state.dirty].filter(field => field !== 'base_url');
+    if (blockingDirty.length) throw new Error('Salve as alterações do conteúdo antes de analisar o link-base.');
+    const raw = $('base_url').value.trim();
+    if (!raw) throw new Error('Cole um link oficial de YouTube, TikTok, Instagram ou Facebook.');
+    const canonical = officialURL(raw);
+    if (canonical !== (state.job.base_url || '')) {
+      const data = await api(path(), { method: 'PATCH', body: JSON.stringify({ base_url: canonical }) });
+      state.job = data.job; state.dirty.delete('base_url'); fill(data.job);
+    } else state.dirty.delete('base_url');
+  }
   $('master-run').addEventListener('click', () => {
     if (localPreview) {
       const selected = [...state.selected];
@@ -608,12 +675,9 @@ async function boot() {
       selectWorkflowView('flow');
       return;
     }
-    selectWorkflowView('flow'); return action(async () => {
-      if (!state.job || state.dirty.size) throw new Error('Salve o projeto antes de analisar o link-base.');
-      if (!state.selected.size) throw new Error('Selecione pelo menos uma etapa nos cartões abaixo.');
-      await run([...state.selected], false);
-    });
+    selectWorkflowView('flow'); return action(async () => { await prepareAnalysis(); await run([...state.selected], false); });
   });
+  for (const name of ['roteiro', 'titulos', 'seo']) $('editorial-run-' + name).addEventListener('click', () => action(() => executeStage(name)));
   function startNewProject(name, channel) {
     selectWorkflowView('editor');
     cancel(); resetImports(); state.job = null; state.dirty.clear(); state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;

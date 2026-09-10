@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-13/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-17/);
   assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
@@ -101,7 +101,15 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /newProjectDialog\.showModal\(\)/);
   assert.match(js, /\$\('notice'\)\.hidden = true/);
   assert.match(html, /class="workflow-topbar"/);
-  assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 6);
+  assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 7);
+  assert.match(html, /href="#editor-heading"[^>]*>.*<span>Logs<\/span>/s);
+  assert.match(html, /href="#editorial-heading"[^>]*>.*<span>Editorial<\/span>/s);
+  assert.match(html, /id="editorial-run-roteiro"/);
+  assert.match(html, /id="editorial-run-titulos"/);
+  assert.match(html, /id="editorial-run-seo"/);
+  assert.match(js, /run\(\[name\], true\)/);
+  assert.match(js, /function executeStage/);
+  assert.match(js, /viewHashes = .*editorial/);
   assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
   assert.doesNotMatch(html, /href="#import-heading"[^>]*>.*<span>Mídia<\/span>/s);
   assert.match(html, /href="#downloads-heading"[^>]*>.*<span>Downloads<\/span>/s);
@@ -109,6 +117,11 @@ test('acessibilidade e responsividade', () => {
   assert.doesNotMatch(html, /href="#artifacts-heading"[^>]*>.*<span>Resultados<\/span>/s);
   assert.match(html, /class="project-queue"/);
   assert.match(html, /id="start-stage-options"/);
+  assert.match(js, /className = 'job-delete'/);
+  assert.match(js, /method: 'DELETE'/);
+  assert.match(js, /function prepareAnalysis/);
+  assert.match(js, /Cole um link oficial de YouTube/);
+  assert.match(css, /job-delete/);
   assert.match(js, /window\.location\.protocol === 'file:'/);
   assert.match(js, /\$\('notice'\)\.hidden = true/);
   assert.match(js, /const localPreview = window\.location\.protocol === 'file:'/);
@@ -119,7 +132,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /function downloadVideo/);
   assert.match(js, /api\('\/api\/video-dl\?' \+ query/);
   assert.match(html, /id="download-consent" type="checkbox"/);
+  assert.match(html, /id="download-all"[^>]*>Baixar vídeos/);
   assert.match(html, /id="download-links"/);
+  assert.match(js, /download-all.*addEventListener\('click'/s);
   assert.match(html, /id="thumbnail-tool-line"/);
   assert.match(js, /function resizeHandle/);
   assert.match(js, /type: resizing \? 'resize' : 'move'/);

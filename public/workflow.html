@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./workflow.css">
-  <script type="module" src="./workflow.js?v=20260910-workflow-controls-13"></script>
+  <script type="module" src="./workflow.js?v=20260910-workflow-controls-17"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
@@ -16,7 +16,8 @@
     <a class="rail-logo" href="/app" aria-label="Voltar para a aba principal"><strong>ARS</strong><small>CANAL ZUEFY</small></a>
     <nav class="workflow-rail-nav" aria-label="Navegação do projeto">
       <a class="workflow-nav-item" data-workflow-view="start" href="#start-heading"><span class="workflow-nav-icon" aria-hidden="true">⌕</span><span>Buscar</span></a>
-      <a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon" aria-hidden="true">▤</span><span>Conteúdo</span></a>
+      <a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon" aria-hidden="true">▤</span><span>Logs</span></a>
+      <a class="workflow-nav-item" data-workflow-view="editorial" href="#editorial-heading"><span class="workflow-nav-icon" aria-hidden="true">✦</span><span>Editorial</span></a>
       <a class="workflow-nav-item" data-workflow-view="import" href="#import-heading"><span class="workflow-nav-icon" aria-hidden="true">↓</span><span>Voz</span></a>
       <a class="workflow-nav-item" data-workflow-view="downloads" href="#downloads-heading"><span class="workflow-nav-icon" aria-hidden="true">⇩</span><span>Downloads</span></a>
       <a class="workflow-nav-item" data-workflow-view="flow" href="#flow-heading"><span class="workflow-nav-icon" aria-hidden="true">ϟ</span><span>Etapas</span></a>
@@ -53,14 +54,23 @@
               <label>Título editável<small class="field-help">Título associado ao projeto; você pode ajustar quando quiser.</small><input id="title" maxlength="180"></label>
             </form>
           </section>
+          <section class="panel workflow-section" data-workflow-view="editorial" aria-labelledby="editorial-heading">
+            <div class="section-head"><div><p class="panel-kicker">EDITORIAL</p><h2 id="editorial-heading">Roteiro, títulos e SEO</h2></div></div>
+            <p class="hint">Execute cada função separadamente, acompanhe a saída e envie somente a etapa escolhida.</p>
+            <div class="editorial-grid">
+              <article class="editorial-card" data-editorial-stage="roteiro"><div class="editorial-card-head"><div><p class="panel-kicker">01</p><h3>Roteiro</h3></div><span id="editorial-status-roteiro" class="editorial-status">Pendente</span></div><p class="field-help">Traduz e remodela o roteiro para português.</p><pre id="editorial-output-roteiro" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-roteiro" class="primary editorial-run" type="button">Executar roteiro</button></article>
+              <article class="editorial-card" data-editorial-stage="titulos"><div class="editorial-card-head"><div><p class="panel-kicker">02</p><h3>Títulos</h3></div><span id="editorial-status-titulos" class="editorial-status">Pendente</span></div><p class="field-help">Sugere títulos curtos e fortes para o vídeo.</p><pre id="editorial-output-titulos" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-titulos" class="primary editorial-run" type="button">Gerar títulos</button></article>
+              <article class="editorial-card" data-editorial-stage="seo"><div class="editorial-card-head"><div><p class="panel-kicker">03</p><h3>SEO</h3></div><span id="editorial-status-seo" class="editorial-status">Pendente</span></div><p class="field-help">Cria descrição, hashtags e tags para publicação.</p><pre id="editorial-output-seo" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-seo" class="primary editorial-run" type="button">Gerar SEO</button></article>
+            </div>
+          </section>
           <section class="panel workflow-section" data-workflow-view="downloads" aria-labelledby="downloads-heading">
             <div class="section-head"><div><p class="panel-kicker">02 · DOWNLOADS</p><h2 id="downloads-heading">Baixe vídeos autorizados</h2></div></div>
-            <p class="hint lead-hint">Cole um link oficial por linha. A ferramenta só fará uma requisição quando você marcar a confirmação e clicar no botão daquele vídeo.</p>
+            <p class="hint lead-hint">Cole um link oficial por linha. Marque a confirmação e use “Baixar vídeos” para baixar todos, ou o botão individual de cada vídeo.</p>
             <label>Links oficiais dos vídeos<small class="field-help">Aceitos: YouTube, TikTok, Instagram e Facebook, sempre em HTTPS.</small><textarea id="download-links" rows="6" placeholder="https://www.youtube.com/...&#10;https://www.tiktok.com/..." spellcheck="false"></textarea></label>
             <div class="download-controls">
               <label>Qualidade<select id="download-quality"><option value="max">Máxima disponível</option><option value="1080">1080p</option><option value="720">720p</option></select></label>
               <label class="download-consent"><span><input id="download-consent" type="checkbox"> Confirmo que tenho autorização para baixar estes vídeos.</span><small class="field-help">Essa confirmação não é concedida automaticamente pelo link.</small></label>
-              <button id="download-clear" type="button">Limpar links</button>
+              <button id="download-all" class="primary" type="button" disabled>Baixar vídeos</button><button id="download-clear" type="button">Limpar links</button>
             </div>
             <p id="download-status" role="status" aria-live="polite" class="hint">Nenhum download será iniciado sem uma ação explícita.</p>
             <div id="download-candidates" class="download-candidates" aria-live="polite"></div>
