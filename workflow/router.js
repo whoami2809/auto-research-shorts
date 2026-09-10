@@ -18,7 +18,7 @@ function createRouter({store,engine,validateImport,env=process.env}) {
       if(!store.ready) reason='Configure a persistência no servidor.';
       else if(PAID.has(name)&&!paidAllowed(req.workflowUser,env)) reason='Conta ainda não autorizada para chamadas pagas.';
       else if(name==='voz'&&!env.ELEVENLABS_API_KEY) reason='ElevenLabs ainda não configurada.';
-      else if(['roteiro','titulos','seo'].includes(name)&&!((env.GEMINI_API_KEY&&env.GEMINI_MODEL)||(env.ANTHROPIC_API_KEY&&env.ANTHROPIC_MODEL))) reason='IA editorial ainda não configurada.';
+      else if(['roteiro','titulos','seo'].includes(name)&&!((env.GEMINI_API_KEY&&(env.GEMINI_MODELS||env.GEMINI_MODEL))||(env.ANTHROPIC_API_KEY&&env.ANTHROPIC_MODEL))) reason='IA editorial ainda não configurada.';
       else if(name==='frames'&&(!env.WF_FFMPEG_PATH||!env.WF_FFPROBE_PATH)) reason='Processador de frames ainda não configurado.';
       else if(name==='downloads') reason='Download automático aguarda validação do transporte e da quarentena em produção.';
       else if(name==='busca') reason='Modo assistido: frames para Lens e links dos candidatos.';
