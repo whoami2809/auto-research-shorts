@@ -148,6 +148,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /option value="720">720p HD/);
   assert.match(html, /maior resolução disponível até o limite escolhido/);
   assert.match(js, /download-all.*addEventListener\('click'/s);
+  assert.match(js, /downloadAll\.disabled = !canRequest/);
+  assert.match(js, /Marque a confirmação de autorização antes de baixar/);
+  assert.match(js, /Cole pelo menos um link oficial válido para começar/);
   assert.match(html, /id="thumbnail-tool-line"/);
   assert.match(js, /function resizeHandle/);
   assert.match(js, /type: resizing \? 'resize' : 'move'/);

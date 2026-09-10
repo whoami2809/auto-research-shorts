@@ -346,13 +346,19 @@ async function boot() {
   function syncDownloadControls() {
     const consent = $('download-consent');
     const localBlocked = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const enabled = Boolean(consent?.checked) && !localBlocked && Boolean(state.session) && !state.authRejected && !state.busy;
+    const canRequest = !localBlocked && Boolean(state.session) && !state.authRejected && !state.busy;
+    const enabled = Boolean(consent?.checked) && canRequest;
     for (const button of document.querySelectorAll('#download-candidates button[data-download-url]')) button.disabled = !enabled;
     const hasValidEntries = downloadEntries().some(entry => !entry.error);
-    $('download-all').disabled = !enabled || !hasValidEntries;
+    const downloadAll = $('download-all');
+    downloadAll.disabled = !canRequest;
+    downloadAll.title = localBlocked ? 'Downloads ficam disponíveis somente no endereço publicado.' : !state.session ? 'Entre no aplicativo antes de baixar.' : !hasValidEntries ? 'Cole pelo menos um link oficial válido.' : !consent?.checked ? 'Marque a autorização para baixar.' : '';
     const status = $('download-status');
     if (status && localBlocked) status.textContent = 'Prévia local: abra o endereço publicado para habilitar downloads autenticados.';
-    else if (status && !consent?.checked) status.textContent = 'Marque a confirmação e clique em um vídeo para iniciar uma requisição.';
+    else if (status && !state.session) status.textContent = 'Entre no aplicativo para habilitar downloads autenticados.';
+    else if (status && !hasValidEntries) status.textContent = 'Cole pelo menos um link oficial válido para começar.';
+    else if (status && !consent?.checked) status.textContent = 'Marque a confirmação para autorizar o download.';
+    else if (status && canRequest) status.textContent = 'Pronto: clique em “Baixar vídeos” ou use uma ação individual.';
   }
   async function downloadVideo(url, button) {
     if (window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname)) throw new Error('Downloads ficam disponíveis somente no endereço publicado.');
@@ -371,6 +377,7 @@ async function boot() {
     } finally { button.textContent = 'Baixar vídeo'; }
   }
   $('download-all').addEventListener('click', () => action(async () => {
+    if (!$('download-consent').checked) throw new Error('Marque a confirmação de autorização antes de baixar.');
     const entries = downloadEntries().filter(entry => !entry.error);
     if (!entries.length) throw new Error('Cole pelo menos um link oficial válido antes de baixar.');
     const buttons = [...document.querySelectorAll('#download-candidates button[data-download-url]')];
