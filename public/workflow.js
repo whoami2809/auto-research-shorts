@@ -223,7 +223,8 @@ async function boot() {
     } finally { clearTimeout(timeout); state.requests.delete(controller); }
   }
   function controls() {
-    $('app').disabled = !state.session || state.authRejected;
+    const backendLocked = !state.session || state.authRejected;
+    $('app').dataset.backendLocked = String(backendLocked);
     $('run').disabled = state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
     const unresolved = attempts.has(runKey());
     for (const kind of ['base', 'voice']) {
@@ -233,7 +234,7 @@ async function boot() {
       input.disabled = blocked;
       $('import-' + kind).disabled = blocked || !input.files?.length;
     }
-    $('save').disabled = state.busy || unresolved;
+    $('refresh').disabled = backendLocked || state.busy;
     $('master-run').disabled = state.busy || unresolved || !state.job || state.dirty.size > 0 || !state.selected.size;
     $('retry-run').hidden = !unresolved;
     $('retry-run').disabled = state.busy;
@@ -241,7 +242,6 @@ async function boot() {
     $('run-warning').hidden = !$('run-warning').textContent;
     $('new').disabled = state.busy;
     $('base_url').disabled = state.busy;
-    $('dirty').textContent = state.dirty.size ? 'Alterações não salvas' : state.job ? 'Sem alterações locais' : 'Novo projeto';
     for (const [name, card] of cards) {
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
@@ -321,7 +321,6 @@ async function boot() {
     for (const field of FIELDS) if (!state.dirty.has(field)) $(field).value = field === 'links' ? (Array.isArray(job.links) ? job.links.join('\n') : '') : job[field] ?? '';
     if (!state.dirty.has('base_url')) $('base_url').value = job.base_url || '';
     $('base_url').readOnly = Boolean(state.job);
-    $('save').textContent = state.job ? 'Salvar alterações' : 'Criar projeto';
     controls();
   }
   async function refreshJob() {

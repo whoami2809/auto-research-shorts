@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./workflow.css">
-  <script type="module" src="./workflow.js?v=20260910-workflow-console-2"></script>
+  <script type="module" src="./workflow.js?v=20260910-workflow-controls-2"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
@@ -28,7 +28,7 @@
     <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Abra uma função por vez. O link-base é o ponto de partida para todo o workflow.</p></div>
     <p id="notice" role="status" aria-live="polite">Verificando sessão…</p>
     <noscript>Ative o JavaScript para acessar seus projetos.</noscript>
-    <fieldset id="app" disabled>
+    <fieldset id="app">
       <legend class="sr-only">Painel de produção</legend>
       <div class="layout">
         <div class="content">
@@ -42,7 +42,7 @@
             <section class="project-queue" aria-labelledby="projects-heading"><div class="project-queue-head"><div><p class="panel-kicker">WORKSPACE</p><h2 id="projects-heading">Projetos</h2></div><span>Fila de produção</span></div><div class="project-actions"><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button></div><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></section>
           </section>
           <section class="panel workflow-section" data-workflow-view="editor" aria-labelledby="editor-heading">
-            <div class="section-head"><div><p class="panel-kicker">01 · IDENTIFICAÇÃO</p><h2 id="editor-heading">Identifique o seu short</h2></div><span id="dirty" role="status">Novo projeto</span></div>
+            <div class="section-head"><div><p class="panel-kicker">01 · IDENTIFICAÇÃO</p><h2 id="editor-heading">Identifique o seu short</h2></div></div>
             <form id="editor">
               <div class="pair"><label>Nome do projeto<small class="field-help">Nome interno para encontrar este short depois.</small><input id="name" required maxlength="120" autocomplete="off" aria-describedby="name-help"></label><label>Canal<small class="field-help">Canal de destino. Ajuda a organizar o projeto e a configuração de voz.</small><input id="channel" maxlength="80" autocomplete="off" aria-describedby="channel-help"></label></div>
               <label>Links de referência<small class="field-help">Cole os links que você encontrou manualmente no Lens, um por linha.</small><textarea id="links" rows="3" aria-describedby="links-help"></textarea></label>
@@ -50,7 +50,6 @@
               <label>Transcrição<small class="field-help">Texto original para consulta ou para alimentar a criação do roteiro.</small><textarea id="transcript" rows="5" maxlength="20000"></textarea></label>
               <label>Roteiro editável<small class="field-help">Versão em português que será usada na narração e na edição.</small><textarea id="script" rows="8" maxlength="20000"></textarea></label>
               <label>Título editável<small class="field-help">Título associado ao projeto; você pode ajustar quando quiser.</small><input id="title" maxlength="180"></label>
-              <div class="actions"><button class="primary" id="save" type="submit">Criar projeto</button><span class="hint">Somente campos alterados são enviados ao salvar.</span></div>
             </form>
           </section>
           <section class="panel workflow-section" data-workflow-view="import" aria-labelledby="import-heading">

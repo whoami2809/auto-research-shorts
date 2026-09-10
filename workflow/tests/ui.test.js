@@ -88,6 +88,11 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-2/);
+  assert.match(html, /<fieldset id="app">/);
+  assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
+  assert.doesNotMatch(html, /id="save"/);
+  assert.doesNotMatch(html, /id="dirty"/);
   assert.match(html, /class="workflow-topbar"/);
   assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 5);
   assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
