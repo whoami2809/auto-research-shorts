@@ -7,6 +7,7 @@ const STAGE_HELP = {
   frames: 'Extrai frames PNG claros do vídeo-base.', busca: 'Organiza candidatos encontrados no Lens e nas redes permitidas.',
   downloads: 'Baixa somente links autorizados e registra os créditos.', organizar: 'Reúne os arquivos no pacote final do projeto.'
 };
+const EDITORIAL_REQUIREMENTS = { roteiro: ['transcript'], titulos: ['script'], seo: ['script', 'title'] };
 const STATUS = { pending: 'Pendente', queued: 'Na fila', running: 'Em execução', ready: 'Pronta', failed: 'Falhou', waiting_input: 'Aguarda sua entrada', unknown: 'Estado desconhecido', stale: 'Desatualizada' };
 const FIELDS = ['name', 'transcript', 'script', 'title', 'links', 'channel'];
 const OFFICIAL = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'facebook.com'];
@@ -298,11 +299,16 @@ async function boot() {
       if (!button) continue;
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
-      button.disabled = state.busy || unresolved || (!localPreview && (!state.job || state.dirty.size > 0)) || ['queued', 'running'].includes(stage?.status);
-      button.title = capability?.available === true ? '' : (capability?.reason || 'A autorização/configuração desta etapa ainda está pendente.');
+      button.disabled = state.busy || unresolved || ['queued', 'running'].includes(stage?.status);
+      button.title = capability?.available !== true ? (capability?.reason || 'A autorização/configuração desta etapa ainda está pendente.') : !state.job ? 'Crie ou selecione um projeto e salve-o antes de executar.' : state.dirty.size ? 'Salve as alterações do projeto antes de executar.' : editorialInputError(name) || '';
     }
     syncStartStageOptions();
     syncDownloadControls();
+  }
+  function editorialInputError(name) {
+    const fields = EDITORIAL_REQUIREMENTS[name] || [];
+    const missing = fields.filter(field => !$(field)?.value.trim() && !(field === 'script' && state.stages.some(stage => stage.name === 'roteiro' && stage.status === 'ready' && editorialText(stage.output, 'script')?.trim())) && !(field === 'title' && state.stages.some(stage => stage.name === 'titulos' && stage.status === 'ready' && editorialText(stage.output, 'title')?.trim())));
+    return missing.length ? `Preencha ${missing.map(field => field === 'transcript' ? 'a transcrição' : field === 'script' ? 'o roteiro' : 'o título').join(' e ')} e salve o projeto antes de executar.` : '';
   }
   function syncStartStageOptions() {
     const container = $('start-stage-options');
@@ -555,6 +561,10 @@ async function boot() {
       selectWorkflowView('flow'); notice('Prévia local: etapa selecionada. O endereço publicado executa a etapa no servidor.');
       return;
     }
+    if (!state.job) throw new Error('Crie ou selecione um projeto e salve-o antes de executar esta função.');
+    if (state.dirty.size) throw new Error('Salve as alterações do projeto antes de executar esta função.');
+    const inputError = editorialInputError(name);
+    if (inputError) throw new Error(inputError);
     await run([name], true);
   }
   async function submitRun(key, attempt) {

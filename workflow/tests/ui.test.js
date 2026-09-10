@@ -76,7 +76,7 @@ test('PATCH parcial e edição preservada durante resposta e polling', () => {
   assert.match(js, /creating \|\| state\.dirty\.has\(field\)/);
   assert.match(js, /\$\(field\)\.value === value\) state\.dirty\.delete\(field\)/);
   assert.match(js, /creating \? 'POST' : 'PATCH'/);
-  assert.match(js, /state\.dirty\.size > 0/);
+  assert.match(js, /state\.dirty\.size/);
   for (const status of ['pending', 'queued', 'running', 'ready', 'failed', 'waiting_input', 'unknown', 'stale']) assert.ok(vm.runInContext(`Object.hasOwn(STATUS, '${status}')`, context));
   assert.match(html, /hash/);
   assert.match(html, /Nenhuma etapa é refeita automaticamente/);
@@ -110,6 +110,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /id="editorial-run-seo"/);
   assert.match(js, /run\(\[name\], true\)/);
   assert.match(js, /function executeStage/);
+  assert.match(js, /const EDITORIAL_REQUIREMENTS/);
+  assert.match(js, /function editorialInputError/);
+  assert.match(js, /Crie ou selecione um projeto e salve-o antes de executar esta função/);
   assert.match(js, /viewHashes = .*editorial/);
   assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
   assert.doesNotMatch(html, /href="#import-heading"[^>]*>.*<span>Mídia<\/span>/s);
