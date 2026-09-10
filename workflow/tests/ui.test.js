@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const vm = require('node:vm');
 const root = resolve(__dirname, '../../public');
@@ -144,6 +144,8 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /selectField\('Fonte'/);
   assert.match(js, /Bebas Neue/);
   assert.match(css, /:focus-visible/);
+  assert.match(css, /BebasNeue-Regular\.ttf/);
+  assert.ok(existsSync(resolve(root, 'fonts/BebasNeue-Regular.ttf')));
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
 });
