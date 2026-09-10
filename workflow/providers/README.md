@@ -42,7 +42,9 @@ esta interface não recebe arquivos existentes e não pode descobrir esses arqui
 ## APIs e início externo
 
 Gemini: API oficial `https://generativelanguage.googleapis.com/v1beta`, usando
-`GEMINI_API_KEY` + `GEMINI_MODEL` obrigatórios para a rota principal. A chave vai
+`GEMINI_API_KEY` + `GEMINI_MODELS` obrigatórios para a rota principal. A lista é
+separada por vírgulas e é tentada em ordem; o próximo modelo só é usado quando o
+anterior retorna HTTP 429. A chave vai
 somente no header `x-goog-api-key`; nunca entra na URL, no corpo ou nos logs. O
 modelo vem exclusivamente do ambiente e a resposta é exigida em JSON. Anthropic
 continua aceito apenas como compatibilidade temporária quando Gemini não estiver

@@ -71,9 +71,11 @@ async function readBounded(response) {
 function editorial(stage, env, fetchImpl) {
   return async context => {
     const geminiKey = env.GEMINI_API_KEY;
-    const geminiModel = env.GEMINI_MODEL;
+    const configuredModels = typeof env.GEMINI_MODELS === 'string' ? env.GEMINI_MODELS.split(',').map(model => model.trim()).filter(Boolean)
+      : (typeof env.GEMINI_MODEL === 'string' ? [env.GEMINI_MODEL.trim()] : []);
+    const geminiModels = [...new Set(configuredModels)];
     const hasGemini = typeof geminiKey === 'string' && /^[\x21-\x7e]{8,512}$/u.test(geminiKey)
-      && typeof geminiModel === 'string' && /^gemini-[a-z0-9.-]{1,100}$/u.test(geminiModel);
+      && geminiModels.length > 0 && geminiModels.every(model => /^gemini-[a-z0-9.-]{1,100}$/u.test(model));
     const anthropicKey = env.ANTHROPIC_API_KEY;
     const anthropicModel = env.ANTHROPIC_MODEL;
     const hasAnthropic = typeof anthropicKey === 'string' && /^[\x21-\x7e]{8,512}$/u.test(anthropicKey)
@@ -81,26 +83,28 @@ function editorial(stage, env, fetchImpl) {
     if (!hasGemini && !hasAnthropic) throw fail('CONFIG_MISSING');
     const provider = hasGemini ? 'gemini' : 'anthropic';
     const key = provider === 'gemini' ? geminiKey : anthropicKey;
-    const model = provider === 'gemini' ? geminiModel : anthropicModel;
+    const models = provider === 'gemini' ? geminiModels : [anthropicModel];
     const safe = inputData(context.input, context.outputs, stage);
     noSecrets(safe, env);
-    const request = provider === 'gemini'
+    const requestFor = model => provider === 'gemini'
       ? { systemInstruction: { parts: [{ text: systemFor(stage) }] }, contents: [{ role: 'user', parts: [{ text: JSON.stringify({ untrusted_data: safe }) }] }], generationConfig: { maxOutputTokens: 8192, responseMimeType: 'application/json' } }
       : { model, max_tokens: 8192, system: systemFor(stage), messages: [{ role: 'user', content: JSON.stringify({ untrusted_data: safe }) }] };
     const signal = context.signal ? AbortSignal.any([context.signal, AbortSignal.timeout(LIMITS.timeout)]) : AbortSignal.timeout(LIMITS.timeout);
     await mark(context);
     let response, raw;
     try {
-      const endpoint = provider === 'gemini' ? `${GEMINI_ENDPOINT}${encodeURIComponent(model)}:generateContent` : ANTHROPIC_ENDPOINT;
-      const headers = provider === 'gemini'
-        ? { 'content-type': 'application/json', 'x-goog-api-key': key }
-        : { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' };
-      response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error', signal, headers, body: JSON.stringify(request) });
-      if (!response.ok) {
+      for (const model of models) {
+        const endpoint = provider === 'gemini' ? `${GEMINI_ENDPOINT}${encodeURIComponent(model)}:generateContent` : ANTHROPIC_ENDPOINT;
+        const headers = provider === 'gemini'
+          ? { 'content-type': 'application/json', 'x-goog-api-key': key }
+          : { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' };
+        response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error', signal, headers, body: JSON.stringify(requestFor(model)) });
+        if (response.ok) { raw = await readBounded(response); break; }
+        const rateLimited = provider === 'gemini' && response.status === 429 && model !== models.at(-1);
         await response.body?.cancel();
+        if (rateLimited) continue;
         throw fail(response.status >= 500 || response.status === 408 ? 'EXTERNAL_OUTCOME_UNKNOWN' : 'EXTERNAL_REJECTED');
       }
-      raw = await readBounded(response);
     } catch (error) {
       if (['INVALID_OUTPUT', 'EXTERNAL_REJECTED', 'EXTERNAL_OUTCOME_UNKNOWN'].includes(error?.code)) throw fail(error.code);
       throw fail('EXTERNAL_OUTCOME_UNKNOWN');
