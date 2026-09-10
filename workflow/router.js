@@ -40,7 +40,7 @@ function createRouter({store,engine,validateImport,env=process.env}) {
     res.status(204).end();
   }));
   router.patch('/jobs/:id/order',route(async(req,res)=>{
-    const rows = await store.reorder(req.workflowUser.id, req.params.id, req.body?.direction);
+    const rows = await store.reorder(req.workflowUser.id, req.params.id, req.body?.direction, req.body?.target_id);
     res.json({jobs: rows.map(row => publicJob(row).job)});
   }));
   router.get('/jobs/:id',route(async(req,res)=>{

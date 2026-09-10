@@ -59,12 +59,13 @@ class SupabaseStore {
     if (!response.ok) fail('STORAGE_UNAVAILABLE','Não foi possível excluir o projeto.',503);
     return {id};
   }
-  async reorder(owner,id,direction) {
+  async reorder(owner,id,direction,targetId) {
     if (!['up','down'].includes(direction)) fail('INPUT_INVALID','Direção de fila inválida.');
     const rows = await this.list(owner);
     const index = rows.findIndex(row => row.id === id);
     if (index < 0) fail('NOT_FOUND','Projeto não encontrado.',404);
-    const target = direction === 'up' ? index - 1 : index + 1;
+    const target = targetId ? rows.findIndex(row => row.id === targetId) : (direction === 'up' ? index - 1 : index + 1);
+    if (target < 0) fail('NOT_FOUND','Destino da fila não encontrado.',404);
     if (target < 0 || target >= rows.length) return rows;
     const ordered = rows.slice();
     [ordered[index], ordered[target]] = [ordered[target], ordered[index]];

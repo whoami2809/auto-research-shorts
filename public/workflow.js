@@ -212,29 +212,29 @@ async function boot() {
     const data = await api('/api/workflow/jobs');
     $('jobs').replaceChildren();
     if (!data.jobs?.length) $('jobs').append(node('li', 'Nenhum projeto. Crie o primeiro para começar.'));
-    for (const [index, job] of (data.jobs || []).entries()) {
-      const item = node('li'); const button = node('button', job.name || job.id); button.type = 'button'; button.title = 'Abrir projeto';
+    for (const job of data.jobs || []) {
+      const item = node('li'); item.dataset.jobId = job.id; item.draggable = true;
+      const button = node('button', job.name || job.id); button.type = 'button'; button.title = 'Abrir projeto e arrastar para reorganizar';
       button.setAttribute('aria-current', String(state.job?.id === job.id));
       const date = new Date(job.created_at); if (!Number.isNaN(date.valueOf())) button.append(node('time', date.toLocaleString('pt-BR')));
       button.addEventListener('click', () => {
+        if (state.suppressJobClick) { state.suppressJobClick = false; return; }
         if (state.busy) return;
         if (state.dirty.size) { notice('Salve as alterações antes de trocar de projeto.', true); return; }
         action(async () => { cancel(); resetImports(); state.job = job; state.selected.clear(); for (const card of cards.values()) card.check.checked = false; $('allow-paid').checked = false; $('allow-frame-upload').checked = false; await refreshJob(); await listJobs(); });
       });
-      const actions = node('div', undefined, 'job-actions');
-      const up = node('button', '↑'); up.type = 'button'; up.title = 'Mover projeto para cima'; up.setAttribute('aria-label', 'Mover projeto para cima'); up.disabled = index === 0;
-      const down = node('button', '↓'); down.type = 'button'; down.title = 'Mover projeto para baixo'; down.setAttribute('aria-label', 'Mover projeto para baixo'); down.disabled = index === data.jobs.length - 1;
-      const remove = node('button', '×'); remove.type = 'button'; remove.title = 'Excluir projeto'; remove.setAttribute('aria-label', 'Excluir projeto'); remove.className = 'job-delete';
-      const reorder = direction => action(async () => { await api('/api/workflow/jobs/' + encodeURIComponent(job.id) + '/order', { method: 'PATCH', body: JSON.stringify({ direction }) }); await listJobs(); notice('Ordem da fila atualizada.'); });
-      up.addEventListener('click', event => { event.stopPropagation(); if (!up.disabled) reorder('up'); });
-      down.addEventListener('click', event => { event.stopPropagation(); if (!down.disabled) reorder('down'); });
-      remove.addEventListener('click', event => { event.stopPropagation(); action(async () => {
-        if (!window.confirm(`Excluir o projeto “${job.name || job.id}”? Esta ação remove seus arquivos privados e não pode ser desfeita.`)) return;
-        await api('/api/workflow/jobs/' + encodeURIComponent(job.id), { method: 'DELETE' });
-        if (state.job?.id === job.id) { cancel(); resetImports(); state.job = null; state.selected.clear(); state.dirty.clear(); $('editor').reset(); renderStages([]); renderArtifacts([]); fill({}); }
-        await listJobs(); notice('Projeto excluído.');
-      }); });
-      actions.append(up, down, remove); item.append(button, actions); $('jobs').append(item);
+      let pointerStart = null; let pointerDragging = false;
+      const clearDropTargets = () => document.querySelectorAll('.jobs li.is-drop-target').forEach(el => el.classList.remove('is-drop-target'));
+      const moveTo = targetId => action(async () => { await api('/api/workflow/jobs/' + encodeURIComponent(job.id) + '/order', { method: 'PATCH', body: JSON.stringify({ target_id: targetId, direction: 'down' }) }); await listJobs(); notice('Ordem da fila atualizada.'); });
+      item.addEventListener('dragstart', event => { state.draggingJob = job.id; item.classList.add('is-dragging'); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', job.id); });
+      item.addEventListener('dragend', () => { state.draggingJob = null; item.classList.remove('is-dragging'); clearDropTargets(); });
+      item.addEventListener('dragover', event => { event.preventDefault(); if (state.draggingJob && state.draggingJob !== job.id) item.classList.add('is-drop-target'); });
+      item.addEventListener('dragleave', event => { if (!item.contains(event.relatedTarget)) item.classList.remove('is-drop-target'); });
+      item.addEventListener('drop', event => { event.preventDefault(); const dragged = event.dataTransfer.getData('text/plain') || state.draggingJob; clearDropTargets(); if (dragged && dragged !== job.id) action(async () => { await api('/api/workflow/jobs/' + encodeURIComponent(dragged) + '/order', { method: 'PATCH', body: JSON.stringify({ target_id: job.id, direction: 'down' }) }); await listJobs(); notice('Ordem da fila atualizada.'); }); });
+      item.addEventListener('pointerdown', event => { if (event.button !== 0) return; pointerStart = {x:event.clientX,y:event.clientY}; pointerDragging = false; item.setPointerCapture?.(event.pointerId); });
+      item.addEventListener('pointermove', event => { if (!pointerStart) return; if (!pointerDragging && Math.hypot(event.clientX-pointerStart.x,event.clientY-pointerStart.y) > 8) { pointerDragging = true; state.draggingJob = job.id; item.classList.add('is-dragging'); } if (!pointerDragging) return; const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.jobs li'); clearDropTargets(); if (target && target !== item) target.classList.add('is-drop-target'); });
+      item.addEventListener('pointerup', event => { if (!pointerDragging) { pointerStart = null; return; } const target = document.elementFromPoint(event.clientX,event.clientY)?.closest('.jobs li'); const targetId = target?.dataset.jobId; pointerStart = null; pointerDragging = false; state.draggingJob = null; state.suppressJobClick = true; item.classList.remove('is-dragging'); clearDropTargets(); if (targetId && targetId !== job.id) moveTo(targetId); });
+      item.append(button); $('jobs').append(item);
     }
   }
   function resetImports() {
