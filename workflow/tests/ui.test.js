@@ -85,6 +85,8 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /lang="pt-BR"/);
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /href="#workspace"/);
+  assert.match(html, /href="\.\/workflow\.css"/);
+  assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
   assert.match(html, /class="workflow-topbar"/);
   assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 5);
