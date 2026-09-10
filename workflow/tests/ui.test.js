@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-7/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-8/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
   assert.doesNotMatch(html, /id="save"/);
@@ -122,7 +122,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /id="thumbnail-tool-line"/);
   assert.match(js, /function resizeHandle/);
   assert.match(js, /type: resizing \? 'resize' : 'move'/);
-  assert.match(js, /Arraste a alça do canto/);
+  assert.match(js, /Arraste qualquer alça/);
+  assert.match(js, /layer\.width = Math\.max\(20/);
+  assert.match(js, /layer\.height = Math\.max\(20/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
