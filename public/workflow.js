@@ -278,9 +278,11 @@ async function boot() {
     for (const kind of ['base', 'voice']) {
       const input = $('import-' + kind + '-file');
       const preserved = kind === 'base' ? importedBases.has(runKey()) : state.stages.some(stage => stage.name === 'voz' && stage.status === 'ready');
-      const blocked = state.busy || unresolved || !state.job || state.dirty.size > 0 || preserved;
+      const blocked = state.busy || unresolved || preserved;
       input.disabled = blocked;
-      $('import-' + kind).disabled = blocked || !input.files?.length;
+      const button = $('import-' + kind);
+      button.disabled = blocked || !input.files?.length;
+      button.title = state.job ? (state.dirty.size ? 'Salve as alterações do projeto antes de importar.' : '') : 'Selecione ou crie um projeto e salve-o antes de importar.';
     }
     $('refresh').disabled = (!localPreview && backendLocked) || state.busy;
     const blockingDirty = [...state.dirty].some(field => field !== 'base_url');

@@ -135,6 +135,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /function renderStartStageOptions/);
   assert.match(js, /function renderDownloadCandidates/);
   assert.match(js, /function downloadVideo/);
+  assert.match(js, /const blocked = state\.busy \|\| unresolved \|\| preserved/);
+  assert.match(js, /Selecione ou crie um projeto e salve-o antes de importar/);
+  assert.match(html, /Você pode escolher o arquivo primeiro/);
   assert.match(js, /api\('\/api\/video-dl\?' \+ query/);
   assert.match(html, /id="download-consent" type="checkbox"/);
   assert.match(html, /id="download-all"[^>]*>Baixar vídeos/);
@@ -252,7 +255,7 @@ test('importação usa seleção individual, botão explícito e corpo binário 
   assert.match(js, /canvas\.toBlob/);
   assert.match(js, /image\/jpeg/);
   assert.match(js, /const extension = format === 'image\/jpeg' \? 'jpg' : 'png'/);
-  assert.match(html, /apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto/);
+  assert.match(html, /Apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto/);
   assert.match(js, /\.addEventListener\('change', controls\)/);
   assert.match(js, /\.addEventListener\('click', \(\) => action\(\(\) => importMedia\(kind\)\)\)/);
   assert.match(js, /const file = input\.files\?\.\[0\]/);
