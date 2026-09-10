@@ -169,9 +169,13 @@ test('importação usa seleção individual, botão explícito e corpo binário 
   assert.match(html, /id="thumbnail-add-text"/);
   assert.match(html, /id="thumbnail-add-shape"/);
   assert.match(html, /id="thumbnail-export"/);
+  assert.match(html, /id="thumbnail-export-jpeg"/);
   assert.match(html, /id="thumbnail-layers"/);
   assert.match(html, /Local · nada é enviado automaticamente/);
   assert.match(js, /Nada foi enviado ao servidor/);
+  assert.match(js, /canvas\.toBlob/);
+  assert.match(js, /image\/jpeg/);
+  assert.match(js, /thumbnail-zuefy\.jpg/);
   assert.match(html, /apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto/);
   assert.match(js, /\.addEventListener\('change', controls\)/);
   assert.match(js, /\.addEventListener\('click', \(\) => action\(\(\) => importMedia\(kind\)\)\)/);
