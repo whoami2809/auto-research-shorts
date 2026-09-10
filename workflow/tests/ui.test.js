@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-12/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-13/);
   assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
@@ -140,6 +140,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /function pageAction/);
   assert.match(js, /function renderPages/);
   assert.match(js, /thumbnail-copy-layer/);
+  assert.match(js, /function selectField/);
+  assert.match(js, /selectField\('Fonte'/);
+  assert.match(js, /Bebas Neue/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
