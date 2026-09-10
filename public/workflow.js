@@ -274,7 +274,6 @@ async function boot() {
   function controls() {
     const backendLocked = !state.session || state.authRejected;
     $('app').dataset.backendLocked = String(backendLocked);
-    $('run').disabled = state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
     const unresolved = attempts.has(runKey());
     for (const kind of ['base', 'voice']) {
       const input = $('import-' + kind + '-file');
@@ -292,15 +291,6 @@ async function boot() {
     $('run-warning').hidden = !$('run-warning').textContent;
     $('new').disabled = state.busy;
     $('base_url').disabled = state.busy;
-    for (const [name, card] of cards) {
-      const capability = state.capabilities.find(item => item.name === name);
-      const stage = state.stages.find(item => item.name === name);
-      const blocked = !localPreview && (!capability || capability.available !== true);
-      const active = ['queued', 'running'].includes(stage?.status);
-      if (active) { state.selected.delete(name); card.check.checked = false; }
-      card.check.disabled = blocked || state.busy || active;
-      card.run.disabled = blocked || unresolved || state.busy || (!localPreview && (!state.job || state.dirty.size > 0)) || ['queued', 'running'].includes(stage?.status);
-    }
     for (const name of ['roteiro', 'titulos', 'seo']) {
       const button = $('editorial-run-' + name);
       if (!button) continue;
@@ -310,7 +300,6 @@ async function boot() {
       button.title = capability?.available === true ? '' : (capability?.reason || 'A autorização/configuração desta etapa ainda está pendente.');
     }
     syncStartStageOptions();
-    $('run').disabled = unresolved || state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
     syncDownloadControls();
   }
   function syncStartStageOptions() {
@@ -396,9 +385,7 @@ async function boot() {
     for (const [name, label] of Object.entries(STAGES)) {
       const option = document.createElement('label'); option.dataset.stage = name; option.setAttribute('aria-label', label);
       const input = document.createElement('input'); input.type = 'checkbox'; input.addEventListener('change', () => {
-        const card = cards.get(name);
         input.checked ? state.selected.add(name) : state.selected.delete(name);
-        if (card) card.check.checked = input.checked;
         controls();
       });
       option.append(input, document.createTextNode(label)); container.append(option);
@@ -475,7 +462,7 @@ async function boot() {
         if (state.suppressJobClick) { state.suppressJobClick = false; return; }
         if (state.busy) return;
         if (state.dirty.size) { notice('Salve as alterações antes de trocar de projeto.', true); return; }
-        action(async () => { cancel(); resetImports(); state.job = job; state.selected.clear(); for (const card of cards.values()) card.check.checked = false; $('allow-paid').checked = false; $('allow-frame-upload').checked = false; await refreshJob(); await listJobs(); });
+        action(async () => { cancel(); resetImports(); state.job = job; state.selected.clear(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false; await refreshJob(); await listJobs(); });
       });
       const remove = node('button', '×'); remove.type = 'button'; remove.className = 'job-delete'; remove.title = 'Excluir projeto'; remove.setAttribute('aria-label', 'Excluir projeto ' + (job.name || job.id));
       const stopDrag = event => event.stopPropagation();
@@ -505,7 +492,6 @@ async function boot() {
   }
   function clearProjectSelection() {
     cancel(); state.job = null; state.stages = []; state.dirty.clear(); state.selected.clear(); resetImports(); $('editor').reset();
-    for (const card of cards.values()) card.check.checked = false;
     $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
     renderStages([]); renderArtifacts([]); selectWorkflowView('start');
   }
@@ -615,9 +601,9 @@ async function boot() {
   for (const [name, label] of Object.entries(STAGES)) {
     const tab = node('button', label, 'stage-tab'); tab.type = 'button'; tab.dataset.stage = name; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'stage-panel-' + name); tab.setAttribute('aria-selected', String(name === state.activeStage));
     tab.addEventListener('click', () => { state.activeStage = name; renderStages(state.stages); }); $('stage-tabs').append(tab);
-    const root = node('article', undefined, 'stage'); const wrapper = node('label'); const check = node('input'); check.type = 'checkbox';
+    const root = node('article', undefined, 'stage');
     root.id = 'stage-panel-' + name; root.setAttribute('role', 'tabpanel'); root.tabIndex = 0;
-    wrapper.append(check, node('span', label)); const explain = node('p', STAGE_HELP[name], 'stage-explain'); const badge = node('span', STATUS.unknown, 'badge'); const message = node('p');
+    const heading = node('h3', label, 'stage-name'); const explain = node('p', STAGE_HELP[name], 'stage-explain'); const badge = node('span', STATUS.unknown, 'badge'); const message = node('p');
     const details = node('details'); const output = node('pre'); details.append(node('summary', 'Ver saída'), output);
     const copy = node('button', name === 'titulos' ? 'Usar saída no título' : 'Usar saída no roteiro'); copy.type = 'button'; copy.hidden = true;
     copy.addEventListener('click', () => {
@@ -628,11 +614,8 @@ async function boot() {
       if (typeof value !== 'string') { notice('Selecione e copie o texto desejado da saída para o editor.', true); return; }
       $(field).value = value; state.dirty.add(field); controls(); $(field).focus();
     });
-    const runButton = node('button', 'Executar ' + label.toLowerCase()); runButton.type = 'button';
-    runButton.addEventListener('click', () => action(() => executeStage(name)));
-    check.addEventListener('change', () => { check.checked ? state.selected.add(name) : state.selected.delete(name); controls(); });
-    root.append(wrapper, explain, badge, message, details, copy, runButton); $('flow').append(root);
-    cards.set(name, { root, check, badge, message, output, copy, run: runButton });
+    root.append(heading, explain, badge, message, details, copy); $('flow').append(root);
+    cards.set(name, { root, badge, message, output, copy });
   }
   renderStartStageOptions();
   $('download-links').addEventListener('input', renderDownloadCandidates);
@@ -682,7 +665,6 @@ async function boot() {
   function startNewProject(name, channel) {
     selectWorkflowView('editor');
     cancel(); resetImports(); state.job = null; state.dirty.clear(); state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
-    for (const card of cards.values()) card.check.checked = false;
     fill({ name, channel }); renderStages([]); renderArtifacts([]); $('name').focus();
   }
   const newProjectDialog = $('new-project-dialog');
@@ -701,7 +683,6 @@ async function boot() {
     if (localPreview) { window.location.reload(); return; }
     action(async () => { await listJobs(); await refreshJob(); });
   });
-  $('run').addEventListener('click', () => action(() => run([...state.selected])));
   $('retry-run').addEventListener('click', () => action(async () => {
     const key = runKey(); const attempt = attempts.get(key);
     if (attempt) await submitRun(key, attempt);

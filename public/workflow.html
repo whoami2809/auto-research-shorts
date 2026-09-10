@@ -39,6 +39,10 @@
               <p class="panel-kicker">BUSCAR / LINK-BASE</p><h2 id="start-heading">Analise. Extraia. Organize.</h2><p class="workflow-start-copy">Cole o link do vídeo-base para começar. Depois, abra cada função pela barra lateral.</p>
               <label class="base-search-label">URL do vídeo-base<small class="field-help">Use uma publicação oficial do YouTube, TikTok, Instagram ou Facebook.</small><div class="base-search"><span aria-hidden="true">↗</span><input id="base_url" type="url" placeholder="Cole aqui o link do vídeo…" aria-describedby="base-help"></div></label>
               <fieldset class="start-stage-picker"><legend>Funções desta análise</legend><p class="hint">Escolha o que a ação mestre deve chamar depois de salvar o projeto.</p><div id="start-stage-options" class="start-stage-options"></div></fieldset>
+              <fieldset class="consents start-consents"><legend>Permissões desta execução</legend><p class="consent-intro">Autorize somente o que será usado nas etapas selecionadas.</p>
+                <label><input id="allow-paid" type="checkbox">Permito chamadas que podem consumir créditos (IA ou ElevenLabs).</label>
+                <label><input id="allow-frame-upload" type="checkbox">Permito enviar somente os frames PNG selecionados para o Google Lens.</label>
+              </fieldset>
               <p id="base-help" class="hint">Salvar o link não baixa o vídeo.</p><button id="master-run" class="master-action" type="button" disabled>Analisar link-base →</button><p class="hint master-help">A ação mestre usa o link salvo e chama somente as etapas selecionadas.</p>
             </div>
             <section class="project-queue" aria-labelledby="projects-heading"><div class="project-queue-head"><div><p class="panel-kicker">WORKSPACE</p><h2 id="projects-heading">Projetos</h2></div><span>Fila de produção</span></div><div class="project-actions"><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button></div><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></section>
@@ -52,11 +56,12 @@
               <label>Transcrição<small class="field-help">Texto original para consulta ou para alimentar a criação do roteiro.</small><textarea id="transcript" rows="5" maxlength="20000"></textarea></label>
               <label>Roteiro editável<small class="field-help">Versão em português que será usada na narração e na edição.</small><textarea id="script" rows="8" maxlength="20000"></textarea></label>
               <label>Título editável<small class="field-help">Título associado ao projeto; você pode ajustar quando quiser.</small><input id="title" maxlength="180"></label>
+              <div class="actions editor-actions"><button id="save" class="primary" type="submit">Salvar projeto</button><span class="hint">Salve antes de executar etapas ou importar arquivos.</span></div>
             </form>
           </section>
           <section class="panel workflow-section" data-workflow-view="editorial" aria-labelledby="editorial-heading">
             <div class="section-head"><div><p class="panel-kicker">EDITORIAL</p><h2 id="editorial-heading">Roteiro, títulos e SEO</h2></div></div>
-            <p class="hint">Execute cada função separadamente, acompanhe a saída e envie somente a etapa escolhida.</p>
+            <p class="hint">Use estes botões apenas para executar uma função isolada. Para várias etapas, selecione-as em Buscar.</p>
             <div class="editorial-grid">
               <article class="editorial-card" data-editorial-stage="roteiro"><div class="editorial-card-head"><div><p class="panel-kicker">01</p><h3>Roteiro</h3></div><span id="editorial-status-roteiro" class="editorial-status">Pendente</span></div><p class="field-help">Traduz e remodela o roteiro para português.</p><pre id="editorial-output-roteiro" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-roteiro" class="primary editorial-run" type="button">Executar roteiro</button></article>
               <article class="editorial-card" data-editorial-stage="titulos"><div class="editorial-card-head"><div><p class="panel-kicker">02</p><h3>Títulos</h3></div><span id="editorial-status-titulos" class="editorial-status">Pendente</span></div><p class="field-help">Sugere títulos curtos e fortes para o vídeo.</p><pre id="editorial-output-titulos" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-titulos" class="primary editorial-run" type="button">Gerar títulos</button></article>
@@ -86,17 +91,12 @@
           </section>
           <section class="panel workflow-section" data-workflow-view="flow" aria-labelledby="flow-heading">
             <div class="section-head"><div><p class="panel-kicker">03 · AÇÕES</p><h2 id="flow-heading">Faça somente o próximo passo</h2></div><span id="storage">Armazenamento não verificado</span></div>
-            <p class="hint lead-hint">Cada cartão é independente: marque várias etapas para executar em conjunto ou use o botão do próprio cartão para executar apenas uma.</p>
+            <p class="hint lead-hint">Acompanhe aqui o estado e a saída das etapas escolhidas na aba Buscar. Para iniciar uma execução, volte ao início do workflow.</p>
             <div id="stage-tabs" class="stage-tabs" role="tablist" aria-label="Funções do workflow"></div><div id="flow" class="flow stage-panels"></div>
             <p class="hint">“Desatualizada” indica mudança na entrada ou no hash: revise a saída e decida se deseja executar novamente. Nenhuma etapa é refeita automaticamente.</p>
-            <fieldset class="consents"><legend>Confirmações necessárias</legend><p class="consent-intro">Essas confirmações protegem seus custos e seus arquivos. Marque somente o que se aplica ao passo atual.</p>
-              <label><input id="allow-paid" type="checkbox">Permito chamadas que podem consumir créditos (IA ou ElevenLabs).</label>
-              <label><input id="allow-frame-upload" type="checkbox">Permito enviar somente os frames PNG selecionados para o Google Lens.</label>
-            </fieldset>
-            <button type="button" class="primary" id="run" disabled>Executar etapas selecionadas</button>
             <p id="run-warning" role="status" aria-live="polite" class="hint" hidden></p>
             <button type="button" id="retry-run" hidden>Consultar ou reenviar a mesma solicitação</button>
-            <p class="hint">A thumbnail pode ser montada manualmente na sessão Resultados, sem envio automático da imagem.</p>
+            <p class="hint">Para iniciar novas etapas, volte à aba Buscar. A thumbnail pode ser montada manualmente, sem envio automático da imagem.</p>
           </section>
           <section class="panel workflow-section" data-workflow-view="artifacts" aria-labelledby="artifacts-heading"><div class="section-head"><div><p class="panel-kicker">04 · RESULTADOS</p><h2 id="artifacts-heading">Veja, edite e baixe</h2></div></div><p class="hint">Monte sua thumbnail no navegador. Os arquivos escolhidos ficam locais até você exportar o PNG.</p>
             <section class="thumbnail-editor" aria-labelledby="thumbnail-editor-heading">

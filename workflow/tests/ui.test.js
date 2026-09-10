@@ -92,7 +92,8 @@ test('acessibilidade e responsividade', () => {
   assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
-  assert.doesNotMatch(html, /id="save"/);
+  assert.match(html, /id="save"[^>]*type="submit"/);
+  assert.match(html, /Salve antes de executar etapas ou importar arquivos/);
   assert.doesNotMatch(html, /id="dirty"/);
   assert.doesNotMatch(html, /Abra uma função por vez\. O link-base é o ponto de partida para todo o workflow\./);
   assert.match(html, /id="new-project-dialog"/);
@@ -117,6 +118,10 @@ test('acessibilidade e responsividade', () => {
   assert.doesNotMatch(html, /href="#artifacts-heading"[^>]*>.*<span>Resultados<\/span>/s);
   assert.match(html, /class="project-queue"/);
   assert.match(html, /id="start-stage-options"/);
+  assert.match(html, /class="consents start-consents"[\s\S]*id="allow-paid"/);
+  assert.doesNotMatch(html, /id="run"/);
+  assert.doesNotMatch(html, /Executar etapas selecionadas/);
+  assert.match(html, /Para iniciar novas etapas, volte à aba Buscar/);
   assert.match(js, /className = 'job-delete'/);
   assert.match(js, /method: 'DELETE'/);
   assert.match(js, /function prepareAnalysis/);
@@ -188,7 +193,7 @@ test('erros da API e aviso 202 persistem como texto; motivo disponível também 
   assert.match(invoke('apiErrorMessage', null, 502), /HTTP 502/);
   assert.match(invoke('apiErrorMessage', {}, 401), /Entre novamente/);
   assert.match(js, /capability\?\.reason \|\| \(capability\?\.available === true/);
-  assert.match(js, /capability\.available !== true/);
+  assert.match(js, /capability\?\.available === true/);
   assert.match(js, /warnings\.set\(key, warning\)/);
   assert.match(js, /\$\('run-warning'\)\.textContent = warnings\.get\(runKey\(\)\)/);
   assert.match(html, /id="run-warning" role="status" aria-live="polite"/);

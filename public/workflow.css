@@ -82,6 +82,11 @@ main{max-width:none;width:100%;padding-left:clamp(14px,2vw,32px);padding-right:c
 .content{display:block;min-width:0}
 .content>.workflow-section:not(.workflow-start){min-height:0}
 .workflow-section .section-head{margin-bottom:20px}
+.editor-actions{margin-top:4px;align-items:center}
+.editor-actions .hint{margin:0;font-size:11px}
+.start-consents{margin:0 0 18px;padding:14px 16px;gap:10px}
+.start-consents .consent-intro{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+.stage-name{margin:0;font-size:16px;color:var(--fg)}
 
 @media(max-width:900px){
   #workspace{padding-top:20px}
