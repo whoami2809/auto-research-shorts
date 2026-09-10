@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./workflow.css">
-  <script type="module" src="./workflow.js?v=20260910-workflow-controls-18"></script>
+  <script type="module" src="./workflow.js?v=20260910-workflow-controls-20"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
@@ -16,16 +16,16 @@
     <a class="rail-logo" href="/app" aria-label="Voltar para a aba principal"><strong>ARS</strong><small>CANAL ZUEFY</small></a>
     <nav class="workflow-rail-nav" aria-label="Navegação do projeto">
       <a class="workflow-nav-item" data-workflow-view="start" href="#start-heading"><span class="workflow-nav-icon" aria-hidden="true">⌕</span><span>Buscar</span></a>
-      <a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon" aria-hidden="true">▤</span><span>Logs</span></a>
       <a class="workflow-nav-item" data-workflow-view="editorial" href="#editorial-heading"><span class="workflow-nav-icon" aria-hidden="true">✦</span><span>Editorial</span></a>
       <a class="workflow-nav-item" data-workflow-view="import" href="#import-heading"><span class="workflow-nav-icon" aria-hidden="true">↓</span><span>Voz</span></a>
       <a class="workflow-nav-item" data-workflow-view="downloads" href="#downloads-heading"><span class="workflow-nav-icon" aria-hidden="true">⇩</span><span>Downloads</span></a>
       <a class="workflow-nav-item" data-workflow-view="flow" href="#flow-heading"><span class="workflow-nav-icon" aria-hidden="true">ϟ</span><span>Etapas</span></a>
       <a class="workflow-nav-item" data-workflow-view="artifacts" href="#artifacts-heading"><span class="workflow-nav-icon" aria-hidden="true">▥</span><span>Thumbnail</span></a>
+      <a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon" aria-hidden="true">▤</span><span>Logs</span></a>
     </nav>
   </aside>
   <div class="workflow-app">
-  <header class="workflow-topbar"><a class="workflow-product" href="/app"><strong>AUTO RESEARCH SHORTS</strong><small>V1.0</small></a><div class="workflow-topbar-actions"><a class="back-link" href="/app" aria-label="Clique aqui para voltar para aba principal">◇ Workflow</a><a class="account-pill" href="/app"><span>J</span> Minha conta <b>⌄</b></a></div></header>
+  <header class="workflow-topbar"><a class="workflow-product" href="/app"><strong>AUTO RESEARCH SHORTS</strong><small>V2.0</small></a><div class="workflow-topbar-actions"><a class="account-pill" href="/app?open=account" aria-label="Abrir área da minha conta"><span>J</span> Minha conta <b>⌄</b></a></div></header>
   <main id="workspace">
     <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div></div>
     <p id="notice" role="status" aria-live="polite">Verificando sessão…</p>
@@ -48,20 +48,21 @@
             <section class="project-queue" aria-labelledby="projects-heading"><div class="project-queue-head"><div><p class="panel-kicker">WORKSPACE</p><h2 id="projects-heading">Projetos</h2></div><span>Fila de produção</span></div><div class="project-actions"><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button></div><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></section>
           </section>
           <section class="panel workflow-section" data-workflow-view="editor" aria-labelledby="editor-heading">
-            <div class="section-head"><div><p class="panel-kicker">01 · IDENTIFICAÇÃO</p><h2 id="editor-heading">Identifique o seu short</h2></div></div>
+            <div class="section-head"><div><p class="panel-kicker">01 · PROJETO</p><h2 id="editor-heading">Projeto e entradas</h2></div></div>
+            <p class="hint section-intro">Dados salvos que alimentam as etapas. O histórico e os estados ficam em Status; as ações editoriais ficam em Editorial.</p>
             <form id="editor">
               <div class="pair"><label>Nome do projeto<small class="field-help">Nome interno para encontrar este short depois.</small><input id="name" required maxlength="120" autocomplete="off" aria-describedby="name-help"></label><label>Canal<small class="field-help">Canal de destino. Ajuda a organizar o projeto e a configuração de voz.</small><input id="channel" maxlength="80" autocomplete="off" aria-describedby="channel-help"></label></div>
-              <label>Links de referência<small class="field-help">Cole os links que você encontrou manualmente no Lens, um por linha.</small><textarea id="links" rows="3" aria-describedby="links-help"></textarea></label>
-              <p id="links-help" class="hint">Eles ficam registrados para a etapa Pesquisa/Downloads. Salvar não autoriza nem inicia downloads.</p>
-              <label>Transcrição<small class="field-help">Texto original para consulta ou para alimentar a criação do roteiro.</small><textarea id="transcript" rows="5" maxlength="20000"></textarea></label>
-              <label>Roteiro editável<small class="field-help">Versão em português que será usada na narração e na edição.</small><textarea id="script" rows="8" maxlength="20000"></textarea></label>
-              <label>Título editável<small class="field-help">Título associado ao projeto; você pode ajustar quando quiser.</small><input id="title" maxlength="180"></label>
+              <label>Referências de pesquisa<small class="field-help">Cole links oficiais encontrados manualmente no Lens, um por linha.</small><textarea id="links" rows="3" aria-describedby="links-help"></textarea></label>
+              <p id="links-help" class="hint">Servem para Pesquisa e ficam no projeto. Para baixar mídias, use a lista própria em Downloads; salvar não autoriza nem inicia downloads.</p>
+              <label>Transcrição original<small class="field-help">Texto bruto/manual usado como fonte do roteiro; não é preenchido automaticamente nesta tela.</small><textarea id="transcript" rows="5" maxlength="20000"></textarea></label>
+              <label>Roteiro salvo<small class="field-help">Texto em português usado por Voz, SEO e Organização. Pode ser gerado em Editorial e revisado aqui.</small><textarea id="script" rows="8" maxlength="20000"></textarea></label>
+              <label>Título salvo<small class="field-help">Título do projeto usado por SEO e Organização. Pode ser gerado em Editorial e ajustado aqui.</small><input id="title" maxlength="180"></label>
               <div class="actions editor-actions"><button id="save" class="primary" type="submit">Salvar projeto</button><span class="hint">Salve antes de executar etapas ou importar arquivos.</span></div>
             </form>
           </section>
           <section class="panel workflow-section" data-workflow-view="editorial" aria-labelledby="editorial-heading">
             <div class="section-head"><div><p class="panel-kicker">EDITORIAL</p><h2 id="editorial-heading">Roteiro, títulos e SEO</h2></div></div>
-            <p class="hint">Use estes botões para executar uma função isolada. Salve o projeto com a entrada necessária; para várias etapas, selecione-as em Buscar.</p>
+            <p class="hint">Use cada botão para executar uma função isolada. Roteiro usa a transcrição; Títulos usa o roteiro; SEO usa roteiro e título. Para várias etapas, selecione-as em Buscar.</p>
             <div class="editorial-grid">
               <article class="editorial-card" data-editorial-stage="roteiro"><div class="editorial-card-head"><div><p class="panel-kicker">01</p><h3>Roteiro</h3></div><span id="editorial-status-roteiro" class="editorial-status">Pendente</span></div><p class="field-help">Traduz e remodela o roteiro para português.</p><pre id="editorial-output-roteiro" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-roteiro" class="primary editorial-run" type="button">Executar roteiro</button></article>
               <article class="editorial-card" data-editorial-stage="titulos"><div class="editorial-card-head"><div><p class="panel-kicker">02</p><h3>Títulos</h3></div><span id="editorial-status-titulos" class="editorial-status">Pendente</span></div><p class="field-help">Sugere títulos curtos e fortes para o vídeo.</p><pre id="editorial-output-titulos" class="editorial-output" aria-live="polite">Sem saída registrada.</pre><button id="editorial-run-titulos" class="primary editorial-run" type="button">Gerar títulos</button></article>
@@ -90,13 +91,13 @@
             <p id="import-status" role="status" aria-live="polite" class="hint">Escolha um arquivo e use o botão correspondente. Os estados após o envio serão informados pelo servidor.</p>
           </section>
           <section class="panel workflow-section" data-workflow-view="flow" aria-labelledby="flow-heading">
-            <div class="section-head"><div><p class="panel-kicker">03 · AÇÕES</p><h2 id="flow-heading">Faça somente o próximo passo</h2></div><span id="storage">Armazenamento não verificado</span></div>
-            <p class="hint lead-hint">Acompanhe aqui o estado e a saída das etapas escolhidas na aba Buscar. Para iniciar uma execução, volte ao início do workflow.</p>
-            <div id="stage-tabs" class="stage-tabs" role="tablist" aria-label="Funções do workflow"></div><div id="flow" class="flow stage-panels"></div>
+            <div class="section-head"><div><p class="panel-kicker">03 · STATUS</p><h2 id="flow-heading">Acompanhe a execução</h2></div><span id="storage">Armazenamento não verificado</span></div>
+            <p class="hint lead-hint">Consulte aqui os estados, mensagens e saídas das etapas escolhidas em Buscar. Esta tela é somente de acompanhamento; para iniciar uma execução, volte ao início do workflow.</p>
+            <div id="stage-tabs" class="stage-tabs" role="tablist" aria-label="Etapas do workflow"></div><div id="flow" class="flow stage-panels"></div>
             <p class="hint">“Desatualizada” indica mudança na entrada ou no hash: revise a saída e decida se deseja executar novamente. Nenhuma etapa é refeita automaticamente.</p>
             <p id="run-warning" role="status" aria-live="polite" class="hint" hidden></p>
             <button type="button" id="retry-run" hidden>Consultar ou reenviar a mesma solicitação</button>
-            <p class="hint">Para iniciar novas etapas, volte à aba Buscar. A thumbnail pode ser montada manualmente, sem envio automático da imagem.</p>
+            <p class="hint">Nenhuma etapa é iniciada nesta tela. A thumbnail pode ser montada manualmente, sem envio automático da imagem.</p>
           </section>
           <section class="panel workflow-section" data-workflow-view="artifacts" aria-labelledby="artifacts-heading"><div class="section-head"><div><p class="panel-kicker">04 · RESULTADOS</p><h2 id="artifacts-heading">Veja, edite e baixe</h2></div></div><p class="hint">Monte sua thumbnail no navegador. Os arquivos escolhidos ficam locais até você exportar o PNG.</p>
             <section class="thumbnail-editor" aria-labelledby="thumbnail-editor-heading">

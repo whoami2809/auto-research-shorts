@@ -879,6 +879,7 @@ const confirmField = document.getElementById('authConfirmField');
 const confirmInput = document.getElementById('authPasswordConfirm');
 const userMenuButton = document.getElementById('userMenuButton');
 const userPopover = document.getElementById('userPopover');
+let accountRequested = new URLSearchParams(window.location.search).get('open') === 'account';
 let sessionStartedAt = Date.now();
 let sessionTimer = null;
 
@@ -933,6 +934,11 @@ function showSession(session) {
     sessionStartedAt = Number.isFinite(signedInAt) ? signedInAt : Date.now();
     updateSessionTime();
     sessionTimer = setInterval(updateSessionTime, 1000);
+  }
+  if (session && accountRequested) {
+    accountRequested = false;
+    setUserMenu(true);
+    history.replaceState(null, '', window.location.pathname + window.location.hash);
   }
 }
 

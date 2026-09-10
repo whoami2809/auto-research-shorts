@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-18/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-20/);
   assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
@@ -102,8 +102,22 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /newProjectDialog\.showModal\(\)/);
   assert.match(js, /\$\('notice'\)\.hidden = true/);
   assert.match(html, /class="workflow-topbar"/);
+  assert.match(html, /class="workflow-product"[^>]*>[\s\S]*<small>V2\.0<\/small>/);
+  assert.doesNotMatch(html, /<small>V1\.0<\/small>/);
+  assert.doesNotMatch(html, /class="back-link"/);
+  assert.match(html, /class="account-pill" href="\/app\?open=account"/);
+  assert.match(app, /accountRequested = new URLSearchParams\(window\.location\.search\)\.get\('open'\) === 'account'/);
+  assert.match(app, /setUserMenu\(true\)/);
   assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 7);
   assert.match(html, /href="#editor-heading"[^>]*>.*<span>Logs<\/span>/s);
+  const navLabels = [...html.matchAll(/class="workflow-nav-item"[^>]*>[\s\S]*?<span>([^<]+)<\/span><\/a>/g)].map(match => match[1]);
+  assert.deepEqual(navLabels, ['Buscar', 'Editorial', 'Voz', 'Downloads', 'Etapas', 'Thumbnail', 'Logs']);
+  assert.match(html, /id="editor-heading">Projeto e entradas<\/h2>/);
+  assert.match(html, /Referências de pesquisa/);
+  assert.match(html, /Para baixar mídias, use a lista própria em Downloads/);
+  assert.match(html, /Transcrição original/);
+  assert.match(html, /Roteiro salvo/);
+  assert.match(html, /Título salvo/);
   assert.match(html, /href="#editorial-heading"[^>]*>.*<span>Editorial<\/span>/s);
   assert.match(html, /id="editorial-run-roteiro"/);
   assert.match(html, /id="editorial-run-titulos"/);
@@ -118,6 +132,10 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
   assert.doesNotMatch(html, /href="#import-heading"[^>]*>.*<span>Mídia<\/span>/s);
   assert.match(html, /href="#downloads-heading"[^>]*>.*<span>Downloads<\/span>/s);
+  assert.match(html, /href="#flow-heading"[^>]*>.*<span>Etapas<\/span>/s);
+  assert.match(html, /id="flow-heading">Acompanhe a execução<\/h2>/);
+  assert.match(html, /Esta tela é somente de acompanhamento/);
+  assert.match(css, /scroll-snap-type:x proximity/);
   assert.match(html, /href="#artifacts-heading"[^>]*>.*<span>Thumbnail<\/span>/s);
   assert.doesNotMatch(html, /href="#artifacts-heading"[^>]*>.*<span>Resultados<\/span>/s);
   assert.match(html, /class="project-queue"/);
@@ -125,7 +143,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /class="consents start-consents"[\s\S]*id="allow-paid"/);
   assert.doesNotMatch(html, /id="run"/);
   assert.doesNotMatch(html, /Executar etapas selecionadas/);
-  assert.match(html, /Para iniciar novas etapas, volte à aba Buscar/);
+  assert.match(html, /Nenhuma etapa é iniciada nesta tela/);
   assert.match(js, /className = 'job-delete'/);
   assert.match(js, /method: 'DELETE'/);
   assert.match(js, /function prepareAnalysis/);
@@ -183,6 +201,9 @@ test('acessibilidade e responsividade', () => {
   assert.ok(existsSync(resolve(root, 'fonts/BebasNeue-Regular.ttf')));
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
+  assert.match(css, /\.section-intro/);
+  assert.match(css, /overscroll-behavior-inline/);
+  assert.match(css, /button,input,textarea,select\{max-width:100%\}/);
 });
 test('limites HTML e validação de textos programáticos seguem a API', () => {
   for (const [field, limit] of Object.entries({ name: 120, channel: 80, title: 180, transcript: 20000, script: 20000 })) {
