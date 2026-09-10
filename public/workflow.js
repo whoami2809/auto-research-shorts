@@ -1,6 +1,12 @@
 // Same major CDN reference as /app, resolved and pinned on implementation.
 const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
 const STAGES = { roteiro: 'Roteiro', titulos: 'Títulos', seo: 'SEO', voz: 'Voz', frames: 'Frames', busca: 'Pesquisa', downloads: 'Downloads', organizar: 'Organização' };
+const STAGE_HELP = {
+  roteiro: 'Traduz e remodela o roteiro para português.', titulos: 'Sugere títulos curtos e fortes para o vídeo.',
+  seo: 'Cria descrição, hashtags e tags para publicação.', voz: 'Gera a narração com a voz configurada no ElevenLabs.',
+  frames: 'Extrai frames PNG claros do vídeo-base.', busca: 'Organiza candidatos encontrados no Lens e nas redes permitidas.',
+  downloads: 'Baixa somente links autorizados e registra os créditos.', organizar: 'Reúne os arquivos no pacote final do projeto.'
+};
 const STATUS = { pending: 'Pendente', queued: 'Na fila', running: 'Em execução', ready: 'Pronta', failed: 'Falhou', waiting_input: 'Aguarda sua entrada', unknown: 'Estado desconhecido', stale: 'Desatualizada' };
 const FIELDS = ['name', 'transcript', 'script', 'title', 'links', 'channel'];
 const OFFICIAL = ['youtube.com', 'youtu.be', 'tiktok.com', 'instagram.com', 'facebook.com'];
@@ -130,6 +136,7 @@ async function boot() {
       $('import-' + kind).disabled = blocked || !input.files?.length;
     }
     $('save').disabled = state.busy || unresolved;
+    $('master-run').disabled = state.busy || unresolved || !state.job || state.dirty.size > 0 || !state.selected.size;
     $('retry-run').hidden = !unresolved;
     $('retry-run').disabled = state.busy;
     $('run-warning').textContent = warnings.get(runKey()) || '';
@@ -307,7 +314,7 @@ async function boot() {
   }
   for (const [name, label] of Object.entries(STAGES)) {
     const root = node('article', undefined, 'stage'); const wrapper = node('label'); const check = node('input'); check.type = 'checkbox';
-    wrapper.append(check, node('span', label)); const badge = node('span', STATUS.unknown, 'badge'); const message = node('p');
+    wrapper.append(check, node('span', label)); const explain = node('p', STAGE_HELP[name], 'stage-explain'); const badge = node('span', STATUS.unknown, 'badge'); const message = node('p');
     const details = node('details'); const output = node('pre'); details.append(node('summary', 'Ver saída'), output);
     const copy = node('button', name === 'titulos' ? 'Usar saída no título' : 'Usar saída no roteiro'); copy.type = 'button'; copy.hidden = true;
     copy.addEventListener('click', () => {
@@ -321,7 +328,7 @@ async function boot() {
     const runButton = node('button', 'Executar ' + label.toLowerCase()); runButton.type = 'button';
     runButton.addEventListener('click', () => action(() => run([name], true)));
     check.addEventListener('change', () => { check.checked ? state.selected.add(name) : state.selected.delete(name); controls(); });
-    root.append(wrapper, badge, message, details, copy, runButton); $('flow').append(root);
+    root.append(wrapper, explain, badge, message, details, copy, runButton); $('flow').append(root);
     cards.set(name, { root, check, badge, message, output, copy, run: runButton });
   }
   for (const field of [...FIELDS, 'base_url']) $(field).addEventListener('input', () => { state.dirty.add(field); controls(); });
@@ -340,6 +347,11 @@ async function boot() {
       fill(data.job); notice('Conteúdo salvo pelo servidor.'); await listJobs(); await refreshJob();
     });
   });
+  $('master-run').addEventListener('click', () => action(async () => {
+    if (!state.job || state.dirty.size) throw new Error('Salve o projeto antes de analisar o link-base.');
+    if (!state.selected.size) throw new Error('Selecione pelo menos uma etapa nos cartões abaixo.');
+    await run([...state.selected], false);
+  }));
   $('new').addEventListener('click', () => {
     if (state.dirty.size) { notice('Salve as alterações antes de criar outro projeto.', true); return; }
     cancel(); resetImports(); state.job = null; state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;

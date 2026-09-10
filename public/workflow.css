@@ -33,3 +33,5 @@
   .skip:focus{padding:12px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+.panel-kicker{margin:0 0 6px;color:var(--violet);font:11px 'JetBrains Mono',monospace;letter-spacing:.18em}.field-help{display:block;color:var(--muted);font-size:12px;font-weight:400;line-height:1.45}.lead-hint{font-size:14px}.consent-intro{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.workflow-nav{display:grid;gap:6px;margin:22px 0;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.workflow-nav a{padding:10px 8px;border-radius:8px;text-decoration:none;color:var(--muted);font-size:12px;font-weight:700}.workflow-nav a:hover,.workflow-nav a:focus-visible{color:var(--fg);background:rgba(155,77,255,.12)}.master-action{width:100%;background:linear-gradient(90deg,#7435ff,#a34dff 55%,#7435ff);border-color:rgba(207,124,255,.55);box-shadow:0 0 24px rgba(155,77,255,.28)}.master-help{margin:4px 0 4px;font-size:11px}.stage-explain{margin:8px 0 0!important;color:#b8acd8!important;font-size:12px!important;line-height:1.45}
