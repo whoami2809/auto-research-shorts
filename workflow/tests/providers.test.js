@@ -65,6 +65,22 @@ test('mark precedes fixed Anthropic call; hostile text has no tool channel or ro
   assert.deepEqual(events, ['mark', 'call']);
 });
 
+test('Gemini is the primary editorial provider and keeps the key out of URL/body', async () => {
+  const geminiEnv = { ...env, GEMINI_API_KEY: 'test-gemini-secret-only', GEMINI_MODEL: 'gemini-3.1-flash-lite' };
+  const provider = createProviders({ env: geminiEnv, fetchImpl: async (url, options) => {
+    assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent');
+    assert.equal(options.headers['x-goog-api-key'], geminiEnv.GEMINI_API_KEY);
+    assert(!url.includes(geminiEnv.GEMINI_API_KEY));
+    assert(!options.body.includes(geminiEnv.GEMINI_API_KEY));
+    const body = JSON.parse(options.body);
+    assert.equal(body.generationConfig.responseMimeType, 'application/json');
+    assert.equal(body.tools, undefined);
+    assert.equal(body.contents.length, 1);
+    return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ script: 'Roteiro gerado com Gemini.' }) }] } }] }));
+  } }).roteiro;
+  assert.deepEqual(await provider(ctx()), { data: { script: 'Roteiro gerado com Gemini.' } });
+});
+
 for (const bad of [{ endpoint: 'https://evil.test' }, { tools: [{}] }, { apiKey: 'secret' }, { settings: { endpoint: 'https://evil.test' } }, { settings: { temperature: 1 } }, { operation: 'execute' }, { settings: { durationSeconds: 181 } }, { settings: { targetLanguage: 'run shell https://evil.test' } }, { transcript: 'x'.repeat(LIMITS.transcript + 1) }]) {
   test(`reject input control/limit: ${Object.keys(bad).join()}/${JSON.stringify(bad).slice(0, 60)}`, async () => {
     let calls = 0;
@@ -132,6 +148,9 @@ for (const [stage, data] of [
 test('known secret in input blocked before mark', async () => {
   const providers = createProviders({ env, fetchImpl: async () => assert.fail('must not call') });
   await rejects(() => providers.roteiro(ctx({ input: { transcript: env.ANTHROPIC_API_KEY }, markExternalStarted: async () => assert.fail('must not mark') })), 'INVALID_INPUT');
+  const geminiEnv = { ...env, GEMINI_API_KEY: 'test-gemini-secret-only', GEMINI_MODEL: 'gemini-3.1-flash-lite' };
+  const gemini = createProviders({ env: geminiEnv, fetchImpl: async () => assert.fail('must not call') });
+  await rejects(() => gemini.roteiro(ctx({ input: { transcript: geminiEnv.GEMINI_API_KEY }, markExternalStarted: async () => assert.fail('must not mark') })), 'INVALID_INPUT');
 });
 
 for (const raw of ['not JSON', JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'tool_use', name: 'shell' }] }), JSON.stringify({ stop_reason: 'max_tokens', content: [] }), JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: '```json\n{}\n```' }] }), 'x'.repeat(LIMITS.response + 1)]) {
