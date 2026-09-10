@@ -546,7 +546,11 @@ async function boot() {
   async function run(steps, individual = false) {
     if (!state.job || state.dirty.size) throw new Error('Salve o conteúdo antes de executar.');
     if (attempts.has(runKey())) throw new Error('Use o botão de reenviar a mesma solicitação para resolver a execução anterior.');
-    if (!steps.length || steps.some(name => !state.capabilities.some(cap => cap.name === name && cap.available === true))) throw new Error('Escolha etapas disponíveis.');
+    const unavailable = steps.find(name => !state.capabilities.some(cap => cap.name === name && cap.available === true));
+    if (!steps.length || unavailable) {
+      const capability = state.capabilities.find(cap => cap.name === unavailable);
+      throw new Error(capability?.reason || `A etapa ${STAGES[unavailable] || unavailable} ainda não está disponível no servidor.`);
+    }
     if (steps.some(name => state.stages.some(stage => stage.name === name && ['queued', 'running'].includes(stage.status)))) throw new Error('Uma etapa escolhida já está na fila ou em execução. Atualize o estado.');
     const body = { allow_paid: $('allow-paid').checked, allow_frame_upload: $('allow-frame-upload').checked };
     if (!individual) body.steps = steps;

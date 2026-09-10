@@ -113,6 +113,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /const EDITORIAL_REQUIREMENTS/);
   assert.match(js, /function editorialInputError/);
   assert.match(js, /Crie ou selecione um projeto e salve-o antes de executar esta função/);
+  assert.match(js, /A etapa \$\{STAGES\[unavailable\]/);
   assert.match(js, /viewHashes = .*editorial/);
   assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
   assert.doesNotMatch(html, /href="#import-heading"[^>]*>.*<span>Mídia<\/span>/s);
