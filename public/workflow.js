@@ -501,12 +501,23 @@ async function boot() {
     if (!state.selected.size) throw new Error('Selecione pelo menos uma etapa nos cartões abaixo.');
     await run([...state.selected], false);
   }); });
-  $('new').addEventListener('click', () => {
+  function startNewProject(name, channel) {
     selectWorkflowView('editor');
-    if (state.dirty.size) { notice('Salve as alterações antes de criar outro projeto.', true); return; }
-    cancel(); resetImports(); state.job = null; state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
+    cancel(); resetImports(); state.job = null; state.dirty.clear(); state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
     for (const card of cards.values()) card.check.checked = false;
-    fill({}); renderStages([]); renderArtifacts([]); $('name').focus();
+    fill({ name, channel }); renderStages([]); renderArtifacts([]); $('name').focus();
+  }
+  const newProjectDialog = $('new-project-dialog');
+  const newProjectForm = $('new-project-form');
+  $('new-project-cancel').addEventListener('click', () => newProjectDialog.close('cancel'));
+  newProjectForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const name = $('new-project-name').value.trim(); const channel = $('new-project-channel').value.trim();
+    newProjectDialog.close('confirm'); startNewProject(name, channel);
+  });
+  $('new').addEventListener('click', () => {
+    if (state.dirty.size) { notice('Salve as alterações antes de criar outro projeto.', true); return; }
+    newProjectForm.reset(); newProjectDialog.showModal(); $('new-project-name').focus();
   });
   $('refresh').addEventListener('click', () => action(async () => { await listJobs(); await refreshJob(); }));
   $('run').addEventListener('click', () => action(() => run([...state.selected])));
@@ -519,7 +530,7 @@ async function boot() {
   window.addEventListener('beforeunload', event => { if (state.dirty.size || attempts.size) { event.preventDefault(); event.returnValue = ''; } });
   renderStages([]);
   if (window.location.protocol === 'file:') {
-    notice('Prévia local carregada. O backend fica desativado neste arquivo; abra o endereço publicado para usar login e projetos.', false);
+    $('notice').hidden = true;
     return;
   }
   try {

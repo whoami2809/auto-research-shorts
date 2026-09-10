@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./workflow.css">
-  <script type="module" src="./workflow.js?v=20260910-workflow-controls-2"></script>
+  <script type="module" src="./workflow.js?v=20260910-workflow-controls-3"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
@@ -25,7 +25,7 @@
   <div class="workflow-app">
   <header class="workflow-topbar"><a class="workflow-product" href="/app"><strong>AUTO RESEARCH SHORTS</strong><small>V1.0</small></a><div class="workflow-topbar-actions"><a class="back-link" href="/app" aria-label="Clique aqui para voltar para aba principal">◇ Workflow</a><a class="account-pill" href="/app"><span>J</span> Minha conta <b>⌄</b></a></div></header>
   <main id="workspace">
-    <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Abra uma função por vez. O link-base é o ponto de partida para todo o workflow.</p></div>
+    <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div></div>
     <p id="notice" role="status" aria-live="polite">Verificando sessão…</p>
     <noscript>Ative o JavaScript para acessar seus projetos.</noscript>
     <fieldset id="app">
@@ -93,6 +93,16 @@
         </div>
       </div>
     </fieldset>
+    <dialog id="new-project-dialog" class="workflow-dialog" aria-labelledby="new-project-heading">
+      <form id="new-project-form" method="dialog">
+        <p class="panel-kicker">NOVO PROJETO</p>
+        <h2 id="new-project-heading">Identifique seu short</h2>
+        <p class="hint">Informe os dados iniciais para abrir o projeto.</p>
+        <label>Nome do projeto<input id="new-project-name" type="text" maxlength="120" autocomplete="off" required></label>
+        <label>Canal de destino<input id="new-project-channel" type="text" maxlength="80" autocomplete="off" required></label>
+        <div class="workflow-dialog-actions"><button id="new-project-cancel" type="button">Cancelar</button><button class="primary" type="submit">Continuar</button></div>
+      </form>
+    </dialog>
   </main>
   </div>
 </body>
