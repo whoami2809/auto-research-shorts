@@ -250,7 +250,36 @@ async function boot() {
       card.check.disabled = blocked || state.busy || active;
       card.run.disabled = blocked || unresolved || state.busy || !state.job || state.dirty.size > 0 || ['queued', 'running'].includes(stage?.status);
     }
+    syncStartStageOptions();
     $('run').disabled = unresolved || state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
+  }
+  function syncStartStageOptions() {
+    const container = $('start-stage-options');
+    if (!container) return;
+    for (const option of container.querySelectorAll('label[data-stage]')) {
+      const name = option.dataset.stage;
+      const input = option.querySelector('input');
+      const capability = state.capabilities.find(item => item.name === name);
+      const stage = state.stages.find(item => item.name === name);
+      input.checked = state.selected.has(name);
+      input.disabled = !capability || capability.available !== true || state.busy || ['queued', 'running'].includes(stage?.status);
+      option.classList.toggle('is-unavailable', input.disabled && !capability?.available);
+    }
+  }
+  function renderStartStageOptions() {
+    const container = $('start-stage-options');
+    if (!container || container.children.length) return;
+    for (const [name, label] of Object.entries(STAGES)) {
+      const option = document.createElement('label'); option.dataset.stage = name;
+      const input = document.createElement('input'); input.type = 'checkbox'; input.addEventListener('change', () => {
+        const card = cards.get(name);
+        input.checked ? state.selected.add(name) : state.selected.delete(name);
+        if (card) card.check.checked = input.checked;
+        controls();
+      });
+      option.append(input, document.createTextNode(label)); container.append(option);
+    }
+    syncStartStageOptions();
   }
   function schedule() {
     clearTimeout(state.timer);
@@ -450,6 +479,7 @@ async function boot() {
     root.append(wrapper, explain, badge, message, details, copy, runButton); $('flow').append(root);
     cards.set(name, { root, check, badge, message, output, copy, run: runButton });
   }
+  renderStartStageOptions();
   for (const field of [...FIELDS, 'base_url']) $(field).addEventListener('input', () => { state.dirty.add(field); controls(); });
   $('editor').addEventListener('submit', event => {
     event.preventDefault(); action(async () => {
@@ -488,6 +518,10 @@ async function boot() {
   window.addEventListener('pagehide', cancel);
   window.addEventListener('beforeunload', event => { if (state.dirty.size || attempts.size) { event.preventDefault(); event.returnValue = ''; } });
   renderStages([]);
+  if (window.location.protocol === 'file:') {
+    notice('Prévia local carregada. O backend fica desativado neste arquivo; abra o endereço publicado para usar login e projetos.', false);
+    return;
+  }
   try {
     const config = publicConfig(await api('/api/config', {}, true));
     const { createClient } = await import(SUPABASE_CDN);

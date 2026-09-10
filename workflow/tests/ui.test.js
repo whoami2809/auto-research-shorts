@@ -91,6 +91,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /class="workflow-topbar"/);
   assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 5);
   assert.match(html, /class="project-queue"/);
+  assert.match(html, /id="start-stage-options"/);
+  assert.match(js, /Prévia local carregada/);
+  assert.match(js, /function renderStartStageOptions/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
