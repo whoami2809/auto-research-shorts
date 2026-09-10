@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-3/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-5/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
   assert.doesNotMatch(html, /id="save"/);
@@ -109,6 +109,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /id="start-stage-options"/);
   assert.match(js, /window\.location\.protocol === 'file:'/);
   assert.match(js, /\$\('notice'\)\.hidden = true/);
+  assert.match(js, /const localPreview = window\.location\.protocol === 'file:'/);
+  assert.match(js, /Ver etapas selecionadas/);
+  assert.match(js, /window\.location\.reload\(\)/);
   assert.match(js, /function renderStartStageOptions/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);

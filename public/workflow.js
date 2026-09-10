@@ -152,6 +152,7 @@ function initThumbnailEditor() {
 
 async function boot() {
   const $ = id => document.getElementById(id);
+  const localPreview = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const thumbnailEditor = initThumbnailEditor();
   const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro', activeView: 'start' };
   const viewHashes = { start: 'start-heading', editor: 'editor-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
@@ -234,8 +235,8 @@ async function boot() {
       input.disabled = blocked;
       $('import-' + kind).disabled = blocked || !input.files?.length;
     }
-    $('refresh').disabled = backendLocked || state.busy;
-    $('master-run').disabled = state.busy || unresolved || !state.job || state.dirty.size > 0 || !state.selected.size;
+    $('refresh').disabled = (!localPreview && backendLocked) || state.busy;
+    $('master-run').disabled = state.busy || unresolved || !state.selected.size || (!localPreview && (!state.job || state.dirty.size > 0));
     $('retry-run').hidden = !unresolved;
     $('retry-run').disabled = state.busy;
     $('run-warning').textContent = warnings.get(runKey()) || '';
@@ -263,8 +264,9 @@ async function boot() {
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
       input.checked = state.selected.has(name);
-      input.disabled = !capability || capability.available !== true || state.busy || ['queued', 'running'].includes(stage?.status);
-      option.classList.toggle('is-unavailable', input.disabled && !capability?.available);
+      const available = localPreview || capability?.available === true;
+      input.disabled = !available || state.busy || ['queued', 'running'].includes(stage?.status);
+      option.classList.toggle('is-unavailable', input.disabled && !available);
     }
   }
   function renderStartStageOptions() {
@@ -496,11 +498,20 @@ async function boot() {
       fill(data.job); notice('Conteúdo salvo pelo servidor.'); await listJobs(); await refreshJob();
     });
   });
-  $('master-run').addEventListener('click', () => { selectWorkflowView('flow'); return action(async () => {
-    if (!state.job || state.dirty.size) throw new Error('Salve o projeto antes de analisar o link-base.');
-    if (!state.selected.size) throw new Error('Selecione pelo menos uma etapa nos cartões abaixo.');
-    await run([...state.selected], false);
-  }); });
+  $('master-run').addEventListener('click', () => {
+    if (localPreview) {
+      const selected = [...state.selected];
+      state.activeStage = selected[0] || 'roteiro';
+      renderStages(selected.map(name => ({ name, status: 'pending', message: 'Etapa selecionada para execução.' })));
+      selectWorkflowView('flow');
+      return;
+    }
+    selectWorkflowView('flow'); return action(async () => {
+      if (!state.job || state.dirty.size) throw new Error('Salve o projeto antes de analisar o link-base.');
+      if (!state.selected.size) throw new Error('Selecione pelo menos uma etapa nos cartões abaixo.');
+      await run([...state.selected], false);
+    });
+  });
   function startNewProject(name, channel) {
     selectWorkflowView('editor');
     cancel(); resetImports(); state.job = null; state.dirty.clear(); state.selected.clear(); $('editor').reset(); $('allow-paid').checked = false; $('allow-frame-upload').checked = false;
@@ -519,7 +530,10 @@ async function boot() {
     if (state.dirty.size) { notice('Salve as alterações antes de criar outro projeto.', true); return; }
     newProjectForm.reset(); newProjectDialog.showModal(); $('new-project-name').focus();
   });
-  $('refresh').addEventListener('click', () => action(async () => { await listJobs(); await refreshJob(); }));
+  $('refresh').addEventListener('click', () => {
+    if (localPreview) { window.location.reload(); return; }
+    action(async () => { await listJobs(); await refreshJob(); });
+  });
   $('run').addEventListener('click', () => action(() => run([...state.selected])));
   $('retry-run').addEventListener('click', () => action(async () => {
     const key = runKey(); const attempt = attempts.get(key);
@@ -529,8 +543,9 @@ async function boot() {
   window.addEventListener('pagehide', cancel);
   window.addEventListener('beforeunload', event => { if (state.dirty.size || attempts.size) { event.preventDefault(); event.returnValue = ''; } });
   renderStages([]);
-  if (window.location.protocol === 'file:') {
+  if (localPreview) {
     $('notice').hidden = true;
+    $('master-run').textContent = 'Ver etapas selecionadas →';
     return;
   }
   try {
