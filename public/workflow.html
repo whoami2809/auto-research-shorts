@@ -8,19 +8,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="/workflow.css">
-  <script type="module" src="/workflow.js?v=20260910-thumbnail-studio-1"></script>
+  <script type="module" src="/workflow.js?v=20260910-workflow-console-1"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
-  <header><a class="brand" href="/app">ZUEFY <small>SHORTS / WORKFLOW</small></a><a class="back-link" href="/app">← Voltar para a aba principal</a></header>
+  <aside class="workflow-rail" aria-label="Funções do workflow">
+    <a class="rail-logo" href="/app" aria-label="Voltar para a aba principal"><strong>ARS</strong><small>CANAL ZUEFY</small></a>
+    <nav class="workflow-rail-nav" aria-label="Navegação do projeto">
+      <a class="workflow-nav-item" data-workflow-view="start" href="#start-heading"><span class="workflow-nav-icon" aria-hidden="true">⌕</span><span>Buscar</span></a>
+      <a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon" aria-hidden="true">▤</span><span>Conteúdo</span></a>
+      <a class="workflow-nav-item" data-workflow-view="import" href="#import-heading"><span class="workflow-nav-icon" aria-hidden="true">↓</span><span>Mídia</span></a>
+      <a class="workflow-nav-item" data-workflow-view="flow" href="#flow-heading"><span class="workflow-nav-icon" aria-hidden="true">ϟ</span><span>Etapas</span></a>
+      <a class="workflow-nav-item" data-workflow-view="artifacts" href="#artifacts-heading"><span class="workflow-nav-icon" aria-hidden="true">▥</span><span>Resultados</span></a>
+    </nav>
+  </aside>
+  <div class="workflow-app">
+  <header class="workflow-topbar"><a class="workflow-product" href="/app"><strong>AUTO RESEARCH SHORTS</strong><small>V1.0</small></a><div class="workflow-topbar-actions"><a class="back-link" href="/app" aria-label="Clique aqui para voltar para aba principal">◇ Workflow</a><a class="account-pill" href="/app"><span>J</span> Minha conta <b>⌄</b></a></div></header>
   <main id="workspace">
-    <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Comece pelo link-base e abra somente a função que você precisa agora.</p></div>
+    <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Abra uma função por vez. O link-base é o ponto de partida para todo o workflow.</p></div>
     <p id="notice" role="status" aria-live="polite">Verificando sessão…</p>
     <noscript>Ative o JavaScript para acessar seus projetos.</noscript>
     <fieldset id="app" disabled>
       <legend class="sr-only">Painel de produção</legend>
       <div class="layout">
-        <aside class="panel workflow-sidebar"><p class="panel-kicker">SHORTS / WORKFLOW</p><h2>Projetos</h2><div class="project-actions"><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button></div><nav class="workflow-nav" aria-label="Navegação do projeto"><a class="workflow-nav-item" data-workflow-view="start" href="#start-heading"><span class="workflow-nav-icon">⌕</span><span>Buscar</span></a><a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon">📝</span><span>Conteúdo</span></a><a class="workflow-nav-item" data-workflow-view="import" href="#import-heading"><span class="workflow-nav-icon">📁</span><span>Mídia</span></a><a class="workflow-nav-item" data-workflow-view="flow" href="#flow-heading"><span class="workflow-nav-icon">⚡</span><span>Etapas</span></a><a class="workflow-nav-item" data-workflow-view="artifacts" href="#artifacts-heading"><span class="workflow-nav-icon">📦</span><span>Resultados</span></a></nav><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></aside>
         <div class="content">
           <section class="panel workflow-section workflow-start" data-workflow-view="start" aria-labelledby="start-heading">
             <div class="workflow-start-card">
@@ -28,6 +38,7 @@
               <label class="base-search-label">URL do vídeo-base<small class="field-help">Use uma publicação oficial do YouTube, TikTok, Instagram ou Facebook.</small><div class="base-search"><span aria-hidden="true">↗</span><input id="base_url" type="url" placeholder="Cole aqui o link do vídeo…" aria-describedby="base-help"></div></label>
               <p id="base-help" class="hint">Salvar o link não baixa o vídeo.</p><button id="master-run" class="master-action" type="button" disabled>Analisar link-base →</button><p class="hint master-help">A ação mestre usa o link salvo e chama somente as etapas selecionadas.</p>
             </div>
+            <section class="project-queue" aria-labelledby="projects-heading"><div class="project-queue-head"><div><p class="panel-kicker">WORKSPACE</p><h2 id="projects-heading">Projetos</h2></div><span>Fila de produção</span></div><div class="project-actions"><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button></div><p class="queue-help">Arraste um projeto para reorganizar a fila.</p><ul id="jobs" class="jobs"></ul></section>
           </section>
           <section class="panel workflow-section" data-workflow-view="editor" aria-labelledby="editor-heading">
             <div class="section-head"><div><p class="panel-kicker">01 · IDENTIFICAÇÃO</p><h2 id="editor-heading">Identifique o seu short</h2></div><span id="dirty" role="status">Novo projeto</span></div>
@@ -83,5 +94,6 @@
       </div>
     </fieldset>
   </main>
+  </div>
 </body>
 </html>

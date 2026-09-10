@@ -85,6 +85,10 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /lang="pt-BR"/);
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /href="#workspace"/);
+  assert.match(html, /class="workflow-rail"/);
+  assert.match(html, /class="workflow-topbar"/);
+  assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 5);
+  assert.match(html, /class="project-queue"/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
