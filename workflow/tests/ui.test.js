@@ -151,10 +151,16 @@ test('importação limita tamanho e MIME sem ler ou enviar arquivos reais', () =
 });
 test('importação usa seleção individual, botão explícito e corpo binário autenticado', () => {
   const inputs = [...html.matchAll(/<input[^>]*type="file"[^>]*>/g)].map(match => match[0]);
-  assert.equal(inputs.length, 2);
+  assert.equal(inputs.length, 3);
   for (const input of inputs) assert.doesNotMatch(input, /\bmultiple\b|\bdirectory\b/);
   assert.match(html, /id="import-base-file"[^>]*accept="video\/mp4,\.mp4"/);
   assert.match(html, /id="import-voice-file"[^>]*accept="audio\/mpeg,audio\/wav,\.mp3,\.wav"/);
+  assert.match(html, /id="thumbnail-image"[^>]*accept="image\/png,image\/jpeg,image\/webp"/);
+  assert.match(html, /id="thumbnail-canvas"[^>]*width="1080"[^>]*height="1920"/);
+  assert.match(html, /id="thumbnail-add-text"/);
+  assert.match(html, /id="thumbnail-add-shape"/);
+  assert.match(html, /id="thumbnail-export"/);
+  assert.match(html, /id="thumbnail-layers"/);
   assert.match(html, /apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto/);
   assert.match(js, /\.addEventListener\('change', controls\)/);
   assert.match(js, /\.addEventListener\('click', \(\) => action\(\(\) => importMedia\(kind\)\)\)/);

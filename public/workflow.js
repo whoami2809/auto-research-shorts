@@ -68,8 +68,90 @@ function lensURL(value, expires) {
   return url.href;
 }
 
+function initThumbnailEditor() {
+  const canvas = document.getElementById('thumbnail-canvas');
+  if (!canvas) return null;
+  const ctx = canvas.getContext('2d');
+  const empty = document.getElementById('thumbnail-empty');
+  const layersEl = document.getElementById('thumbnail-layers');
+  const propertiesEl = document.getElementById('thumbnail-properties');
+  const statusEl = document.getElementById('thumbnail-status');
+  const countEl = document.getElementById('thumbnail-layer-count');
+  const zoomEl = document.getElementById('thumbnail-zoom-value');
+  const editor = { layers: [], selected: null, history: [], future: [], zoom: 1, drag: null, images: new Map() };
+  let nextId = 1;
+  const uid = () => 'layer-' + nextId++;
+  const copy = value => JSON.parse(JSON.stringify(value));
+  const current = () => JSON.stringify(editor.layers);
+  function setStatus(message) { if (statusEl) statusEl.textContent = message; }
+  function remember() { editor.history.push(current()); if (editor.history.length > 40) editor.history.shift(); editor.future = []; }
+  function restore(serialized) { editor.layers = JSON.parse(serialized || '[]'); editor.selected = editor.layers.at(-1)?.id || null; render(); }
+  function updateHistoryControls() {
+    document.getElementById('thumbnail-undo').disabled = !editor.history.length;
+    document.getElementById('thumbnail-redo').disabled = !editor.future.length;
+  }
+  function drawText(layer) {
+    ctx.save(); ctx.translate(layer.x, layer.y); ctx.rotate((layer.rotation || 0) * Math.PI / 180); ctx.globalAlpha = layer.opacity ?? 1;
+    ctx.fillStyle = layer.color; ctx.font = `${layer.weight || 800} ${layer.fontSize}px ${layer.font || 'Nunito'}`; ctx.textAlign = layer.align || 'center'; ctx.textBaseline = 'middle';
+    const lines = String(layer.text || '').split('\n'); const lineHeight = layer.fontSize * 1.12; lines.forEach((line, index) => ctx.fillText(line, 0, (index - (lines.length - 1) / 2) * lineHeight)); ctx.restore();
+  }
+  function drawLayer(layer) {
+    ctx.save(); ctx.translate(layer.x, layer.y); ctx.rotate((layer.rotation || 0) * Math.PI / 180); ctx.globalAlpha = layer.opacity ?? 1;
+    if (layer.type === 'image') { const image = editor.images.get(layer.id); if (image?.complete) ctx.drawImage(image, -layer.width / 2, -layer.height / 2, layer.width, layer.height); }
+    if (layer.type === 'shape') { ctx.fillStyle = layer.fill; ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height); if (layer.stroke) { ctx.strokeStyle = layer.stroke; ctx.lineWidth = layer.strokeWidth || 4; ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height); } }
+    ctx.restore(); if (layer.type === 'text') drawText(layer);
+  }
+  function drawSelection(layer) {
+    if (!layer) return; ctx.save(); ctx.translate(layer.x, layer.y); ctx.rotate((layer.rotation || 0) * Math.PI / 180); ctx.strokeStyle = '#cf7cff'; ctx.lineWidth = 5; ctx.setLineDash([12, 8]);
+    const width = layer.type === 'text' ? Math.max(220, ctx.measureText(layer.text || '').width + 36) : layer.width; const height = layer.type === 'text' ? layer.fontSize * 1.4 : layer.height;
+    ctx.strokeRect(-width / 2, -height / 2, width, height); ctx.restore();
+  }
+  function renderCanvas() {
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height); gradient.addColorStop(0, '#151027'); gradient.addColorStop(.55, '#080914'); gradient.addColorStop(1, '#05050b'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.save(); ctx.globalAlpha = .12; ctx.strokeStyle = '#9b4dff'; ctx.lineWidth = 2; for (let x = 0; x < canvas.width; x += 90) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); } for (let y = 0; y < canvas.height; y += 90) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); } ctx.restore();
+    editor.layers.forEach(drawLayer); drawSelection(editor.layers.find(layer => layer.id === editor.selected));
+  }
+  function hit(layer, point) {
+    const width = layer.type === 'text' ? Math.max(220, ctx.measureText(layer.text || '').width + 36) : layer.width; const height = layer.type === 'text' ? layer.fontSize * 1.4 : layer.height;
+    return point.x >= layer.x - width / 2 && point.x <= layer.x + width / 2 && point.y >= layer.y - height / 2 && point.y <= layer.y + height / 2;
+  }
+  function pointFromEvent(event) { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) * canvas.width / rect.width, y: (event.clientY - rect.top) * canvas.height / rect.height }; }
+  function setLayerValue(layer, property, value) { remember(); layer[property] = value; render(); }
+  function field(label, type, value, onInput, attrs = {}) { const wrapper = document.createElement('label'); wrapper.className = 'thumbnail-field'; const title = document.createElement('span'); title.textContent = label; const input = document.createElement('input'); input.type = type; input.value = value; Object.entries(attrs).forEach(([key, val]) => input.setAttribute(key, val)); input.addEventListener('input', () => onInput(input.value)); wrapper.append(title, input); return wrapper; }
+  function renderProperties() {
+    propertiesEl.replaceChildren(); const layer = editor.layers.find(item => item.id === editor.selected); if (!layer) { propertiesEl.append(Object.assign(document.createElement('p'), { className: 'hint', textContent: 'Selecione uma camada para editar posição, cor e tamanho.' })); return; }
+    const title = document.createElement('div'); title.className = 'thumbnail-selected-title'; title.textContent = layer.type === 'text' ? 'Texto selecionado' : layer.type === 'shape' ? 'Forma selecionada' : 'Imagem selecionada'; propertiesEl.append(title);
+    const position = document.createElement('div'); position.className = 'thumbnail-field-grid'; position.append(field('X', 'number', Math.round(layer.x), value => setLayerValue(layer, 'x', Number(value)), { min: 0, max: canvas.width }), field('Y', 'number', Math.round(layer.y), value => setLayerValue(layer, 'y', Number(value)), { min: 0, max: canvas.height })); propertiesEl.append(position);
+    if (layer.type === 'text') { propertiesEl.append(field('Texto', 'text', layer.text, value => setLayerValue(layer, 'text', value)), field('Tamanho', 'number', layer.fontSize, value => setLayerValue(layer, 'fontSize', Math.max(12, Number(value))), { min: 12, max: 420 }), field('Cor', 'color', layer.color, value => setLayerValue(layer, 'color', value))); }
+    if (layer.type === 'shape') propertiesEl.append(field('Cor', 'color', layer.fill, value => setLayerValue(layer, 'fill', value)), field('Largura', 'number', layer.width, value => setLayerValue(layer, 'width', Math.max(20, Number(value))), { min: 20, max: canvas.width }), field('Altura', 'number', layer.height, value => setLayerValue(layer, 'height', Math.max(20, Number(value))), { min: 20, max: canvas.height }));
+    if (layer.type === 'image') propertiesEl.append(field('Largura', 'number', Math.round(layer.width), value => setLayerValue(layer, 'width', Math.max(40, Number(value))), { min: 40, max: canvas.width }), field('Altura', 'number', Math.round(layer.height), value => setLayerValue(layer, 'height', Math.max(40, Number(value))), { min: 40, max: canvas.height }));
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'thumbnail-delete'; remove.textContent = 'Excluir camada'; remove.addEventListener('click', () => { remember(); editor.layers = editor.layers.filter(item => item.id !== layer.id); editor.selected = editor.layers.at(-1)?.id || null; render(); }); propertiesEl.append(remove);
+  }
+  function renderLayers() {
+    layersEl.replaceChildren(); countEl.textContent = String(editor.layers.length); [...editor.layers].reverse().forEach(layer => { const item = document.createElement('li'); const button = document.createElement('button'); button.type = 'button'; button.className = layer.id === editor.selected ? 'is-selected' : ''; button.textContent = layer.type === 'text' ? 'T  ' + (layer.text || 'Texto').slice(0, 24) : layer.type === 'shape' ? '□  Forma' : '▧  ' + (layer.name || 'Imagem'); button.addEventListener('click', () => { editor.selected = layer.id; render(); }); item.append(button); layersEl.append(item); });
+  }
+  function render() { renderCanvas(); renderLayers(); renderProperties(); empty.hidden = editor.layers.length > 0; updateHistoryControls(); zoomEl.textContent = Math.round(editor.zoom * 100) + '%'; canvas.style.width = Math.round(editor.zoom * 100) + '%'; }
+  function addLayer(layer) { remember(); layer.id = uid(); editor.layers.push(layer); editor.selected = layer.id; render(); }
+  function addText() { addLayer({ type: 'text', text: 'SEU TÍTULO', x: canvas.width / 2, y: canvas.height * .72, fontSize: 108, weight: 800, color: '#ffffff', font: 'Nunito', align: 'center', opacity: 1 }); setStatus('Texto adicionado. Arraste ou edite no painel lateral.'); }
+  function addShape() { addLayer({ type: 'shape', x: canvas.width / 2, y: canvas.height * .55, width: 760, height: 220, fill: '#9b4dff', stroke: '#cf7cff', strokeWidth: 5, opacity: .86 }); setStatus('Forma adicionada.'); }
+  function addImage(file, name = file.name) { if (!file || !file.type.startsWith('image/')) { setStatus('Escolha uma imagem PNG, JPG ou WebP.', true); return; } const url = URL.createObjectURL(file); const image = new Image(); image.onload = () => { const scale = Math.min(canvas.width * .86 / image.naturalWidth, canvas.height * .72 / image.naturalHeight, 1); const layer = { type: 'image', name, x: canvas.width / 2, y: canvas.height * .42, width: image.naturalWidth * scale, height: image.naturalHeight * scale, opacity: 1 }; remember(); layer.id = uid(); editor.images.set(layer.id, image); editor.layers.push(layer); editor.selected = layer.id; render(); setStatus('Imagem adicionada. Ela continua somente no navegador.'); }; image.src = url; }
+  canvas.addEventListener('pointerdown', event => { const point = pointFromEvent(event); const layer = [...editor.layers].reverse().find(item => hit(item, point)); editor.selected = layer?.id || null; if (layer) { editor.drag = { layer, point, moved: false, before: current() }; canvas.setPointerCapture?.(event.pointerId); } render(); });
+  canvas.addEventListener('pointermove', event => { if (!editor.drag) return; const point = pointFromEvent(event); const dx = point.x - editor.drag.point.x; const dy = point.y - editor.drag.point.y; if (Math.abs(dx) + Math.abs(dy) > 2) editor.drag.moved = true; editor.drag.layer.x += dx; editor.drag.layer.y += dy; editor.drag.point = point; renderCanvas(); });
+  canvas.addEventListener('pointerup', () => { if (editor.drag?.moved) { editor.history.push(editor.drag.before); editor.future = []; } editor.drag = null; render(); });
+  document.getElementById('thumbnail-image').addEventListener('change', event => addImage(event.target.files?.[0]));
+  document.getElementById('thumbnail-add-text').addEventListener('click', addText); document.getElementById('thumbnail-add-shape').addEventListener('click', addShape);
+  document.getElementById('thumbnail-undo').addEventListener('click', () => { if (!editor.history.length) return; editor.future.push(current()); restore(editor.history.pop()); });
+  document.getElementById('thumbnail-redo').addEventListener('click', () => { if (!editor.future.length) return; editor.history.push(current()); restore(editor.future.pop()); });
+  document.getElementById('thumbnail-reset').addEventListener('click', () => { if (!editor.layers.length) return; remember(); editor.layers = []; editor.selected = null; render(); setStatus('Tela limpa.'); });
+  document.getElementById('thumbnail-zoom-out').addEventListener('click', () => { editor.zoom = Math.max(.55, editor.zoom - .1); render(); }); document.getElementById('thumbnail-zoom-in').addEventListener('click', () => { editor.zoom = Math.min(1.5, editor.zoom + .1); render(); });
+  document.getElementById('thumbnail-export').addEventListener('click', () => { renderCanvas(); canvas.toBlob(blob => { if (!blob) return; const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'thumbnail-zuefy.png'; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 60000); setStatus('PNG exportado para o seu dispositivo.'); }, 'image/png'); });
+  document.addEventListener('keydown', event => { if (event.key === 'Delete' && editor.selected && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) { remember(); editor.layers = editor.layers.filter(layer => layer.id !== editor.selected); editor.selected = editor.layers.at(-1)?.id || null; render(); } });
+  render(); return { addImage };
+}
+
 async function boot() {
   const $ = id => document.getElementById(id);
+  const thumbnailEditor = initThumbnailEditor();
   const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro', activeView: 'start' };
   const viewHashes = { start: 'start-heading', editor: 'editor-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
   function viewFromHash() {
@@ -330,6 +412,10 @@ async function boot() {
         anchor.download = String(artifact.name || 'arquivo').replace(/[\\/\x00-\x1f]/g, '_');
         document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(href), 60000);
       })); item.append(download);
+      if (thumbnailEditor && ['image/png', 'image/jpeg', 'image/webp'].includes(artifact.mime)) {
+        const edit = node('button', 'Editar thumbnail'); edit.type = 'button';
+        edit.addEventListener('click', () => action(async () => { const blob = await api(path() + '/artifacts/' + encodeURIComponent(artifact.id), { blob: true }); thumbnailEditor.addImage(new File([blob], artifact.name || 'imagem.png', { type: artifact.mime })); selectWorkflowView('artifacts'); notice('Imagem aberta no editor manual.'); })); item.append(edit);
+      }
       if (artifact.mime === 'image/png' && /(?:^|[\/\\])frame_\d+\.png$/i.test(artifact.name)) {
         const lens = node('button', 'Autorizar este frame no Lens: ' + artifact.name); lens.type = 'button';
         lens.addEventListener('click', () => action(async () => {
