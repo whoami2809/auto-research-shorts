@@ -104,7 +104,12 @@ function initThumbnailEditor() {
   function drawSelection(layer) {
     if (!layer) return; ctx.save(); ctx.translate(layer.x, layer.y); ctx.rotate((layer.rotation || 0) * Math.PI / 180); ctx.strokeStyle = '#cf7cff'; ctx.lineWidth = 5; ctx.setLineDash([12, 8]);
     const width = layer.type === 'text' ? Math.max(220, ctx.measureText(layer.text || '').width + 36) : layer.width; const height = layer.type === 'text' ? layer.fontSize * 1.4 : layer.height;
-    ctx.strokeRect(-width / 2, -height / 2, width, height); ctx.restore();
+    ctx.strokeRect(-width / 2, -height / 2, width, height); ctx.setLineDash([]);
+    if (layer.type !== 'text') {
+      ctx.fillStyle = '#f1ecff'; ctx.strokeStyle = '#9b4dff'; ctx.lineWidth = 3;
+      for (const [x, y] of [[-width / 2, -height / 2], [width / 2, -height / 2], [-width / 2, height / 2], [width / 2, height / 2]]) { ctx.fillRect(x - 13, y - 13, 26, 26); ctx.strokeRect(x - 13, y - 13, 26, 26); }
+    }
+    ctx.restore();
   }
   function renderCanvas() {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height); gradient.addColorStop(0, '#151027'); gradient.addColorStop(.55, '#080914'); gradient.addColorStop(1, '#05050b'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -114,6 +119,10 @@ function initThumbnailEditor() {
   function hit(layer, point) {
     const width = layer.type === 'text' ? Math.max(220, ctx.measureText(layer.text || '').width + 36) : layer.width; const height = layer.type === 'text' ? layer.fontSize * 1.4 : layer.height;
     return point.x >= layer.x - width / 2 && point.x <= layer.x + width / 2 && point.y >= layer.y - height / 2 && point.y <= layer.y + height / 2;
+  }
+  function resizeHandle(layer, point) {
+    if (!layer || layer.type === 'text') return false;
+    return Math.abs(point.x - (layer.x + layer.width / 2)) <= 32 && Math.abs(point.y - (layer.y + layer.height / 2)) <= 32;
   }
   function pointFromEvent(event) { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) * canvas.width / rect.width, y: (event.clientY - rect.top) * canvas.height / rect.height }; }
   function setLayerValue(layer, property, value) { remember(); layer[property] = value; render(); }
@@ -136,12 +145,12 @@ function initThumbnailEditor() {
   function addShape() { addLayer({ type: 'shape', x: canvas.width / 2, y: canvas.height * .55, width: 760, height: 220, fill: '#9b4dff', stroke: '#cf7cff', strokeWidth: 5, opacity: .86 }); setStatus('Forma adicionada.'); }
   function addLine() { addLayer({ type: 'shape', x: canvas.width / 2, y: canvas.height * .55, width: 760, height: 18, fill: '#cf7cff', stroke: '#cf7cff', strokeWidth: 2, opacity: .92 }); setStatus('Linha adicionada.'); }
   function addImage(file, name = file.name) { if (!file || !file.type.startsWith('image/')) { setStatus('Escolha uma imagem PNG, JPG ou WebP.'); return; } const url = URL.createObjectURL(file); const image = new Image(); image.onload = () => { const scale = Math.min(canvas.width * .86 / image.naturalWidth, canvas.height * .72 / image.naturalHeight, 1); const layer = { type: 'image', name, x: canvas.width / 2, y: canvas.height * .42, width: image.naturalWidth * scale, height: image.naturalHeight * scale, opacity: 1 }; remember(); layer.id = uid(); editor.images.set(layer.id, image); editor.layers.push(layer); editor.selected = layer.id; render(); setStatus('Imagem adicionada localmente. Nada foi enviado ao servidor.'); URL.revokeObjectURL(url); }; image.onerror = () => { URL.revokeObjectURL(url); setStatus('Não foi possível abrir essa imagem.'); }; image.src = url; }
-  canvas.addEventListener('pointerdown', event => { const point = pointFromEvent(event); const layer = [...editor.layers].reverse().find(item => hit(item, point)); editor.selected = layer?.id || null; if (layer) { editor.drag = { layer, point, moved: false, before: current() }; canvas.setPointerCapture?.(event.pointerId); } render(); });
-  canvas.addEventListener('pointermove', event => { if (!editor.drag) return; const point = pointFromEvent(event); const dx = point.x - editor.drag.point.x; const dy = point.y - editor.drag.point.y; if (Math.abs(dx) + Math.abs(dy) > 2) editor.drag.moved = true; editor.drag.layer.x += dx; editor.drag.layer.y += dy; editor.drag.point = point; renderCanvas(); });
+  canvas.addEventListener('pointerdown', event => { const point = pointFromEvent(event); const layer = [...editor.layers].reverse().find(item => hit(item, point)); editor.selected = layer?.id || null; if (layer) { const resizing = resizeHandle(layer, point); editor.drag = { layer, point, startPoint: point, moved: false, type: resizing ? 'resize' : 'move', before: current(), startWidth: layer.width, startHeight: layer.height, aspect: layer.width / layer.height }; canvas.setPointerCapture?.(event.pointerId); if (resizing) setStatus('Arraste a alça do canto para ampliar ou reduzir.'); } render(); });
+  canvas.addEventListener('pointermove', event => { if (!editor.drag) return; const point = pointFromEvent(event); const dx = point.x - editor.drag.point.x; const dy = point.y - editor.drag.point.y; const totalDx = point.x - editor.drag.startPoint.x; const totalDy = point.y - editor.drag.startPoint.y; if (Math.abs(dx) + Math.abs(dy) > 2) editor.drag.moved = true; if (editor.drag.type === 'resize') { const layer = editor.drag.layer; if (layer.type === 'image') { const scale = Math.max(.1, 1 + Math.max(totalDx / editor.drag.startWidth, totalDy / editor.drag.startHeight)); layer.width = Math.max(40, editor.drag.startWidth * scale); layer.height = Math.max(40, editor.drag.startHeight * scale); } else { layer.width = Math.max(20, editor.drag.startWidth + totalDx); layer.height = Math.max(20, editor.drag.startHeight + totalDy); } } else { editor.drag.layer.x += dx; editor.drag.layer.y += dy; } editor.drag.point = point; renderCanvas(); });
   canvas.addEventListener('pointerup', () => { if (editor.drag?.moved) { editor.history.push(editor.drag.before); editor.future = []; } editor.drag = null; render(); });
   document.getElementById('thumbnail-image').addEventListener('change', event => addImage(event.target.files?.[0]));
   document.getElementById('thumbnail-add-text').addEventListener('click', addText); document.getElementById('thumbnail-add-shape').addEventListener('click', addShape);
-  document.getElementById('thumbnail-tool-select').addEventListener('click', () => setStatus('Modo seleção ativo. Arraste qualquer camada no canvas.'));
+  document.getElementById('thumbnail-tool-select').addEventListener('click', event => { event.currentTarget.classList.add('is-active'); setStatus('Modo seleção ativo. Arraste uma camada ou a alça do canto para ampliar.'); });
   document.getElementById('thumbnail-tool-image').addEventListener('click', () => document.getElementById('thumbnail-image').click());
   document.getElementById('thumbnail-tool-shape').addEventListener('click', addShape);
   document.getElementById('thumbnail-tool-line').addEventListener('click', addLine);

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./workflow.css">
-  <script type="module" src="./workflow.js?v=20260910-workflow-controls-6"></script>
+  <script type="module" src="./workflow.js?v=20260910-workflow-controls-7"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
@@ -97,7 +97,7 @@
                 <button id="thumbnail-add-text" type="button">T Texto</button><button id="thumbnail-add-shape" type="button">□ Forma</button><button id="thumbnail-undo" type="button" disabled>↶ Desfazer</button><button id="thumbnail-redo" type="button" disabled>↷ Refazer</button><button id="thumbnail-reset" type="button">Limpar</button><button id="thumbnail-export" class="primary" type="button">Exportar PNG</button><button id="thumbnail-export-jpeg" type="button">Exportar JPEG</button>
               </div>
               <div class="thumbnail-workspace">
-                <nav class="thumbnail-side-tools" aria-label="Ferramentas rápidas da thumbnail"><button id="thumbnail-tool-select" class="is-active" type="button" title="Selecionar">↖<span>Selecionar</span></button><button id="thumbnail-tool-image" type="button" title="Adicionar imagem">▧<span>Imagem</span></button><button id="thumbnail-tool-shape" type="button" title="Adicionar forma">●<span>Forma</span></button><button id="thumbnail-tool-line" type="button" title="Adicionar linha">╱<span>Linha</span></button><button id="thumbnail-tool-text" type="button" title="Adicionar texto">T<span>Texto</span></button></nav>
+                <nav class="thumbnail-side-tools" aria-label="Ferramentas rápidas da thumbnail"><button id="thumbnail-tool-select" class="is-active" type="button" title="Mover e redimensionar">↖<span>Mover / ampliar</span></button><button id="thumbnail-tool-image" type="button" title="Adicionar imagem">▧<span>Imagem</span></button><button id="thumbnail-tool-shape" type="button" title="Adicionar forma">●<span>Forma</span></button><button id="thumbnail-tool-line" type="button" title="Adicionar linha">╱<span>Linha</span></button><button id="thumbnail-tool-text" type="button" title="Adicionar texto">T<span>Texto</span></button></nav>
                 <div class="thumbnail-canvas-wrap"><div class="thumbnail-canvas-stage"><canvas id="thumbnail-canvas" width="1080" height="1920" aria-label="Área de edição da thumbnail"></canvas><p id="thumbnail-empty" class="thumbnail-empty">Adicione uma imagem ou texto para começar</p></div><div class="thumbnail-zoom"><button id="thumbnail-zoom-out" type="button" aria-label="Diminuir zoom">−</button><span id="thumbnail-zoom-value">Fit</span><button id="thumbnail-zoom-in" type="button" aria-label="Aumentar zoom">＋</button></div></div>
                 <aside class="thumbnail-inspector" aria-label="Propriedades da camada selecionada"><div class="thumbnail-inspector-head"><span>Camadas</span><span id="thumbnail-layer-count">0</span></div><ul id="thumbnail-layers" class="thumbnail-layers"></ul><div id="thumbnail-properties" class="thumbnail-properties"><p class="hint">Selecione uma camada para editar posição, cor e tamanho.</p></div></aside>
               </div>
