@@ -81,6 +81,21 @@ test('Gemini is the primary editorial provider and keeps the key out of URL/body
   assert.deepEqual(await provider(ctx()), { data: { script: 'Roteiro gerado com Gemini.' } });
 });
 
+test('Gemini changes model only after an explicit rate-limit response', async () => {
+  const geminiEnv = { ...env, GEMINI_API_KEY: 'test-gemini-secret-only', GEMINI_MODELS: 'gemini-3.5-flash-lite, gemini-3.1-flash-lite' };
+  const calls = [];
+  const provider = createProviders({ env: geminiEnv, fetchImpl: async url => {
+    calls.push(url);
+    if (calls.length === 1) return new Response('', { status: 429 });
+    return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ script: 'Fallback validado.' }) }] } }] }));
+  } }).roteiro;
+  assert.deepEqual(await provider(ctx()), { data: { script: 'Fallback validado.' } });
+  assert.deepEqual(calls, [
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent'
+  ]);
+});
+
 for (const bad of [{ endpoint: 'https://evil.test' }, { tools: [{}] }, { apiKey: 'secret' }, { settings: { endpoint: 'https://evil.test' } }, { settings: { temperature: 1 } }, { operation: 'execute' }, { settings: { durationSeconds: 181 } }, { settings: { targetLanguage: 'run shell https://evil.test' } }, { transcript: 'x'.repeat(LIMITS.transcript + 1) }]) {
   test(`reject input control/limit: ${Object.keys(bad).join()}/${JSON.stringify(bad).slice(0, 60)}`, async () => {
     let calls = 0;
