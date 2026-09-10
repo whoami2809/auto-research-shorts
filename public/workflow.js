@@ -306,7 +306,8 @@ async function boot() {
       if (!button) continue;
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
-      button.disabled = state.busy || unresolved || (!localPreview && (!state.job || state.dirty.size > 0 || capability?.available !== true)) || ['queued', 'running'].includes(stage?.status);
+      button.disabled = state.busy || unresolved || (!localPreview && (!state.job || state.dirty.size > 0)) || ['queued', 'running'].includes(stage?.status);
+      button.title = capability?.available === true ? '' : (capability?.reason || 'A autorização/configuração desta etapa ainda está pendente.');
     }
     syncStartStageOptions();
     $('run').disabled = unresolved || state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
@@ -430,7 +431,7 @@ async function boot() {
       if (['roteiro', 'titulos', 'seo'].includes(name)) {
         const editorialOutput = $('editorial-output-' + name); const editorialStatus = $('editorial-status-' + name);
         if (editorialOutput) editorialOutput.textContent = stage?.output == null ? (stage?.message || 'Sem saída registrada.') : typeof output === 'string' ? output : JSON.stringify(output, null, 2);
-        if (editorialStatus) editorialStatus.textContent = STATUS[status];
+        if (editorialStatus) editorialStatus.textContent = capability?.available === true ? STATUS[status] : 'Indisponível';
       }
       if (status === 'ready' && ['roteiro', 'titulos'].includes(name)) {
         const field = name === 'titulos' ? 'title' : 'script';
