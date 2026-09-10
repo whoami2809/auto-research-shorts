@@ -88,7 +88,8 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-8/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-9/);
+  assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
   assert.doesNotMatch(html, /id="save"/);
