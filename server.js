@@ -14,7 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 app.disable('x-powered-by');
 const publicOrigin=process.env.PUBLIC_APP_URL||'https://auto-research-shorts.darknet-web28.workers.dev';
-app.use(cors({origin:publicOrigin,methods:['GET','POST','PATCH'],allowedHeaders:['Authorization','Content-Type']}));
+app.use(cors({origin:publicOrigin,methods:['GET','POST','PATCH','DELETE'],allowedHeaders:['Authorization','Content-Type']}));
 app.use(express.json({limit:'128kb'}));
 app.get('/api/config',(req,res)=>res.set('Cache-Control','no-store').json(authConfig()));
 const workflowStore=new SupabaseStore({env:{...process.env,SUPABASE_URL:authConfig().supabaseUrl}});

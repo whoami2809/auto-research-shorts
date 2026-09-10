@@ -35,6 +35,14 @@ function createRouter({store,engine,validateImport,env=process.env}) {
     const row=await store.create(req.workflowUser.id,inputFields(req.body));
     res.status(201).json(publicJob(row));
   }));
+  router.delete('/jobs/:id',route(async(req,res)=>{
+    await store.delete(req.workflowUser.id, req.params.id);
+    res.status(204).end();
+  }));
+  router.patch('/jobs/:id/order',route(async(req,res)=>{
+    const rows = await store.reorder(req.workflowUser.id, req.params.id, req.body?.direction);
+    res.json({jobs: rows.map(row => publicJob(row).job)});
+  }));
   router.get('/jobs/:id',route(async(req,res)=>{
     const result=await store.mutate(req.params.id,req.workflowUser.id,doc=>{const before=JSON.stringify(doc.stages);reconcile(doc);if(before===JSON.stringify(doc.stages))return {unchanged:true,value:null};});
     res.json(publicJob(result.row));

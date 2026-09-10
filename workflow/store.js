@@ -23,7 +23,18 @@ class SupabaseStore {
     return response;
   }
   async rows(query) { return (await this.request(`/rest/v1/${TABLE}?${query}`)).json(); }
-  async list(owner) { return this.rows(`owner_id=eq.${owner}&select=id,owner_id,created_at,version,document&order=created_at.desc&limit=50`); }
+  async list(owner) {
+    const rows = await this.rows(`owner_id=eq.${owner}&select=id,owner_id,created_at,version,document&order=created_at.desc&limit=50`);
+    // Keep the historical newest-first order until the user explicitly reorders a queue.
+    return rows.sort((a,b) => {
+      const ap = Number.isFinite(a.document?.input?.queue_position);
+      const bp = Number.isFinite(b.document?.input?.queue_position);
+      if (ap && bp) return a.document.input.queue_position - b.document.input.queue_position;
+      if (ap) return -1;
+      if (bp) return 1;
+      return String(b.created_at).localeCompare(String(a.created_at));
+    });
+  }
   async get(id,owner) {
     if (!uuid(id) || !uuid(owner)) fail('NOT_FOUND','Projeto não encontrado.',404);
     const rows = await this.rows(`id=eq.${id}&owner_id=eq.${owner}&select=*`);
@@ -35,6 +46,34 @@ class SupabaseStore {
     const row = {id:randomUUID(),owner_id:owner,document:{input,stages:initialStages(),artifacts:[],requests:[]}};
     const response = await this.request(`/rest/v1/${TABLE}`,{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify(row)});
     return (await response.json())[0];
+  }
+  async delete(owner,id) {
+    const row = await this.get(id, owner);
+    // Remove private artifacts first; an unsuccessful cleanup aborts the destructive action.
+    for (const artifact of row.document.artifacts || []) {
+      if (typeof artifact.path === 'string' && artifact.path.startsWith(`${owner}/${id}/`)) {
+        await this.request(`/storage/v1/object/${BUCKET}/${artifact.path}`, {method:'DELETE'});
+      }
+    }
+    const response = await this.request(`/rest/v1/${TABLE}?id=eq.${id}&owner_id=eq.${owner}`, {method:'DELETE'});
+    if (!response.ok) fail('STORAGE_UNAVAILABLE','Não foi possível excluir o projeto.',503);
+    return {id};
+  }
+  async reorder(owner,id,direction) {
+    if (!['up','down'].includes(direction)) fail('INPUT_INVALID','Direção de fila inválida.');
+    const rows = await this.list(owner);
+    const index = rows.findIndex(row => row.id === id);
+    if (index < 0) fail('NOT_FOUND','Projeto não encontrado.',404);
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= rows.length) return rows;
+    const ordered = rows.slice();
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    for (let position = 0; position < ordered.length; position++) {
+      const current = ordered[position];
+      if (current.document.input.queue_position === position) continue;
+      await this.mutate(current.id, owner, doc => { doc.input.queue_position = position; });
+    }
+    return this.list(owner);
   }
   async setDispatch(id,owner,hash,token,requestId) {
     if(!uuid(id)||!uuid(owner)||!uuid(requestId)||! /^[a-f0-9]{64}$/.test(hash)) fail('DISPATCH_INVALID','Despacho inválido.');

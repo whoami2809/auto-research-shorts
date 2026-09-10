@@ -8,11 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="/workflow.css">
-  <script type="module" src="/workflow.js?v=20260909-ui-clarity-1"></script>
+  <script type="module" src="/workflow.js?v=20260910-workflow-tabs-1"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
-  <header><a class="brand" href="/app">ZUEFY <small>SHORTS / WORKFLOW</small></a></header>
+  <header><a class="brand" href="/app">ZUEFY <small>SHORTS / WORKFLOW</small></a><a class="back-link" href="/app">← Voltar para a aba principal</a></header>
   <main id="workspace">
     <div class="intro"><div><p class="eyebrow">DA IDEIA À ENTREGA</p><h1>Seu short, etapa por etapa.</h1></div><p>Comece de qualquer ponto. Salve o projeto, escolha uma etapa e execute somente o que precisa agora.</p></div>
     <p id="notice" role="status" aria-live="polite">Verificando sessão…</p>
@@ -20,7 +20,7 @@
     <fieldset id="app" disabled>
       <legend class="sr-only">Painel de produção</legend>
       <div class="layout">
-        <aside class="panel"><p class="panel-kicker">SHORTS / WORKFLOW</p><h2>Projetos</h2><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button><nav class="workflow-nav" aria-label="Navegação do projeto"><a href="#editor-heading">📝 Conteúdo</a><a href="#import-heading">📁 Mídia</a><a href="#flow-heading">⚡ Etapas</a><a href="#artifacts-heading">📦 Resultados</a></nav><ul id="jobs" class="jobs"></ul></aside>
+        <aside class="panel"><p class="panel-kicker">SHORTS / WORKFLOW</p><h2>Projetos</h2><button id="new" type="button">Novo projeto</button><button id="refresh" type="button">Atualizar lista</button><nav class="workflow-nav" aria-label="Navegação do projeto"><a href="#editor-heading">📝 Conteúdo</a><a href="#import-heading">📁 Mídia</a><a href="#flow-heading">⚡ Etapas</a><a href="#artifacts-heading">📦 Resultados</a></nav><p class="queue-help">Use ↑ e ↓ para organizar a fila.</p><ul id="jobs" class="jobs"></ul></aside>
         <div class="content">
           <section class="panel" aria-labelledby="editor-heading">
             <div class="section-head"><div><p class="panel-kicker">01 · IDENTIFICAÇÃO</p><h2 id="editor-heading">Identifique o seu short</h2></div><span id="dirty" role="status">Novo projeto</span></div>
@@ -48,7 +48,7 @@
           <section class="panel" aria-labelledby="flow-heading">
             <div class="section-head"><div><p class="panel-kicker">03 · AÇÕES</p><h2 id="flow-heading">Faça somente o próximo passo</h2></div><span id="storage">Armazenamento não verificado</span></div>
             <p class="hint lead-hint">Cada cartão é independente: marque várias etapas para executar em conjunto ou use o botão do próprio cartão para executar apenas uma.</p>
-            <div id="flow" class="flow"></div>
+            <div id="stage-tabs" class="stage-tabs" role="tablist" aria-label="Funções do workflow"></div><div id="flow" class="flow stage-panels"></div>
             <p class="hint">“Desatualizada” indica mudança na entrada ou no hash: revise a saída e decida se deseja executar novamente. Nenhuma etapa é refeita automaticamente.</p>
             <fieldset class="consents"><legend>Confirmações necessárias</legend><p class="consent-intro">Essas confirmações protegem seus custos e seus arquivos. Marque somente o que se aplica ao passo atual.</p>
               <label><input id="allow-paid" type="checkbox">Permito chamadas que podem consumir créditos (IA ou ElevenLabs).</label>

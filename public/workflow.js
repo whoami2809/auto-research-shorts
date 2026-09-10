@@ -70,7 +70,7 @@ function lensURL(value, expires) {
 
 async function boot() {
   const $ = id => document.getElementById(id);
-  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false };
+  const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro' };
   const cards = new Map();
   const attempts = new Map();
   const warnings = new Map();
@@ -186,6 +186,8 @@ async function boot() {
         }
       }
     }
+    for (const [name, card] of cards) card.root.hidden = name !== state.activeStage;
+    for (const tab of document.querySelectorAll('.stage-tab')) tab.setAttribute('aria-selected', String(tab.dataset.stage === state.activeStage));
     controls(); schedule();
   }
   function fill(job) {
@@ -210,8 +212,8 @@ async function boot() {
     const data = await api('/api/workflow/jobs');
     $('jobs').replaceChildren();
     if (!data.jobs?.length) $('jobs').append(node('li', 'Nenhum projeto. Crie o primeiro para começar.'));
-    for (const job of data.jobs || []) {
-      const item = node('li'); const button = node('button', job.name || job.id); button.type = 'button';
+    for (const [index, job] of (data.jobs || []).entries()) {
+      const item = node('li'); const button = node('button', job.name || job.id); button.type = 'button'; button.title = 'Abrir projeto';
       button.setAttribute('aria-current', String(state.job?.id === job.id));
       const date = new Date(job.created_at); if (!Number.isNaN(date.valueOf())) button.append(node('time', date.toLocaleString('pt-BR')));
       button.addEventListener('click', () => {
@@ -219,7 +221,20 @@ async function boot() {
         if (state.dirty.size) { notice('Salve as alterações antes de trocar de projeto.', true); return; }
         action(async () => { cancel(); resetImports(); state.job = job; state.selected.clear(); for (const card of cards.values()) card.check.checked = false; $('allow-paid').checked = false; $('allow-frame-upload').checked = false; await refreshJob(); await listJobs(); });
       });
-      item.append(button); $('jobs').append(item);
+      const actions = node('div', undefined, 'job-actions');
+      const up = node('button', '↑'); up.type = 'button'; up.title = 'Mover projeto para cima'; up.setAttribute('aria-label', 'Mover projeto para cima'); up.disabled = index === 0;
+      const down = node('button', '↓'); down.type = 'button'; down.title = 'Mover projeto para baixo'; down.setAttribute('aria-label', 'Mover projeto para baixo'); down.disabled = index === data.jobs.length - 1;
+      const remove = node('button', '×'); remove.type = 'button'; remove.title = 'Excluir projeto'; remove.setAttribute('aria-label', 'Excluir projeto'); remove.className = 'job-delete';
+      const reorder = direction => action(async () => { await api('/api/workflow/jobs/' + encodeURIComponent(job.id) + '/order', { method: 'PATCH', body: JSON.stringify({ direction }) }); await listJobs(); notice('Ordem da fila atualizada.'); });
+      up.addEventListener('click', event => { event.stopPropagation(); if (!up.disabled) reorder('up'); });
+      down.addEventListener('click', event => { event.stopPropagation(); if (!down.disabled) reorder('down'); });
+      remove.addEventListener('click', event => { event.stopPropagation(); action(async () => {
+        if (!window.confirm(`Excluir o projeto “${job.name || job.id}”? Esta ação remove seus arquivos privados e não pode ser desfeita.`)) return;
+        await api('/api/workflow/jobs/' + encodeURIComponent(job.id), { method: 'DELETE' });
+        if (state.job?.id === job.id) { cancel(); resetImports(); state.job = null; state.selected.clear(); state.dirty.clear(); $('editor').reset(); renderStages([]); renderArtifacts([]); fill({}); }
+        await listJobs(); notice('Projeto excluído.');
+      }); });
+      actions.append(up, down, remove); item.append(button, actions); $('jobs').append(item);
     }
   }
   function resetImports() {
@@ -313,7 +328,10 @@ async function boot() {
     }
   }
   for (const [name, label] of Object.entries(STAGES)) {
+    const tab = node('button', label, 'stage-tab'); tab.type = 'button'; tab.dataset.stage = name; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'stage-panel-' + name); tab.setAttribute('aria-selected', String(name === state.activeStage));
+    tab.addEventListener('click', () => { state.activeStage = name; renderStages(state.stages); }); $('stage-tabs').append(tab);
     const root = node('article', undefined, 'stage'); const wrapper = node('label'); const check = node('input'); check.type = 'checkbox';
+    root.id = 'stage-panel-' + name; root.setAttribute('role', 'tabpanel'); root.tabIndex = 0;
     wrapper.append(check, node('span', label)); const explain = node('p', STAGE_HELP[name], 'stage-explain'); const badge = node('span', STATUS.unknown, 'badge'); const message = node('p');
     const details = node('details'); const output = node('pre'); details.append(node('summary', 'Ver saída'), output);
     const copy = node('button', name === 'titulos' ? 'Usar saída no título' : 'Usar saída no roteiro'); copy.type = 'button'; copy.hidden = true;
