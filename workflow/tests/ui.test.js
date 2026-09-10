@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-10/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-12/);
   assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
@@ -128,6 +128,18 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /layer\.height = Math\.max\(20/);
   assert.match(js, /const handles = \{ nw:/);
   assert.match(js, /ns-resize/);
+  assert.match(html, /id="thumbnail-context-menu"/);
+  assert.match(html, /id="thumbnail-page-menu"/);
+  assert.match(html, /id="thumbnail-add-page"/);
+  assert.match(html, /data-page-action="guide-horizontal"/);
+  assert.match(html, /data-thumbnail-action="component-layer"/);
+  assert.match(html, /data-thumbnail-action="download-layer"/);
+  assert.match(html, /data-page-action="copy-style"/);
+  assert.match(js, /Object\.defineProperty\(editor, 'layers'/);
+  assert.match(js, /function objectAction/);
+  assert.match(js, /function pageAction/);
+  assert.match(js, /function renderPages/);
+  assert.match(js, /thumbnail-copy-layer/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);
