@@ -175,7 +175,7 @@ test('importação usa seleção individual, botão explícito e corpo binário 
   assert.match(js, /Nada foi enviado ao servidor/);
   assert.match(js, /canvas\.toBlob/);
   assert.match(js, /image\/jpeg/);
-  assert.match(js, /thumbnail-zuefy\.jpg/);
+  assert.match(js, /const extension = format === 'image\/jpeg' \? 'jpg' : 'png'/);
   assert.match(html, /apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto/);
   assert.match(js, /\.addEventListener\('change', controls\)/);
   assert.match(js, /\.addEventListener\('click', \(\) => action\(\(\) => importMedia\(kind\)\)\)/);
