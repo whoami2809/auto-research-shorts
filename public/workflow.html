@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./workflow.css">
-  <script type="module" src="./workflow.js?v=20260910-workflow-controls-5"></script>
+  <script type="module" src="./workflow.js?v=20260910-workflow-controls-6"></script>
 </head>
 <body>
   <a class="skip" href="#workspace">Pular para o projeto</a>
@@ -18,6 +18,7 @@
       <a class="workflow-nav-item" data-workflow-view="start" href="#start-heading"><span class="workflow-nav-icon" aria-hidden="true">⌕</span><span>Buscar</span></a>
       <a class="workflow-nav-item" data-workflow-view="editor" href="#editor-heading"><span class="workflow-nav-icon" aria-hidden="true">▤</span><span>Conteúdo</span></a>
       <a class="workflow-nav-item" data-workflow-view="import" href="#import-heading"><span class="workflow-nav-icon" aria-hidden="true">↓</span><span>Voz</span></a>
+      <a class="workflow-nav-item" data-workflow-view="downloads" href="#downloads-heading"><span class="workflow-nav-icon" aria-hidden="true">⇩</span><span>Downloads</span></a>
       <a class="workflow-nav-item" data-workflow-view="flow" href="#flow-heading"><span class="workflow-nav-icon" aria-hidden="true">ϟ</span><span>Etapas</span></a>
       <a class="workflow-nav-item" data-workflow-view="artifacts" href="#artifacts-heading"><span class="workflow-nav-icon" aria-hidden="true">▥</span><span>Thumbnail</span></a>
     </nav>
@@ -52,6 +53,18 @@
               <label>Título editável<small class="field-help">Título associado ao projeto; você pode ajustar quando quiser.</small><input id="title" maxlength="180"></label>
             </form>
           </section>
+          <section class="panel workflow-section" data-workflow-view="downloads" aria-labelledby="downloads-heading">
+            <div class="section-head"><div><p class="panel-kicker">02 · DOWNLOADS</p><h2 id="downloads-heading">Baixe vídeos autorizados</h2></div><span class="download-local-note">Ação manual</span></div>
+            <p class="hint lead-hint">Cole um link oficial por linha. A ferramenta só fará uma requisição quando você marcar a confirmação e clicar no botão daquele vídeo.</p>
+            <label>Links oficiais dos vídeos<small class="field-help">Aceitos: YouTube, TikTok, Instagram e Facebook, sempre em HTTPS.</small><textarea id="download-links" rows="6" placeholder="https://www.youtube.com/...&#10;https://www.tiktok.com/..." spellcheck="false"></textarea></label>
+            <div class="download-controls">
+              <label>Qualidade<select id="download-quality"><option value="max">Máxima disponível</option><option value="1080">1080p</option><option value="720">720p</option></select></label>
+              <label class="download-consent"><span><input id="download-consent" type="checkbox"> Confirmo que tenho autorização para baixar estes vídeos.</span><small class="field-help">Essa confirmação não é concedida automaticamente pelo link.</small></label>
+              <button id="download-clear" type="button">Limpar links</button>
+            </div>
+            <p id="download-status" role="status" aria-live="polite" class="hint">Nenhum download será iniciado sem uma ação explícita.</p>
+            <div id="download-candidates" class="download-candidates" aria-live="polite"></div>
+          </section>
           <section class="panel workflow-section" data-workflow-view="import" aria-labelledby="import-heading">
             <div class="section-head"><div><p class="panel-kicker">02 · ENTRADAS OPCIONAIS</p><h2 id="import-heading">Importe o que você já tem</h2></div></div>
             <p id="import-help" class="hint">Use esta área somente se já tiver o vídeo-base ou a narração prontos. Salve o projeto antes. Ao clicar em Importar, apenas o arquivo escolhido será enviado ao armazenamento privado deste projeto. Limite: 50 MiB por arquivo. Selecionar um arquivo não inicia o envio.</p>
@@ -78,11 +91,13 @@
           <section class="panel workflow-section" data-workflow-view="artifacts" aria-labelledby="artifacts-heading"><div class="section-head"><div><p class="panel-kicker">04 · RESULTADOS</p><h2 id="artifacts-heading">Veja, edite e baixe</h2></div></div><p class="hint">Monte sua thumbnail no navegador. Os arquivos escolhidos ficam locais até você exportar o PNG.</p>
             <section class="thumbnail-editor" aria-labelledby="thumbnail-editor-heading">
               <div class="thumbnail-editor-head"><div><p class="panel-kicker">EDITOR MANUAL</p><h3 id="thumbnail-editor-heading">Thumbnail studio</h3></div><span class="thumbnail-local-note">Local · nada é enviado automaticamente</span></div>
+              <div class="thumbnail-context-bar" aria-label="Controles rápidos da thumbnail"><span class="thumbnail-context-brand">ARS / THUMBNAIL STUDIO</span><span id="thumbnail-selection-label">Nenhuma camada selecionada</span><div class="thumbnail-context-actions"><button id="thumbnail-zoom-out-top" type="button" aria-label="Diminuir zoom">−</button><span id="thumbnail-zoom-value-top">100%</span><button id="thumbnail-zoom-in-top" type="button" aria-label="Aumentar zoom">＋</button></div></div>
               <div class="thumbnail-toolbar" role="toolbar" aria-label="Ferramentas da thumbnail">
                 <label class="thumbnail-upload"><span>＋ Imagem</span><input id="thumbnail-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
                 <button id="thumbnail-add-text" type="button">T Texto</button><button id="thumbnail-add-shape" type="button">□ Forma</button><button id="thumbnail-undo" type="button" disabled>↶ Desfazer</button><button id="thumbnail-redo" type="button" disabled>↷ Refazer</button><button id="thumbnail-reset" type="button">Limpar</button><button id="thumbnail-export" class="primary" type="button">Exportar PNG</button><button id="thumbnail-export-jpeg" type="button">Exportar JPEG</button>
               </div>
               <div class="thumbnail-workspace">
+                <nav class="thumbnail-side-tools" aria-label="Ferramentas rápidas da thumbnail"><button id="thumbnail-tool-select" class="is-active" type="button" title="Selecionar">↖<span>Selecionar</span></button><button id="thumbnail-tool-image" type="button" title="Adicionar imagem">▧<span>Imagem</span></button><button id="thumbnail-tool-shape" type="button" title="Adicionar forma">●<span>Forma</span></button><button id="thumbnail-tool-line" type="button" title="Adicionar linha">╱<span>Linha</span></button><button id="thumbnail-tool-text" type="button" title="Adicionar texto">T<span>Texto</span></button></nav>
                 <div class="thumbnail-canvas-wrap"><div class="thumbnail-canvas-stage"><canvas id="thumbnail-canvas" width="1080" height="1920" aria-label="Área de edição da thumbnail"></canvas><p id="thumbnail-empty" class="thumbnail-empty">Adicione uma imagem ou texto para começar</p></div><div class="thumbnail-zoom"><button id="thumbnail-zoom-out" type="button" aria-label="Diminuir zoom">−</button><span id="thumbnail-zoom-value">Fit</span><button id="thumbnail-zoom-in" type="button" aria-label="Aumentar zoom">＋</button></div></div>
                 <aside class="thumbnail-inspector" aria-label="Propriedades da camada selecionada"><div class="thumbnail-inspector-head"><span>Camadas</span><span id="thumbnail-layer-count">0</span></div><ul id="thumbnail-layers" class="thumbnail-layers"></ul><div id="thumbnail-properties" class="thumbnail-properties"><p class="hint">Selecione uma camada para editar posição, cor e tamanho.</p></div></aside>
               </div>

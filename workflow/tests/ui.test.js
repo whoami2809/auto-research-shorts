@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-5/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-6/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
   assert.doesNotMatch(html, /id="save"/);
@@ -100,9 +100,10 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /newProjectDialog\.showModal\(\)/);
   assert.match(js, /\$\('notice'\)\.hidden = true/);
   assert.match(html, /class="workflow-topbar"/);
-  assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 5);
+  assert.equal((html.match(/class="workflow-nav-item"/g) || []).length, 6);
   assert.match(html, /href="#import-heading"[^>]*>.*<span>Voz<\/span>/s);
   assert.doesNotMatch(html, /href="#import-heading"[^>]*>.*<span>Mídia<\/span>/s);
+  assert.match(html, /href="#downloads-heading"[^>]*>.*<span>Downloads<\/span>/s);
   assert.match(html, /href="#artifacts-heading"[^>]*>.*<span>Thumbnail<\/span>/s);
   assert.doesNotMatch(html, /href="#artifacts-heading"[^>]*>.*<span>Resultados<\/span>/s);
   assert.match(html, /class="project-queue"/);
@@ -113,6 +114,12 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /Ver etapas selecionadas/);
   assert.match(js, /window\.location\.reload\(\)/);
   assert.match(js, /function renderStartStageOptions/);
+  assert.match(js, /function renderDownloadCandidates/);
+  assert.match(js, /function downloadVideo/);
+  assert.match(js, /api\('\/api\/video-dl\?' \+ query/);
+  assert.match(html, /id="download-consent" type="checkbox"/);
+  assert.match(html, /id="download-links"/);
+  assert.match(html, /id="thumbnail-tool-line"/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /max-width:540px/);

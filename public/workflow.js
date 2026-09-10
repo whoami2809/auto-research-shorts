@@ -130,20 +130,27 @@ function initThumbnailEditor() {
   function renderLayers() {
     layersEl.replaceChildren(); countEl.textContent = String(editor.layers.length); [...editor.layers].reverse().forEach(layer => { const item = document.createElement('li'); const button = document.createElement('button'); button.type = 'button'; button.className = layer.id === editor.selected ? 'is-selected' : ''; button.textContent = layer.type === 'text' ? 'T  ' + (layer.text || 'Texto').slice(0, 24) : layer.type === 'shape' ? '□  Forma' : '▧  ' + (layer.name || 'Imagem'); button.addEventListener('click', () => { editor.selected = layer.id; render(); }); item.append(button); layersEl.append(item); });
   }
-  function render() { renderCanvas(); renderLayers(); renderProperties(); empty.hidden = editor.layers.length > 0; updateHistoryControls(); zoomEl.textContent = Math.round(editor.zoom * 100) + '%'; canvas.style.width = Math.round(editor.zoom * 100) + '%'; }
+  function render() { renderCanvas(); renderLayers(); renderProperties(); empty.hidden = editor.layers.length > 0; updateHistoryControls(); zoomEl.textContent = Math.round(editor.zoom * 100) + '%'; const topZoom = document.getElementById('thumbnail-zoom-value-top'); if (topZoom) topZoom.textContent = Math.round(editor.zoom * 100) + '%'; const selection = document.getElementById('thumbnail-selection-label'); if (selection) { const layer = editor.layers.find(item => item.id === editor.selected); selection.textContent = layer ? (layer.type === 'text' ? 'Texto selecionado' : layer.type === 'shape' ? 'Forma selecionada' : 'Imagem selecionada') : 'Nenhuma camada selecionada'; } canvas.style.width = Math.round(editor.zoom * 100) + '%'; }
   function addLayer(layer) { remember(); layer.id = uid(); editor.layers.push(layer); editor.selected = layer.id; render(); }
   function addText() { addLayer({ type: 'text', text: 'SEU TÍTULO', x: canvas.width / 2, y: canvas.height * .72, fontSize: 108, weight: 800, color: '#ffffff', font: 'Nunito', align: 'center', opacity: 1 }); setStatus('Texto adicionado. Arraste ou edite no painel lateral.'); }
   function addShape() { addLayer({ type: 'shape', x: canvas.width / 2, y: canvas.height * .55, width: 760, height: 220, fill: '#9b4dff', stroke: '#cf7cff', strokeWidth: 5, opacity: .86 }); setStatus('Forma adicionada.'); }
+  function addLine() { addLayer({ type: 'shape', x: canvas.width / 2, y: canvas.height * .55, width: 760, height: 18, fill: '#cf7cff', stroke: '#cf7cff', strokeWidth: 2, opacity: .92 }); setStatus('Linha adicionada.'); }
   function addImage(file, name = file.name) { if (!file || !file.type.startsWith('image/')) { setStatus('Escolha uma imagem PNG, JPG ou WebP.'); return; } const url = URL.createObjectURL(file); const image = new Image(); image.onload = () => { const scale = Math.min(canvas.width * .86 / image.naturalWidth, canvas.height * .72 / image.naturalHeight, 1); const layer = { type: 'image', name, x: canvas.width / 2, y: canvas.height * .42, width: image.naturalWidth * scale, height: image.naturalHeight * scale, opacity: 1 }; remember(); layer.id = uid(); editor.images.set(layer.id, image); editor.layers.push(layer); editor.selected = layer.id; render(); setStatus('Imagem adicionada localmente. Nada foi enviado ao servidor.'); URL.revokeObjectURL(url); }; image.onerror = () => { URL.revokeObjectURL(url); setStatus('Não foi possível abrir essa imagem.'); }; image.src = url; }
   canvas.addEventListener('pointerdown', event => { const point = pointFromEvent(event); const layer = [...editor.layers].reverse().find(item => hit(item, point)); editor.selected = layer?.id || null; if (layer) { editor.drag = { layer, point, moved: false, before: current() }; canvas.setPointerCapture?.(event.pointerId); } render(); });
   canvas.addEventListener('pointermove', event => { if (!editor.drag) return; const point = pointFromEvent(event); const dx = point.x - editor.drag.point.x; const dy = point.y - editor.drag.point.y; if (Math.abs(dx) + Math.abs(dy) > 2) editor.drag.moved = true; editor.drag.layer.x += dx; editor.drag.layer.y += dy; editor.drag.point = point; renderCanvas(); });
   canvas.addEventListener('pointerup', () => { if (editor.drag?.moved) { editor.history.push(editor.drag.before); editor.future = []; } editor.drag = null; render(); });
   document.getElementById('thumbnail-image').addEventListener('change', event => addImage(event.target.files?.[0]));
   document.getElementById('thumbnail-add-text').addEventListener('click', addText); document.getElementById('thumbnail-add-shape').addEventListener('click', addShape);
+  document.getElementById('thumbnail-tool-select').addEventListener('click', () => setStatus('Modo seleção ativo. Arraste qualquer camada no canvas.'));
+  document.getElementById('thumbnail-tool-image').addEventListener('click', () => document.getElementById('thumbnail-image').click());
+  document.getElementById('thumbnail-tool-shape').addEventListener('click', addShape);
+  document.getElementById('thumbnail-tool-line').addEventListener('click', addLine);
+  document.getElementById('thumbnail-tool-text').addEventListener('click', addText);
   document.getElementById('thumbnail-undo').addEventListener('click', () => { if (!editor.history.length) return; editor.future.push(current()); restore(editor.history.pop()); });
   document.getElementById('thumbnail-redo').addEventListener('click', () => { if (!editor.future.length) return; editor.history.push(current()); restore(editor.future.pop()); });
   document.getElementById('thumbnail-reset').addEventListener('click', () => { if (!editor.layers.length) return; remember(); editor.layers = []; editor.selected = null; render(); setStatus('Tela limpa.'); });
-  document.getElementById('thumbnail-zoom-out').addEventListener('click', () => { editor.zoom = Math.max(.55, editor.zoom - .1); render(); }); document.getElementById('thumbnail-zoom-in').addEventListener('click', () => { editor.zoom = Math.min(1.5, editor.zoom + .1); render(); });
+  const zoomOut = () => { editor.zoom = Math.max(.55, editor.zoom - .1); render(); }; const zoomIn = () => { editor.zoom = Math.min(1.5, editor.zoom + .1); render(); };
+  document.getElementById('thumbnail-zoom-out').addEventListener('click', zoomOut); document.getElementById('thumbnail-zoom-in').addEventListener('click', zoomIn); document.getElementById('thumbnail-zoom-out-top').addEventListener('click', zoomOut); document.getElementById('thumbnail-zoom-in-top').addEventListener('click', zoomIn);
   function exportThumbnail(format) { renderCanvas(); const extension = format === 'image/jpeg' ? 'jpg' : 'png'; canvas.toBlob(blob => { if (!blob) { setStatus('Não foi possível exportar a imagem.'); return; } const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'thumbnail-zuefy.' + extension; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 60000); setStatus(extension === 'jpg' ? 'JPEG exportado para o seu dispositivo.' : 'PNG exportado para o seu dispositivo.'); }, format, format === 'image/jpeg' ? .92 : undefined); }
   document.getElementById('thumbnail-export').addEventListener('click', () => exportThumbnail('image/png')); document.getElementById('thumbnail-export-jpeg').addEventListener('click', () => exportThumbnail('image/jpeg'));
   document.addEventListener('keydown', event => { if (event.key === 'Delete' && editor.selected && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName || '')) { remember(); editor.layers = editor.layers.filter(layer => layer.id !== editor.selected); editor.selected = editor.layers.at(-1)?.id || null; render(); } });
@@ -155,7 +162,7 @@ async function boot() {
   const localPreview = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const thumbnailEditor = initThumbnailEditor();
   const state = { client: null, session: null, job: null, stages: [], capabilities: [], dirty: new Set(), selected: new Set(), requests: new Set(), generation: 0, timer: null, busy: false, refreshing: false, authRejected: false, activeStage: 'roteiro', activeView: 'start' };
-  const viewHashes = { start: 'start-heading', editor: 'editor-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
+  const viewHashes = { start: 'start-heading', editor: 'editor-heading', downloads: 'downloads-heading', import: 'import-heading', flow: 'flow-heading', artifacts: 'artifacts-heading' };
   function viewFromHash() {
     const hash = window.location.hash.slice(1);
     return Object.entries(viewHashes).find(([, id]) => id === hash)?.[0] || 'start';
@@ -254,6 +261,7 @@ async function boot() {
     }
     syncStartStageOptions();
     $('run').disabled = unresolved || state.busy || !state.job || state.dirty.size > 0 || !state.selected.size;
+    syncDownloadControls();
   }
   function syncStartStageOptions() {
     const container = $('start-stage-options');
@@ -268,6 +276,54 @@ async function boot() {
       input.disabled = !available || state.busy || ['queued', 'running'].includes(stage?.status);
       option.classList.toggle('is-unavailable', input.disabled && !available);
     }
+  }
+  function downloadEntries() {
+    const input = $('download-links');
+    if (!input) return [];
+    return input.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(raw => {
+      try { return { raw, url: officialURL(raw), error: '' }; } catch (error) { return { raw, url: '', error: error.message }; }
+    });
+  }
+  function renderDownloadCandidates() {
+    const list = $('download-candidates');
+    if (!list) return;
+    list.replaceChildren();
+    const entries = downloadEntries();
+    if (!entries.length) { list.append(node('p', 'Os links colados aparecerão aqui para uma ação individual.', 'hint')); return; }
+    for (const [index, entry] of entries.entries()) {
+      const row = node('article', undefined, 'download-candidate');
+      const meta = node('div', undefined, 'download-candidate-meta');
+      meta.append(node('strong', `Vídeo ${index + 1}`), node('span', entry.error || entry.url));
+      const button = node('button', entry.error ? 'Link inválido' : 'Baixar vídeo'); button.type = 'button'; button.dataset.downloadUrl = entry.url; button.disabled = Boolean(entry.error);
+      if (!entry.error) button.addEventListener('click', () => action(() => downloadVideo(entry.url, button)));
+      row.append(meta, button); list.append(row);
+    }
+    syncDownloadControls();
+  }
+  function syncDownloadControls() {
+    const consent = $('download-consent');
+    const localBlocked = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const enabled = Boolean(consent?.checked) && !localBlocked && Boolean(state.session) && !state.authRejected && !state.busy;
+    for (const button of document.querySelectorAll('#download-candidates button[data-download-url]')) button.disabled = !enabled;
+    const status = $('download-status');
+    if (status && localBlocked) status.textContent = 'Prévia local: abra o endereço publicado para habilitar downloads autenticados.';
+    else if (status && !consent?.checked) status.textContent = 'Marque a confirmação e clique em um vídeo para iniciar uma requisição.';
+  }
+  async function downloadVideo(url, button) {
+    if (window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname)) throw new Error('Downloads ficam disponíveis somente no endereço publicado.');
+    if (!state.session) throw new Error('Entre no aplicativo antes de baixar um vídeo.');
+    const quality = $('download-quality').value;
+    button.textContent = 'Preparando…';
+    $('download-status').textContent = 'Download solicitado manualmente. A mídia será entregue pelo servidor autenticado.';
+    try {
+      const query = new URLSearchParams({ url, mode: 'auto', quality });
+      const blob = await api('/api/video-dl?' + query.toString(), { blob: true, timeoutMs: 180000 });
+      const href = URL.createObjectURL(blob); const anchor = node('a'); anchor.href = href; anchor.download = 'video-zuefy-' + quality + '.mp4'; document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(href), 60000);
+      $('download-status').textContent = 'Download concluído. O arquivo foi enviado para o seu dispositivo.';
+    } catch (error) {
+      $('download-status').textContent = error.message;
+      throw error;
+    } finally { button.textContent = 'Baixar vídeo'; }
   }
   function renderStartStageOptions() {
     const container = $('start-stage-options');
@@ -482,6 +538,11 @@ async function boot() {
     cards.set(name, { root, check, badge, message, output, copy, run: runButton });
   }
   renderStartStageOptions();
+  $('download-links').addEventListener('input', renderDownloadCandidates);
+  $('download-quality').addEventListener('change', controls);
+  $('download-consent').addEventListener('change', controls);
+  $('download-clear').addEventListener('click', () => { $('download-links').value = ''; renderDownloadCandidates(); $('download-links').focus(); });
+  renderDownloadCandidates();
   for (const field of [...FIELDS, 'base_url']) $(field).addEventListener('input', () => { state.dirty.add(field); controls(); });
   $('editor').addEventListener('submit', event => {
     event.preventDefault(); action(async () => {
