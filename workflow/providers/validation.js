@@ -16,7 +16,7 @@ function str(value, max, code = 'INVALID_INPUT', empty = false) {
 }
 function noSecrets(value, env, code = 'INVALID_INPUT') {
   // Defense in depth for known provider credentials, not a general secret scanner.
-  const secrets = ['ANTHROPIC_API_KEY', 'ELEVENLABS_API_KEY'].map(name => env[name]).filter(s => typeof s === 'string' && s);
+  const secrets = ['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'ELEVENLABS_API_KEY'].map(name => env[name]).filter(s => typeof s === 'string' && s);
   const visit = item => {
     if (typeof item === 'string' && secrets.some(secret => item.includes(secret))) throw fail(code);
     if (Array.isArray(item)) item.forEach(visit);

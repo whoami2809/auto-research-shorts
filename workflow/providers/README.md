@@ -41,10 +41,13 @@ esta interface não recebe arquivos existentes e não pode descobrir esses arqui
 
 ## APIs e início externo
 
-Anthropic: API oficial `https://api.anthropic.com/v1/messages`, versão
-`2023-06-01`, `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL` obrigatórios. Modelo vem
-exclusivamente do ambiente; exemplo de configuração é responsabilidade do deploy,
-sem fallback automático. Requisição só contém system/text user/max_tokens/model:
+Gemini: API oficial `https://generativelanguage.googleapis.com/v1beta`, usando
+`GEMINI_API_KEY` + `GEMINI_MODEL` obrigatórios para a rota principal. A chave vai
+somente no header `x-goog-api-key`; nunca entra na URL, no corpo ou nos logs. O
+modelo vem exclusivamente do ambiente e a resposta é exigida em JSON. Anthropic
+continua aceito apenas como compatibilidade temporária quando Gemini não estiver
+configurado; não é fallback automático após uma chamada Gemini.
+Requisição Gemini só contém systemInstruction/contents/generationConfig:
 não há tools, web fetch, SDK com retry ou continuação automática. Redirects negados.
 JSON puro validado localmente; markdown, tool_use, truncamento e campos extras
 são recusados. Knowledge integral separada dos dados em arquivos individuais.

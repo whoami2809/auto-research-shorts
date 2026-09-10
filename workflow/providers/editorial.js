@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { LIMITS, fail, object, str, noSecrets, inputData, mark } = require('./validation');
-const ENDPOINT = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const SKILLS = { roteiro: 'shorts-traduzir-remodelar', titulos: 'shorts-titulos', seo: 'shorts-seo' };
 const CONTRACTS = {
   roteiro: 'Retorne somente JSON {"script":string}. Gere apenas o roteiro limpo conforme operation. Máximo 12000 caracteres.',
@@ -69,17 +70,32 @@ async function readBounded(response) {
 }
 function editorial(stage, env, fetchImpl) {
   return async context => {
-    const key = env.ANTHROPIC_API_KEY;
-    const model = env.ANTHROPIC_MODEL;
-    if (typeof key !== 'string' || !/^[\x21-\x7e]{8,512}$/u.test(key) || typeof model !== 'string' || !/^claude-[a-z0-9-]{1,100}$/u.test(model)) throw fail('CONFIG_MISSING');
+    const geminiKey = env.GEMINI_API_KEY;
+    const geminiModel = env.GEMINI_MODEL;
+    const hasGemini = typeof geminiKey === 'string' && /^[\x21-\x7e]{8,512}$/u.test(geminiKey)
+      && typeof geminiModel === 'string' && /^gemini-[a-z0-9.-]{1,100}$/u.test(geminiModel);
+    const anthropicKey = env.ANTHROPIC_API_KEY;
+    const anthropicModel = env.ANTHROPIC_MODEL;
+    const hasAnthropic = typeof anthropicKey === 'string' && /^[\x21-\x7e]{8,512}$/u.test(anthropicKey)
+      && typeof anthropicModel === 'string' && /^claude-[a-z0-9-]{1,100}$/u.test(anthropicModel);
+    if (!hasGemini && !hasAnthropic) throw fail('CONFIG_MISSING');
+    const provider = hasGemini ? 'gemini' : 'anthropic';
+    const key = provider === 'gemini' ? geminiKey : anthropicKey;
+    const model = provider === 'gemini' ? geminiModel : anthropicModel;
     const safe = inputData(context.input, context.outputs, stage);
     noSecrets(safe, env);
-    const request = { model, max_tokens: 8192, system: systemFor(stage), messages: [{ role: 'user', content: JSON.stringify({ untrusted_data: safe }) }] };
+    const request = provider === 'gemini'
+      ? { systemInstruction: { parts: [{ text: systemFor(stage) }] }, contents: [{ role: 'user', parts: [{ text: JSON.stringify({ untrusted_data: safe }) }] }], generationConfig: { maxOutputTokens: 8192, responseMimeType: 'application/json' } }
+      : { model, max_tokens: 8192, system: systemFor(stage), messages: [{ role: 'user', content: JSON.stringify({ untrusted_data: safe }) }] };
     const signal = context.signal ? AbortSignal.any([context.signal, AbortSignal.timeout(LIMITS.timeout)]) : AbortSignal.timeout(LIMITS.timeout);
     await mark(context);
     let response, raw;
     try {
-      response = await fetchImpl(ENDPOINT, { method: 'POST', redirect: 'error', signal, headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(request) });
+      const endpoint = provider === 'gemini' ? `${GEMINI_ENDPOINT}${encodeURIComponent(model)}:generateContent` : ANTHROPIC_ENDPOINT;
+      const headers = provider === 'gemini'
+        ? { 'content-type': 'application/json', 'x-goog-api-key': key }
+        : { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' };
+      response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error', signal, headers, body: JSON.stringify(request) });
       if (!response.ok) {
         await response.body?.cancel();
         throw fail(response.status >= 500 || response.status === 408 ? 'EXTERNAL_OUTCOME_UNKNOWN' : 'EXTERNAL_REJECTED');
@@ -91,8 +107,11 @@ function editorial(stage, env, fetchImpl) {
     }
     try {
       const envelope = JSON.parse(raw);
-      if (envelope.stop_reason !== 'end_turn' || !Array.isArray(envelope.content) || envelope.content.length !== 1 || envelope.content[0].type !== 'text') throw fail('INVALID_OUTPUT');
-      const data = JSON.parse(str(envelope.content[0].text, LIMITS.response, 'INVALID_OUTPUT'));
+      const text = provider === 'gemini'
+        ? (envelope.candidates?.length === 1 && envelope.candidates[0].finishReason === 'STOP' && envelope.candidates[0].content?.parts?.length === 1 && typeof envelope.candidates[0].content.parts[0].text === 'string' ? envelope.candidates[0].content.parts[0].text : null)
+        : (envelope.stop_reason === 'end_turn' && Array.isArray(envelope.content) && envelope.content.length === 1 && envelope.content[0].type === 'text' ? envelope.content[0].text : null);
+      if (typeof text !== 'string') throw fail('INVALID_OUTPUT');
+      const data = JSON.parse(str(text, LIMITS.response, 'INVALID_OUTPUT'));
       noSecrets(data, env, 'INVALID_OUTPUT');
       const validated = validate(stage, data, safe);
       noSecrets(validated, env, 'INVALID_OUTPUT');
