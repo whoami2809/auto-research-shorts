@@ -139,6 +139,11 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /id="download-consent" type="checkbox"/);
   assert.match(html, /id="download-all"[^>]*>Baixar vídeos/);
   assert.match(html, /id="download-links"/);
+  assert.match(html, /option value="4320">8K \(4320p\)/);
+  assert.match(html, /option value="2160">4K \(2160p\)/);
+  assert.match(html, /option value="1440">2K \/ QHD \(1440p\)/);
+  assert.match(html, /option value="720">720p HD/);
+  assert.match(html, /maior resolução disponível até o limite escolhido/);
   assert.match(js, /download-all.*addEventListener\('click'/s);
   assert.match(html, /id="thumbnail-tool-line"/);
   assert.match(js, /function resizeHandle/);

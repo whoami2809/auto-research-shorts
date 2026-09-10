@@ -73,7 +73,7 @@
             <p class="hint lead-hint">Cole um link oficial por linha. Marque a confirmação e use “Baixar vídeos” para baixar todos, ou o botão individual de cada vídeo.</p>
             <label>Links oficiais dos vídeos<small class="field-help">Aceitos: YouTube, TikTok, Instagram e Facebook, sempre em HTTPS.</small><textarea id="download-links" rows="6" placeholder="https://www.youtube.com/...&#10;https://www.tiktok.com/..." spellcheck="false"></textarea></label>
             <div class="download-controls">
-              <label>Qualidade<select id="download-quality"><option value="max">Máxima disponível</option><option value="1080">1080p</option><option value="720">720p</option></select></label>
+              <label>Qualidade máxima<small class="field-help">A fonte pode entregar menos; nesse caso, o servidor usa a maior resolução disponível até o limite escolhido.</small><select id="download-quality"><option value="max">Máxima disponível</option><option value="4320">8K (4320p)</option><option value="2160">4K (2160p)</option><option value="1440">2K / QHD (1440p)</option><option value="1080">1080p Full HD</option><option value="720">720p HD</option></select></label>
               <label class="download-consent"><span><input id="download-consent" type="checkbox"> Confirmo que tenho autorização para baixar estes vídeos.</span><small class="field-help">Essa confirmação não é concedida automaticamente pelo link.</small></label>
               <button id="download-all" class="primary" type="button" disabled>Baixar vídeos</button><button id="download-clear" type="button">Limpar links</button>
             </div>
