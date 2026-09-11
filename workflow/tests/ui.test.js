@@ -63,6 +63,16 @@ test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.doesNotMatch(app, /showSaveFilePicker/);
   assert.match(server, /--embed-metadata/);
 });
+test('multi-download oferece colagem normalizada somente no modal em lote', () => {
+  assert.match(app, /id="multiPasteBtn"/);
+  assert.match(app, /id="multiPasteStatus" role="status"/);
+  assert.match(app, /navigator\.clipboard\.readText\(\)/);
+  assert.match(app, /function linksFromClipboard\(value\)/);
+  assert.match(app, /function isSupportedLink\(value\)/);
+  assert.ok(app.includes('(?=https?:\\/\\/'));
+  assert.match(app, /allLinks\.join\('\\n'\)/);
+  assert.match(app, /\.slice\(0,25\)/);
+});
 test('Lens do app envia o frame autenticado e trata popup bloqueado', () => {
   assert.match(app, /function lensDestination\(publicUrl\)/);
   assert.match(app, /window\.open\('about:blank','_blank'\)/);
@@ -73,11 +83,19 @@ test('Lens do app envia o frame autenticado e trata popup bloqueado', () => {
 });
 test('YouTube evita cliente web limitado e mantém seletores das outras plataformas', () => {
   assert.match(dockerfile, /bgutil-ytdlp-pot-provider:2\.0\.0/);
-  assert.match(server, /player_client=android_vr,web_embedded,mweb/);
+  assert.match(server, /player_client=mweb;fetch_pot=always/);
+  assert.doesNotMatch(server, /const visitorData = videoId \? await fetchAnonymousVisitorData/);
+  assert.doesNotMatch(server, /player_client=android_vr,web_embedded,mweb/);
   assert.doesNotMatch(server, /player_client=web,web_embedded,mweb,android_vr/);
   assert.doesNotMatch(server, /player_skip=webpage,configs/);
   assert.match(server, /bestvideo\[height<=\$\{h\}\]\+bestaudio/);
   assert.match(server, /TikTok, Instagram, Facebook/);
+});
+test('multi-download só aplica espera defensiva quando há YouTube no lote', () => {
+  assert.match(app, /var YOUTUBE_GAP_MS = 8000/);
+  assert.match(app, /function isYoutubeLink\(value\)/);
+  assert.match(app, /var needsYoutubeGap = i > 0 && \(isYoutubeLink\(links\[i-1\]\) \|\| isYoutubeLink\(links\[i\]\)\)/);
+  assert.doesNotMatch(app, /var GAP_MS = 8000/);
 });
 test('consentimentos, escolhas e API de execução independentes', () => {
   assert.doesNotMatch(html, /\bchecked\b/);
