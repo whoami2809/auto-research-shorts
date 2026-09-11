@@ -50,6 +50,12 @@ test('Supabase fixado na mesma major usada pelo site; sessão padrão e autentic
   assert.match(js, /redirect: 'error'/);
   assert.doesNotMatch(js, /localStorage\.setItem|console\.log/);
 });
+test('downloads do app principal enviam a sessão explicitamente', () => {
+  assert.match(app, /function authenticatedApiFetch\(input, init\)/);
+  assert.match(app, /headers\.set\('Authorization','Bearer '\+session\.access_token\)/);
+  assert.match(app, /var response=await authenticatedApiFetch\(dlUrl\)/);
+  assert.match(app, /var res = await authenticatedApiFetch\('\/api\/video-dl\?' \+ qs\)/);
+});
 test('consentimentos, escolhas e API de execução independentes', () => {
   assert.doesNotMatch(html, /\bchecked\b/);
   assert.match(js, /request_id: uuid\(\)/);
