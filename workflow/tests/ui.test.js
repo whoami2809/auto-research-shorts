@@ -9,6 +9,7 @@ const html = readFileSync(resolve(root, 'workflow.html'), 'utf8');
 const css = readFileSync(resolve(root, 'workflow.css'), 'utf8');
 const app = readFileSync(resolve(root, 'index.html'), 'utf8');
 const server = readFileSync(resolve(__dirname, '../../server.js'), 'utf8');
+const dockerfile = readFileSync(resolve(__dirname, '../../Dockerfile'), 'utf8');
 const context = vm.createContext({ URL, atob, Date });
 vm.runInContext(js, context);
 const invoke = (name, ...args) => { context.args = args; return vm.runInContext(`${name}(...args)`, context); };
@@ -69,6 +70,14 @@ test('Lens do app envia o frame autenticado e trata popup bloqueado', () => {
   assert.match(app, /frame\.lensBusy/);
   assert.match(app, /authenticatedApiFetch\('\/api\/frame'/);
   assert.match(app, /lensDestination\(publicUrl\)/);
+});
+test('YouTube evita cliente web limitado e mantém seletores das outras plataformas', () => {
+  assert.match(dockerfile, /bgutil-ytdlp-pot-provider:2\.0\.0/);
+  assert.match(server, /player_client=android_vr,web_embedded,mweb/);
+  assert.doesNotMatch(server, /player_client=web,web_embedded,mweb,android_vr/);
+  assert.doesNotMatch(server, /player_skip=webpage,configs/);
+  assert.match(server, /bestvideo\[height<=\$\{h\}\]\+bestaudio/);
+  assert.match(server, /TikTok, Instagram, Facebook/);
 });
 test('consentimentos, escolhas e API de execução independentes', () => {
   assert.doesNotMatch(html, /\bchecked\b/);

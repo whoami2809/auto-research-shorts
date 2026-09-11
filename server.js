@@ -468,9 +468,11 @@ app.get('/api/video-dl',async(req,res)=>{
   // bgutil local consegue gerar o token. Não pulamos mais a webpage/configs, pois
   // era justamente isso que removia os dados necessários e deixava só 360p.
   if(videoId){
+    // O cliente web passou a sofrer 429 no IP compartilhado do Render. Os
+    // clientes android_vr/web_embedded não dependem desse endpoint bloqueado;
+    // mweb fica como fallback e recebe PO Token pelo bgutil 2.x.
     const youtubeArgs = [
-      'player_client=web,web_embedded,mweb,android_vr',
-      'player_skip=webpage,configs',
+      'player_client=android_vr,web_embedded,mweb',
       visitorData ? `visitor_data=${visitorData}` : null,
     ].filter(Boolean).join(';');
     args.push(
