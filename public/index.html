@@ -1220,16 +1220,6 @@ async function triggerServerDownload(itag, url){
     + (map.quality      ? '&quality='     + map.quality      : '')
     + (map.audioFormat  ? '&audioFormat=' + map.audioFormat  : '')
     + (map.audioBitrate ? '&audioBitrate='+ map.audioBitrate : '');
-  var fileHandle=null;
-  if(window.showSaveFilePicker){
-    try{
-      fileHandle=await window.showSaveFilePicker({suggestedName:fallback});
-    }catch(e){
-      if(e&&e.name==='AbortError')return false;
-      fileHandle=null;
-    }
-  }
-
   setDlMsg('\u23f3 Preparando '+(map.quality==='max'?'a melhor qualidade':(map.quality||'o áudio'))+'...','var(--accent2)');
   showStatus('Baixando e processando a mídia...');
   try{
@@ -1239,19 +1229,14 @@ async function triggerServerDownload(itag, url){
     if(!response.ok)throw new Error(await responseError(response));
     var filename=downloadFilename(response,fallback);
 
-    // Chromium grava o stream direto no disco, sem guardar um vídeo 4K inteiro na
-    // memória. Outros navegadores continuam funcionando pelo fallback universal.
-    if(fileHandle&&response.body){
-      var writable=await fileHandle.createWritable();
-      await response.body.pipeTo(writable);
-    }else{
-      var blob=await response.blob();
-      var blobUrl=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=blobUrl;a.download=filename;a.style.display='none';
-      document.body.appendChild(a);a.click();
-      setTimeout(function(){URL.revokeObjectURL(blobUrl);a.remove();},4000);
-    }
+    // O download padrão evita abrir um seletor nativo que pode bloquear
+    // navegadores embutidos. O lote já usa o mesmo caminho compatível.
+    var blob=await response.blob();
+    var blobUrl=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=blobUrl;a.download=filename;a.style.display='none';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(blobUrl);a.remove();},4000);
     setDlMsg('\u2705 Download concluído: '+filename,'var(--success)');
     showToast('\u2705 Download concluído','var(--success)');
     return true;

@@ -59,6 +59,7 @@ test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.match(app, /var response=await authenticatedApiFetch\(dlUrl\)/);
   assert.match(app, /var res = await authenticatedApiFetch\('\/api\/video-dl\?' \+ qs\)/);
   assert.match(app, /var filename = downloadFilename\(res, 'video\.mp4'\)/);
+  assert.doesNotMatch(app, /showSaveFilePicker/);
   assert.match(server, /--embed-metadata/);
 });
 test('consentimentos, escolhas e API de execução independentes', () => {
