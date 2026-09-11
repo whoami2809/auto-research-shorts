@@ -53,6 +53,8 @@ test('Supabase fixado na mesma major usada pelo site; sessão padrão e autentic
 });
 test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.match(app, /function authenticatedApiFetch\(input, init\)/);
+  assert.match(app, /@supabase\/supabase-js@2\.116\.0\/\+esm/);
+  assert.match(app, /Date\.now\(\)-started>=10000/);
   assert.match(app, /headers\.set\('Authorization','Bearer '\+session\.access_token\)/);
   assert.match(app, /var response=await authenticatedApiFetch\(dlUrl\)/);
   assert.match(app, /var res = await authenticatedApiFetch\('\/api\/video-dl\?' \+ qs\)/);

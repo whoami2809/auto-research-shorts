@@ -851,7 +851,7 @@ body.auth-locked #authScreen{display:flex}
 <div id="toastContainer"></div>
 <canvas id="canvas" style="display:none"></canvas>
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
 
 const supabase = createClient(
   'https://vpsyazqueqjgtaavqzyk.supabase.co',
@@ -1182,6 +1182,18 @@ function downloadFilename(response, fallback){
 // ativo para as outras APIs, mas o caminho de mídia não depende somente dele.
 async function authenticatedApiFetch(input, init){
   var client=window.arsSupabase;
+  // O módulo de autenticação é carregado de forma assíncrona. Aguarde uma
+  // janela curta para evitar que um clique muito rápido fique sem Bearer.
+  if(!client){
+    await new Promise(function(resolve){
+      var started=Date.now();
+      (function waitForClient(){
+        if(window.arsSupabase||Date.now()-started>=10000)return resolve();
+        setTimeout(waitForClient,50);
+      }());
+    });
+    client=window.arsSupabase;
+  }
   if(!client||!client.auth) throw new Error('A autenticação ainda não carregou. Atualize a página e entre novamente.');
   var auth=await client.auth.getSession();
   var session=auth&&auth.data&&auth.data.session;
