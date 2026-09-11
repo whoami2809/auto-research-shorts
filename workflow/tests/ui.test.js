@@ -88,7 +88,7 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /href="\.\/workflow\.css"/);
   assert.match(html, /src="\.\/workflow\.js\?v=/);
   assert.match(html, /class="workflow-rail"/);
-  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-20/);
+  assert.match(html, /workflow\.js\?v=20260910-workflow-controls-21/);
   assert.doesNotMatch(html, /download-local-note[^>]*>Ação manual/);
   assert.match(html, /<fieldset id="app">/);
   assert.doesNotMatch(html, /<fieldset id="app" disabled>/);
@@ -124,6 +124,8 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /id="editorial-run-seo"/);
   assert.match(js, /run\(\[name\], true\)/);
   assert.match(js, /function executeStage/);
+  assert.match(js, /const unavailable = !localPreview && capability\?\.available !== true/);
+  assert.match(js, /\|\| unavailable/);
   assert.match(js, /const EDITORIAL_REQUIREMENTS/);
   assert.match(js, /function editorialInputError/);
   assert.match(js, /Crie ou selecione um projeto e salve-o antes de executar esta função/);
@@ -147,6 +149,8 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /className = 'job-delete'/);
   assert.match(js, /method: 'DELETE'/);
   assert.match(js, /function prepareAnalysis/);
+  assert.match(js, /const hasBaseUrl = Boolean\(\$\('base_url'\)\.value\.trim\(\)\)/);
+  assert.match(js, /const masterBlocked =/);
   assert.match(js, /Cole um link oficial de YouTube/);
   assert.match(css, /job-delete/);
   assert.match(js, /window\.location\.protocol === 'file:'/);
@@ -170,7 +174,9 @@ test('acessibilidade e responsividade', () => {
   assert.match(html, /option value="720">720p HD/);
   assert.match(html, /maior resolução disponível até o limite escolhido/);
   assert.match(js, /download-all.*addEventListener\('click'/s);
-  assert.match(js, /downloadAll\.disabled = !canRequest/);
+  assert.match(js, /downloadAll\.disabled = !enabled/);
+  assert.match(js, /const hasValidEntries = downloadEntries\(\)\.some\(entry => !entry\.error\)/);
+  assert.match(js, /const enabled = Boolean\(consent\?\.checked\) && canRequest && hasValidEntries/);
   assert.match(js, /Marque a confirmação de autorização antes de baixar/);
   assert.match(js, /Cole pelo menos um link oficial válido para começar/);
   assert.match(html, /id="thumbnail-tool-line"/);

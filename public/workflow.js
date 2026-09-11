@@ -287,7 +287,10 @@ async function boot() {
     }
     $('refresh').disabled = (!localPreview && backendLocked) || state.busy;
     const blockingDirty = [...state.dirty].some(field => field !== 'base_url');
-    $('master-run').disabled = state.busy || unresolved || !state.selected.size || (!localPreview && (!state.job || blockingDirty));
+    const hasBaseUrl = Boolean($('base_url').value.trim());
+    const masterBlocked = state.busy || unresolved || !state.selected.size || (!localPreview && (!state.job || blockingDirty || !hasBaseUrl));
+    $('master-run').disabled = masterBlocked;
+    $('master-run').title = localPreview ? '' : !state.job ? 'Crie ou selecione um projeto e salve-o antes de analisar.' : blockingDirty ? 'Salve as alterações do projeto antes de analisar.' : !hasBaseUrl ? 'Cole o link oficial do vídeo-base antes de analisar.' : '';
     $('retry-run').hidden = !unresolved;
     $('retry-run').disabled = state.busy;
     $('run-warning').textContent = warnings.get(runKey()) || '';
@@ -299,8 +302,9 @@ async function boot() {
       if (!button) continue;
       const capability = state.capabilities.find(item => item.name === name);
       const stage = state.stages.find(item => item.name === name);
-      button.disabled = state.busy || unresolved || ['queued', 'running'].includes(stage?.status);
-      button.title = capability?.available !== true ? (capability?.reason || 'A autorização/configuração desta etapa ainda está pendente.') : !state.job ? 'Crie ou selecione um projeto e salve-o antes de executar.' : state.dirty.size ? 'Salve as alterações do projeto antes de executar.' : editorialInputError(name) || '';
+      const unavailable = !localPreview && capability?.available !== true;
+      button.disabled = state.busy || unresolved || ['queued', 'running'].includes(stage?.status) || unavailable;
+      button.title = unavailable ? (capability?.reason || 'A autorização/configuração desta etapa ainda está pendente.') : !state.job ? 'Crie ou selecione um projeto e salve-o antes de executar.' : state.dirty.size ? 'Salve as alterações do projeto antes de executar.' : editorialInputError(name) || '';
     }
     syncStartStageOptions();
     syncDownloadControls();
@@ -353,11 +357,11 @@ async function boot() {
     const consent = $('download-consent');
     const localBlocked = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const canRequest = !localBlocked && Boolean(state.session) && !state.authRejected && !state.busy;
-    const enabled = Boolean(consent?.checked) && canRequest;
-    for (const button of document.querySelectorAll('#download-candidates button[data-download-url]')) button.disabled = !enabled;
     const hasValidEntries = downloadEntries().some(entry => !entry.error);
+    const enabled = Boolean(consent?.checked) && canRequest && hasValidEntries;
+    for (const button of document.querySelectorAll('#download-candidates button[data-download-url]')) button.disabled = !enabled;
     const downloadAll = $('download-all');
-    downloadAll.disabled = !canRequest;
+    downloadAll.disabled = !enabled;
     downloadAll.title = localBlocked ? 'Downloads ficam disponíveis somente no endereço publicado.' : !state.session ? 'Entre no aplicativo antes de baixar.' : !hasValidEntries ? 'Cole pelo menos um link oficial válido.' : !consent?.checked ? 'Marque a autorização para baixar.' : '';
     const status = $('download-status');
     if (status && localBlocked) status.textContent = 'Prévia local: abra o endereço publicado para habilitar downloads autenticados.';

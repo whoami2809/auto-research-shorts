@@ -31,6 +31,9 @@ app.use('/api',(req,res,next)=>{
   return authMiddleware(req,res,next);
 });
 app.use('/api/workflow',createRouter({store:workflowStore,engine:workflowEngine,validateImport:mediaProviders.validateImport}));
+app.get('/app', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 app.use(express.static('public'));
 
 // Suporte direto para a rota do workflow no servidor Express (mantido

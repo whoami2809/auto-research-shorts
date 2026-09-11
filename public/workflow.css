@@ -38,14 +38,12 @@
 
 /* Compact, full-viewport workflow: one function visible at a time. */
 main{max-width:none;width:100%;padding-left:clamp(14px,2vw,32px);padding-right:clamp(14px,2vw,32px)}
-.back-link{margin-left:auto;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none;transition:.2s}.back-link:hover,.back-link:focus-visible{color:var(--fg);text-shadow:0 0 16px rgba(207,124,255,.45)}
 .layout{grid-template-columns:minmax(220px,260px) minmax(0,1fr);gap:18px}
 .content{gap:18px}.panel{padding:22px}.queue-help{margin:14px 0 4px;color:var(--muted);font-size:11px;line-height:1.5}
 .jobs{gap:8px}.jobs li{position:relative;min-width:0}.jobs li>button:first-child{width:100%;min-width:0;cursor:grab;touch-action:none}.jobs li>button:first-child:active{cursor:grabbing}.jobs li.is-dragging{opacity:.42}.jobs li.is-drop-target>button:first-child{border-color:var(--violet);box-shadow:0 0 24px rgba(155,77,255,.28);transform:translateY(-2px)}
 .stage-tabs{display:flex;gap:7px;margin:18px 0 12px;padding-bottom:4px;overflow-x:auto;scrollbar-width:thin}.stage-tab{flex:0 0 auto;min-height:40px;padding:8px 12px;font-size:12px;color:var(--muted);background:rgba(5,5,11,.5)}.stage-tab[aria-selected=true]{color:var(--fg);border-color:var(--accent);background:rgba(155,77,255,.18);box-shadow:0 0 18px rgba(155,77,255,.12)}.stage-panels{display:block;margin:0}.stage-panels .stage[hidden]{display:none}.stage-panels .stage{min-height:250px}.stage-panels .stage>button{min-width:190px}.stage-panel-heading{display:flex;justify-content:space-between;gap:12px;align-items:start}.stage-panel-heading label{flex:1}
 @media(max-width:900px){main{padding-top:20px}.layout{grid-template-columns:1fr}.panel{padding:18px}.stage-tabs{margin-right:-4px}.stage-panels .stage{min-height:0}.workflow-nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.workflow-nav a{text-align:center;font-size:11px;padding:9px 4px}.jobs{grid-template-columns:1fr}}
 @media(max-width:540px){main{padding-left:10px;padding-right:10px}.intro{margin-top:6px}.intro>p{font-size:12px}.workflow-nav{grid-template-columns:repeat(2,minmax(0,1fr))}.stage-tab{padding:8px 10px;font-size:11px}.stage-panel-heading{display:block}.stage-panels .stage>button{width:100%}}
-@media(max-width:540px){header{align-items:flex-start;gap:12px;flex-wrap:wrap}.back-link{margin-left:0;width:100%;font-size:11px}}
 
 /* Workflow visual system: the main app's focused rail and one-purpose views. */
 #workspace{max-width:none;width:100%;padding-left:clamp(16px,3vw,48px);padding-right:clamp(16px,3vw,48px)}
@@ -163,3 +161,23 @@ button,input,textarea,select{max-width:100%}
 .start-stage-options label.is-unavailable:after{content:' · configuração pendente';color:#9a8bb8;font-size:9px;font-weight:400}
 @media(max-width:900px){.editorial-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:540px){.jobs li.job-row{grid-template-columns:minmax(0,1fr) 36px}.project-queue .jobs li.job-row>.job-delete{width:36px;min-width:36px}.editorial-grid{grid-template-columns:1fr}.editorial-output{min-height:120px}}
+
+/* Mobile rail: keep every destination reachable without shrinking touch targets. */
+@media(max-width:680px){
+  .workflow-rail,.workflow-rail-nav{scrollbar-width:none;overscroll-behavior-inline:contain}
+  .workflow-rail::-webkit-scrollbar,.workflow-rail-nav::-webkit-scrollbar{display:none}
+  .workflow-rail .workflow-nav-item{min-height:54px;font-size:10px}
+  .workflow-product{min-width:0}
+  .account-pill{font-size:10px}
+  .account-pill b{display:none}
+}
+
+@media(max-width:360px){
+  .workflow-rail{gap:10px;padding-inline:8px}
+  .rail-logo{flex-basis:54px}
+  .workflow-rail .workflow-nav-item{flex-basis:66px;width:66px;font-size:9px}
+  .workflow-topbar{gap:6px;padding-inline:10px}
+  .workflow-product{font-size:8px}
+  .workflow-product strong{max-width:126px}
+  .account-pill{padding-right:5px}
+}
