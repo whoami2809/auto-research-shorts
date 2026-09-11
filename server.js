@@ -472,7 +472,7 @@ app.get('/api/video-dl',async(req,res)=>{
     // clientes android_vr/web_embedded não dependem desse endpoint bloqueado;
     // mweb fica como fallback e recebe PO Token pelo bgutil 2.x.
     const youtubeArgs = [
-      'player_client=android_vr,web_embedded,mweb',
+      'player_client=mweb;fetch_pot=always',
       visitorData ? `visitor_data=${visitorData}` : null,
     ].filter(Boolean).join(';');
     args.push(
