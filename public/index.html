@@ -1719,42 +1719,61 @@ function captureFrame(video,time){
   });
 }
 
-// Lens: abre aba imediatamente (about:blank), faz upload, redireciona
+function lensDestination(publicUrl){
+  return 'https://lens.google.com/uploadbyurl?url='+encodeURIComponent(publicUrl);
+}
+
+// Lens: reserva a aba imediatamente (about:blank), faz upload, redireciona
 async function openLens(blob,idx){
   var frame=extractedFrames[idx];
 
-  // Se já foi pré-carregado durante a extração, abre instantaneamente
+  if(!frame||frame.lensBusy)return;
+  // Detecte popup bloqueado antes de enviar o frame para fora do app.
+  var newTab=window.open('about:blank','_blank');
+  if(!newTab){
+    showToast('\u26a0\uFE0F Permita pop-ups para abrir o Google Lens.','var(--warn)');
+    return;
+  }
+  // O popup foi aberto na ação do usuário; remova a referência reversa antes
+  // de navegar para um destino externo, sem perder o handle para redirecioná-lo.
+  try{newTab.opener=null;}catch(e){}
+  frame.lensBusy=true;
+
+  // Se o frame já tiver um URL temporário, abre instantaneamente
   if(frame&&frame.lensUrl&&frame.lensExpiresAt>Date.now()){
-    window.open('https://lens.google.com/uploadbyurl?url='+encodeURIComponent(frame.lensUrl),'_blank');
+    newTab.location.href=lensDestination(frame.lensUrl);
+    frame.lensBusy=false;
     showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
     return;
   }
-
-  // Abre aba em branco AGORA (dentro do contexto de click = sem popup block)
-  var newTab=window.open('about:blank','_blank');
 
   try{
     // O frame extraído é PNG; envie exatamente esse formato ao Lens.
     var pngBlob=await framePng(blob);
     var ab=await pngBlob.arrayBuffer();
-    var r=await fetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:AbortSignal.timeout(10000)});
+    // Este endpoint exige a sessão; não dependa do interceptor global de fetch.
+    var r=await authenticatedApiFetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:AbortSignal.timeout(10000)});
     if(!r.ok)throw new Error('upload falhou');
     var data=await r.json();
     var publicUrl=window.location.origin+data.url;
     // Redireciona a aba já aberta (sem precisar de novo window.open)
     if(newTab&&!newTab.closed){
-      newTab.location.href='https://lens.google.com/uploadbyurl?url='+encodeURIComponent(publicUrl);
+      newTab.location.href=lensDestination(publicUrl);
     }
     if(frame){frame.lensUrl=publicUrl;frame.lensExpiresAt=Date.parse(data.expires_at);}
+    frame.lensBusy=false;
     showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
   }catch(e){
     // Se falhar: tenta clipboard
     try{
-      await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+      var clipboardBlob=typeof pngBlob!=='undefined'&&pngBlob?pngBlob:blob;
+      await navigator.clipboard.write([new ClipboardItem({'image/png':clipboardBlob})]);
       if(newTab&&!newTab.closed)newTab.location.href='https://lens.google.com/upload';
+      frame.lensBusy=false;
       showToast('\u2705 Imagem copiada! Cole com Ctrl+V no Lens','var(--blue)');
     }catch(e2){
       if(newTab)newTab.close();
+      frame.lensBusy=false;
       showToast('\u26a0\uFE0F Falha no Lens. Tente de novo.','var(--warn)');
     }
   }
@@ -1772,10 +1791,6 @@ async function framePng(blob){
     return await new Promise(function(resolve,reject){localCanvas.toBlob(function(b){b?resolve(b):reject(new Error('Imagem inválida'));},'image/png');});
   }finally{bitmap.close();}
 }
-function preUploadFrameForLens(blob,frameIdx){
-  // Upload is now demand-driven: only the frame whose Lens button is clicked leaves the browser.
-}
-
 extractBtn.addEventListener('click',async function(){
   if(!currentVideoFiles.length){showToast('Carregue pelo menos um vídeo','var(--warn)');return;}
   extractBtn.disabled=true;extractBtn.textContent='\u23f3 Extraindo...';
@@ -1811,8 +1826,6 @@ extractBtn.addEventListener('click',async function(){
       var blob;try{blob=await captureFrame(video,ts[j]);}catch(e){continue;}
       var fi=extractedFrames.length;
       extractedFrames.push({blob:blob,time:ts[j],videoIdx:vi,videoName:vName,lensUrl:null});
-      // Pré-upload em background para Lens instantâneo
-      preUploadFrameForLens(blob,fi);
       var imgU=URL.createObjectURL(blob);
       var mm=String(Math.floor(ts[j]/60)).padStart(2,'0'),ss=String(Math.floor(ts[j]%60)).padStart(2,'0');
       var card=document.createElement('div');card.className='frame-card';

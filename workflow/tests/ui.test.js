@@ -62,6 +62,14 @@ test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.doesNotMatch(app, /showSaveFilePicker/);
   assert.match(server, /--embed-metadata/);
 });
+test('Lens do app envia o frame autenticado e trata popup bloqueado', () => {
+  assert.match(app, /function lensDestination\(publicUrl\)/);
+  assert.match(app, /window\.open\('about:blank','_blank'\)/);
+  assert.match(app, /Permita pop-ups para abrir o Google Lens/);
+  assert.match(app, /frame\.lensBusy/);
+  assert.match(app, /authenticatedApiFetch\('\/api\/frame'/);
+  assert.match(app, /lensDestination\(publicUrl\)/);
+});
 test('consentimentos, escolhas e API de execução independentes', () => {
   assert.doesNotMatch(html, /\bchecked\b/);
   assert.match(js, /request_id: uuid\(\)/);
