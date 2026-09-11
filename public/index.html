@@ -493,6 +493,8 @@ input[type=range]{flex:1;accent-color:var(--accent);}
   .video-sep-name{width:100%;}
   #multiModal{padding:12px;align-items:flex-start!important;overflow-y:auto;}
   .multi-card{width:100%!important;max-height:calc(100dvh - 24px);overflow-y:auto;padding:18px!important;}
+  .multi-paste-row{align-items:flex-start;flex-direction:column;}
+  .multi-paste-btn{width:100%;justify-content:center;}
   .multi-controls{display:block!important;}
   #multiQuality{width:100%;min-height:44px;}
 }
@@ -704,6 +706,10 @@ body.auth-locked #authScreen{display:flex}
       </div>
       <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Cole um link por linha. Os downloads serão processados um de cada vez para manter a estabilidade do serviço.</div>
       <textarea id="multiUrls" placeholder="https://...&#10;https://...&#10;https://..." style="width:100%;min-height:140px;background:rgba(10,11,22,.8);border:1px solid rgba(155,77,255,.22);border-radius:10px;padding:12px;color:#d9cbff;font-family:'JetBrains Mono',monospace;font-size:12px;resize:vertical;outline:none;box-sizing:border-box;"></textarea>
+      <div class="multi-paste-row" style="display:flex;gap:10px;margin-top:10px;">
+        <button id="multiPasteBtn" class="multi-paste-btn" type="button" style="display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(155,77,255,.35);border-radius:9px;padding:9px 12px;background:rgba(116,53,255,.12);color:#d9cbff;font:11px 'JetBrains Mono',monospace;cursor:pointer;">📋 Colar links da área de transferência</button>
+        <span id="multiPasteStatus" role="status" aria-live="polite" style="font:10px 'JetBrains Mono',monospace;color:var(--muted);line-height:1.5;"></span>
+      </div>
       <div class="multi-controls" style="display:flex;gap:10px;margin-top:12px;">
         <select id="multiQuality" class="txt-select" style="flex:1;">
           <option value="max|auto">Vídeo — Máxima (auto)</option>
@@ -1259,6 +1265,8 @@ async function triggerServerDownload(itag, url){
   var textarea = document.getElementById('multiUrls');
   var qualitySelect = document.getElementById('multiQuality');
   var log = document.getElementById('multiLog');
+  var pasteBtn = document.getElementById('multiPasteBtn');
+  var pasteStatus = document.getElementById('multiPasteStatus');
   if(!modal||!openBtn) return;
 
   openBtn.addEventListener('click', function(){ modal.style.display='flex'; });
@@ -1266,6 +1274,52 @@ async function triggerServerDownload(itag, url){
   modal.addEventListener('click', function(e){ if(e.target===modal) modal.style.display='none'; });
 
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  function isSupportedLink(value){
+    try{
+      var host = new URL(value).hostname.toLowerCase().replace(/^www\./,'');
+      return ['youtube.com','youtu.be','tiktok.com','vm.tiktok.com','vt.tiktok.com','instagram.com','facebook.com','m.facebook.com','fb.watch'].indexOf(host) !== -1;
+    }catch(e){ return false; }
+  }
+
+  function linksFromClipboard(value){
+    // O lookahead também separa URLs coladas sem quebra de linha (ex.: cópia do histórico do Windows).
+    var found = String(value || '').match(/https?:\/\/[^ \t\r\n<>]+?(?=https?:\/\/|[ \t\r\n<>]|$)/gi) || [];
+    return found.map(function(link){ return link.replace(/[),.;!?\]\}"']+$/g,''); })
+      .filter(isSupportedLink)
+      .filter(function(link,index,items){ return items.indexOf(link)===index; });
+  }
+
+  function linksInTextarea(){
+    return linksFromClipboard(textarea.value);
+  }
+
+  pasteBtn.addEventListener('click', async function(){
+    if(!navigator.clipboard || !navigator.clipboard.readText){
+      pasteStatus.textContent = 'Use Ctrl+V neste campo.';
+      showToast('Seu navegador não permite ler a área de transferência. Use Ctrl+V.','var(--warn)');
+      return;
+    }
+    try{
+      var clipboardText = await navigator.clipboard.readText();
+      var pastedLinks = linksFromClipboard(clipboardText);
+      if(!pastedLinks.length){
+        pasteStatus.textContent = 'Nenhum link compatível encontrado.';
+        showToast('Nenhum link oficial encontrado na área de transferência','var(--warn)');
+        return;
+      }
+      var allLinks = linksInTextarea().concat(pastedLinks)
+        .filter(function(link,index,items){ return items.indexOf(link)===index; })
+        .slice(0,25);
+      textarea.value = allLinks.join('\n');
+      pasteStatus.textContent = allLinks.length + ' link' + (allLinks.length===1?'':'s') + ' pronto' + (allLinks.length===1?'':'s') + ' para o lote.';
+      showToast('\u2705 ' + pastedLinks.length + ' link' + (pastedLinks.length===1?'':'s') + ' colado' + (pastedLinks.length===1?'':'s'),'var(--success)');
+      textarea.focus();
+    }catch(e){
+      pasteStatus.textContent = 'Permissão necessária para ler a área de transferência.';
+      showToast('Permita o acesso à área de transferência ou use Ctrl+V','var(--warn)');
+    }
+  });
 
   async function downloadOne(link, opt){
     var qs = 'url=' + encodeURIComponent(link);
@@ -1289,10 +1343,16 @@ async function triggerServerDownload(itag, url){
     return filename;
   }
 
-  // Intervalo entre cada link do lote — o YouTube limita requisições por JANELA DE
-  // TEMPO por IP, não por download simultâneo. Mesmo baixando um de cada vez, se
-  // forem muito próximos, todos tomam 429. Esse intervalo dá tempo do limite "resetar".
-  var GAP_MS = 8000;
+  // O YouTube limita requisições por janela de tempo e recebe uma pausa defensiva.
+  // Links das demais plataformas seguem imediatamente, sem espera artificial.
+  var YOUTUBE_GAP_MS = 8000;
+
+  function isYoutubeLink(value){
+    try{
+      var host = new URL(value).hostname.toLowerCase().replace(/^www\./,'');
+      return host==='youtube.com' || host==='youtu.be' || host==='m.youtube.com';
+    }catch(e){ return false; }
+  }
 
   startBtn.addEventListener('click', async function(){
     var raw = textarea.value || '';
@@ -1306,9 +1366,10 @@ async function triggerServerDownload(itag, url){
     startBtn.disabled = true;
 
     for(var i=0;i<links.length;i++){
-      if(i > 0){
-        startBtn.textContent = '⏸ Aguardando ' + (GAP_MS/1000) + 's (evita bloqueio do YouTube)...';
-        await sleep(GAP_MS);
+      var needsYoutubeGap = i > 0 && (isYoutubeLink(links[i-1]) || isYoutubeLink(links[i]));
+      if(needsYoutubeGap){
+        startBtn.textContent = '⏸ Aguardando ' + (YOUTUBE_GAP_MS/1000) + 's (evita bloqueio do YouTube)...';
+        await sleep(YOUTUBE_GAP_MS);
       }
       startBtn.textContent = '⏳ Baixando ' + (i+1) + '/' + links.length;
       var row = document.createElement('div');
