@@ -128,6 +128,10 @@ test('acessibilidade e responsividade', () => {
   assert.match(js, /\|\| unavailable/);
   assert.match(js, /const EDITORIAL_REQUIREMENTS/);
   assert.match(js, /function editorialInputError/);
+  assert.match(js, /function capabilityLabel/);
+  assert.match(js, /requer autorização/);
+  assert.match(js, /const canAssess = localPreview \|\| state\.capabilities\.length > 0/);
+  assert.match(js, /option\.dataset\.status/);
   assert.match(js, /Crie ou selecione um projeto e salve-o antes de executar esta função/);
   assert.match(js, /A etapa \$\{STAGES\[unavailable\]/);
   assert.match(js, /viewHashes = .*editorial/);

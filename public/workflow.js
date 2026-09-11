@@ -314,6 +314,13 @@ async function boot() {
     const missing = fields.filter(field => !$(field)?.value.trim() && !(field === 'script' && state.stages.some(stage => stage.name === 'roteiro' && stage.status === 'ready' && editorialText(stage.output, 'script')?.trim())) && !(field === 'title' && state.stages.some(stage => stage.name === 'titulos' && stage.status === 'ready' && editorialText(stage.output, 'title')?.trim())));
     return missing.length ? `Preencha ${missing.map(field => field === 'transcript' ? 'a transcrição' : field === 'script' ? 'o roteiro' : 'o título').join(' e ')} e salve o projeto antes de executar.` : '';
   }
+  function capabilityLabel(capability) {
+    const reason = (capability?.reason || '').toLowerCase();
+    if (reason.includes('conta') || reason.includes('autoriza')) return 'requer autorização';
+    if (reason.includes('download')) return 'validação pendente';
+    if (reason.includes('configur')) return 'servidor não configurado';
+    return 'indisponível';
+  }
   function syncStartStageOptions() {
     const container = $('start-stage-options');
     if (!container) return;
@@ -324,10 +331,13 @@ async function boot() {
       const stage = state.stages.find(item => item.name === name);
       input.checked = state.selected.has(name);
       const active = ['queued', 'running'].includes(stage?.status);
+      const canAssess = localPreview || state.capabilities.length > 0;
       const available = localPreview || capability?.available === true;
+      const unavailable = canAssess && !available;
       input.disabled = state.busy || active;
-      option.classList.toggle('is-unavailable', !available);
-      option.title = available ? '' : (capability?.reason || 'Etapa indisponível no servidor. A seleção será mantida para quando a configuração estiver pronta.');
+      option.classList.toggle('is-unavailable', unavailable);
+      option.dataset.status = unavailable ? capabilityLabel(capability) : '';
+      option.title = unavailable ? (capability?.reason || 'Etapa indisponível no servidor. A seleção será mantida para quando a configuração estiver pronta.') : '';
     }
   }
   function downloadEntries() {
@@ -437,7 +447,7 @@ async function boot() {
       if (['roteiro', 'titulos', 'seo'].includes(name)) {
         const editorialOutput = $('editorial-output-' + name); const editorialStatus = $('editorial-status-' + name);
         if (editorialOutput) editorialOutput.textContent = stage?.output == null ? (stage?.message || 'Sem saída registrada.') : typeof output === 'string' ? output : JSON.stringify(output, null, 2);
-        if (editorialStatus) editorialStatus.textContent = capability?.available === true ? STATUS[status] : 'Indisponível';
+        if (editorialStatus) editorialStatus.textContent = capability?.available === true ? STATUS[status] : capabilityLabel(capability).replace(/^./, char => char.toUpperCase());
       }
       if (status === 'ready' && ['roteiro', 'titulos'].includes(name)) {
         const field = name === 'titulos' ? 'title' : 'script';
