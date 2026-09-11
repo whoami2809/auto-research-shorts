@@ -123,14 +123,10 @@ export default {
     if (url.pathname === '/api/config' && request.method === 'GET') return Response.json({supabaseUrl:env.SUPABASE_URL,supabasePublishableKey:env.SUPABASE_PUBLISHABLE_KEY},{headers:{'Cache-Control':'no-store'}});
     // Internal job dispatch is only called directly by ShortsWorkflow, never proxied from the public edge.
     if (url.pathname.startsWith('/api/workflow-dispatch/')) return Response.json({error:'Não encontrado'},{status:404});
-    // Somente o workflow usa o backend como autoridade final de autenticação.
-    // As rotas legadas continuam protegidas também na borda.
-    const isWorkflowRoute = url.pathname === '/api/workflow' || url.pathname.startsWith('/api/workflow/');
-    const isPublicFrame = request.method === "GET" && /^\/api\/frame\/[^/]+$/.test(url.pathname);
-    if (!isWorkflowRoute && !isPublicFrame && !(await isAuthenticated(request, env))) {
-      return Response.json({ error: "Sessão inválida ou expirada" }, { status: 401 });
-    }
-
+    // O backend Render é a autoridade final das rotas autenticadas legadas e
+    // valida o mesmo Bearer antes de executar qualquer operação. Evitamos uma
+    // segunda validação independente na borda, que podia rejeitar uma sessão
+    // válida antes de o request chegar ao backend.
     // O Render está em uma faixa de IP bloqueada pelo YouTube. Esta rota busca
     // somente Visitor Data anônimo a partir da borda Cloudflare; não lê cookies
     // do navegador e continua protegida pelo login Supabase da aplicação.

@@ -8,6 +8,7 @@ const js = readFileSync(resolve(root, 'workflow.js'), 'utf8');
 const html = readFileSync(resolve(root, 'workflow.html'), 'utf8');
 const css = readFileSync(resolve(root, 'workflow.css'), 'utf8');
 const app = readFileSync(resolve(root, 'index.html'), 'utf8');
+const server = readFileSync(resolve(__dirname, '../../server.js'), 'utf8');
 const context = vm.createContext({ URL, atob, Date });
 vm.runInContext(js, context);
 const invoke = (name, ...args) => { context.args = args; return vm.runInContext(`${name}(...args)`, context); };
@@ -55,6 +56,8 @@ test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.match(app, /headers\.set\('Authorization','Bearer '\+session\.access_token\)/);
   assert.match(app, /var response=await authenticatedApiFetch\(dlUrl\)/);
   assert.match(app, /var res = await authenticatedApiFetch\('\/api\/video-dl\?' \+ qs\)/);
+  assert.match(app, /var filename = downloadFilename\(res, 'video\.mp4'\)/);
+  assert.match(server, /--embed-metadata/);
 });
 test('consentimentos, escolhas e API de execução independentes', () => {
   assert.doesNotMatch(html, /\bchecked\b/);

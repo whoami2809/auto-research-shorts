@@ -491,7 +491,9 @@ app.get('/api/video-dl',async(req,res)=>{
     const kbps = parseInt(audioBitrate) || 128;
     args.push('-f', fmtStr, '-x', '--audio-format', fmt, '--audio-quality', `${kbps}K`);
   } else {
-    args.push('--merge-output-format','mp4','--remux-video','mp4', '-f', fmtStr);
+    // Mantém título, autor e demais metadados fornecidos pelo extrator no
+    // contêiner final, além de preservar o título no nome do arquivo.
+    args.push('--merge-output-format','mp4','--remux-video','mp4','--embed-metadata', '-f', fmtStr);
   }
   args.push('-o', outTemplate, '--',url);
 

@@ -1282,9 +1282,7 @@ async function triggerServerDownload(itag, url){
       var j = await res.json().catch(function(){ return {}; });
       throw new Error(j.error || ('HTTP ' + res.status));
     }
-    var cd = res.headers.get('Content-Disposition') || '';
-    var m = /filename="?([^"]+)"?/.exec(cd);
-    var filename = m ? decodeURIComponent(m[1]) : 'video';
+    var filename = downloadFilename(res, 'video.mp4');
     var blob = await res.blob();
     var blobUrl = URL.createObjectURL(blob);
     var a = document.createElement('a');
