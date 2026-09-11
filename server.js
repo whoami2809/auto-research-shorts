@@ -104,29 +104,6 @@ function safeFilename(title, ext){
   return ((title||'video').replace(/[<>:"/\\|?*\x00-\x1f]/g,'').trim().replace(/\s+/g,'_').slice(0,80)||'video')+'.'+ext;
 }
 
-async function fetchAnonymousVisitorData(req, videoId){
-  const authorization = req.get('authorization');
-  if(!authorization) return null;
-  const appUrl = process.env.PUBLIC_APP_URL || 'https://auto-research-shorts.darknet-web28.workers.dev';
-  try{
-    const response = await fetch(`${appUrl}/api/youtube-visitor?videoId=${encodeURIComponent(videoId)}`, {
-      headers: { authorization },
-      signal: AbortSignal.timeout(12000),
-    });
-    if(!response.ok){
-      console.warn('[youtube visitor] Cloudflare respondeu', response.status);
-      return null;
-    }
-    const data = await response.json();
-    if(typeof data.visitorData !== 'string' || !/^[a-zA-Z0-9_\-=.%]+$/.test(data.visitorData)) return null;
-    console.log('[youtube visitor] sessão anônima obtida via Cloudflare');
-    return data.visitorData;
-  }catch(error){
-    console.warn('[youtube visitor] indisponível:', error.message);
-    return null;
-  }
-}
-
 // ─── Piped ────────────────────────────────────────────────────────────────────
 // Lista estática só como fallback caso a API de instâncias abaixo esteja fora do ar
 let PIPED = [
@@ -328,7 +305,6 @@ app.get('/api/video-dl',async(req,res)=>{
   // se esse bloqueio específico for embora no futuro.
   const TRY_YTDLCORE_FIRST = false;
   const videoId = extractVideoId(url);
-  const visitorData = videoId ? await fetchAnonymousVisitorData(req, videoId) : null;
   if (TRY_YTDLCORE_FIRST && videoId && ytdl) {
     try {
       const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
@@ -443,14 +419,6 @@ app.get('/api/video-dl',async(req,res)=>{
   const args = [
     '--ignore-config',
     '--no-playlist',
-    // O IP do Render recebe 429 do YouTube antes mesmo da extração. A simulação
-    // do handshake/headers reais do Chrome (via curl_cffi) permite carregar a
-    // página pública e obter Visitor Data anônimo sem cookies de conta.
-    '--impersonate','chrome',
-    // Deno (instalado no Dockerfile) resolve o "n challenge" mais rápido que Node —
-    // força ele primeiro, Node fica como fallback caso o Deno falhe por algum motivo.
-    '--js-runtimes','deno',
-    '--js-runtimes','node',
     // O "Unable to download webpage: 429" é retentado automaticamente pelo yt-dlp
     // com backoff antes de desistir e cair pro próximo player_client — isso é o
     // que está causando os 10-20s de demora. Reduzindo as tentativas, ele desiste
@@ -464,17 +432,22 @@ app.get('/api/video-dl',async(req,res)=>{
   ];
 
   // O cliente web depende de PO Token em parte dos formatos. Com a página pública
-  // carregada por impersonation, o yt-dlp obtém Visitor Data anônimo e o provedor
-  // bgutil local consegue gerar o token. Não pulamos mais a webpage/configs, pois
-  // era justamente isso que removia os dados necessários e deixava só 360p.
+  // carregada por impersonation, o yt-dlp e o provedor bgutil local conseguem
+  // negociar o token. Não pulamos mais a webpage/configs, pois era justamente
+  // isso que removia os dados necessários e deixava só 360p.
   if(videoId){
-    // O cliente web passou a sofrer 429 no IP compartilhado do Render. Os
-    // clientes android_vr/web_embedded não dependem desse endpoint bloqueado;
-    // mweb fica como fallback e recebe PO Token pelo bgutil 2.x.
+    // Flags específicas ficam somente no caminho YouTube para não atrasar
+    // downloads de TikTok, Instagram e Facebook.
+    args.push(
+      '--impersonate','chrome',
+      '--js-runtimes','deno',
+      '--js-runtimes','node'
+    );
+    // A configuração recomendada pelo yt-dlp é um único cliente mweb com PO
+    // Token; misturar clientes pode gerar URLs de playback incompatíveis.
     const youtubeArgs = [
       'player_client=mweb;fetch_pot=always',
-      visitorData ? `visitor_data=${visitorData}` : null,
-    ].filter(Boolean).join(';');
+    ].join(';');
     args.push(
       '--extractor-args',`youtube:${youtubeArgs}`,
       '--extractor-args','youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416'
