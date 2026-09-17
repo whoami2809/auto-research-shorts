@@ -357,6 +357,11 @@ input[type=range]{flex:1;accent-color:var(--accent);}
 .frame-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
 .lens-btn{background:#9b4dff;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s;}
 .lens-btn:hover{background:#7a2ee8;}
+.lens-status-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0;}
+.lens-actions{display:flex;flex-wrap:wrap;gap:6px;padding:0 10px 10px;}
+.lens-actions[hidden],.lens-actions [hidden]{display:none;}
+.lens-actions .lens-btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;line-height:1.4;}
+.lens-actions .lens-btn:focus-visible{outline:2px solid #eee7ff;outline-offset:2px;}
 .dl-frame-btn{background:transparent;color:var(--muted);border:1px solid rgba(155,77,255,.22);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;transition:all .2s;}
 .dl-frame-btn:hover{border-color:var(--accent2);color:var(--accent2);}
 .zip-btn{padding:10px 22px;font-size:13px;border-radius:10px;}
@@ -1882,7 +1887,7 @@ async function openLensViaServer(blob,idx){
     publicUrl=window.location.origin+data.url;
     frame.lensUrl=publicUrl;frame.lensExpiresAt=Date.parse(data.expires_at);
     }
-    if(frame.lensResult){frame.lensResult.href=lensDestination(publicUrl);frame.lensResult.hidden=false;}
+    if(frame.lensResult){frame.lensResult.href=lensDestination(publicUrl);frame.lensResult.hidden=false;if(frame.lensFallback)frame.lensFallback.hidden=false;}
     if(newTab.closed){lensFeedback(frame,'A aba foi fechada. Clique em Lens para abrir novamente.');return;}
     // Redireciona a aba já aberta (sem precisar de novo window.open)
     if(newTab&&!newTab.closed){
@@ -1955,12 +1960,12 @@ extractBtn.addEventListener('click',async function(){
       card.innerHTML='<img class="frame-img" src="'+imgU+'" loading="lazy"><div class="frame-footer"><span class="frame-time">#'+(j+1)+' · '+mm+':'+ss+'</span><div style="display:flex;gap:5px;"><button class="dl-frame-btn" title="Baixar frame">\u2B07</button><button class="lens-btn">\uD83D\uDD0D Lens</button></div></div>';
       framesGrid.appendChild(card);
       var lensStatus=document.createElement('p');lensStatus.setAttribute('role','status');
-      lensStatus.style.cssText='font-size:12px;padding:0 10px;overflow-wrap:anywhere';card.appendChild(lensStatus);
-      var lensFallback=document.createElement('div');lensFallback.hidden=true;
-      var lensResult=document.createElement('a');lensResult.hidden=true;lensResult.target='_blank';lensResult.rel='noopener noreferrer';lensResult.textContent='Abrir pesquisa com este frame';card.appendChild(lensResult);
+      lensStatus.className='lens-status-sr';card.appendChild(lensStatus);
+      var lensFallback=document.createElement('div');lensFallback.className='lens-actions';lensFallback.hidden=true;
+      var lensResult=document.createElement('a');lensResult.className='lens-btn';lensResult.hidden=true;lensResult.target='_blank';lensResult.rel='noopener noreferrer';lensResult.textContent='Abrir pesquisa';lensFallback.appendChild(lensResult);
       var copyFrame=document.createElement('button');copyFrame.type='button';copyFrame.className='lens-btn';copyFrame.textContent='Copiar imagem';
       var serverLens=document.createElement('button');serverLens.type='button';serverLens.className='lens-btn';serverLens.textContent='Envio alternativo';
-      var manualLens=document.createElement('a');manualLens.href='https://lens.google.com/';manualLens.target='_blank';manualLens.rel='noopener noreferrer';manualLens.textContent=' Abrir Lens';
+      var manualLens=document.createElement('a');manualLens.className='lens-btn';manualLens.href='https://lens.google.com/';manualLens.target='_blank';manualLens.rel='noopener noreferrer';manualLens.textContent='Abrir Lens';
       lensFallback.append(serverLens,copyFrame,manualLens);card.appendChild(lensFallback);
       Object.assign(extractedFrames[fi],{lensStatus:lensStatus,lensFallback:lensFallback,lensResult:lensResult,lensButton:card.querySelector('.lens-btn')});
       (function(frame){copyFrame.addEventListener('click',function(){copyLensFrame(frame);});}(extractedFrames[fi]));

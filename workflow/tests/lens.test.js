@@ -4,6 +4,13 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../../public/index.html'),'utf8');
 const source=html.slice(html.indexOf('function lensDestination('),html.indexOf('// Garante PNG real'));
+test('Lens cards keep auxiliary status accessible without visible text and style actions as buttons',()=>{
+  assert.match(html,/lensStatus.className='lens-status-sr'/);
+  assert.match(html,/\.lens-status-sr\{[^}]*position:absolute[^}]*clip-path:inset\(50%\)/);
+  assert.match(html,/manualLens.className='lens-btn'/);
+  assert.match(html,/lensResult.className='lens-btn'/);
+  assert.match(html,/\.lens-actions\[hidden\],\.lens-actions \[hidden\]\{display:none;\}/);
+});
 function setup({status=200,blocked=false,closed=false,cacheStatus=404}={}){
   const frame={blob:new Blob(['fixture'],{type:'image/png'}),lensStatus:{},lensFallback:{hidden:true},lensResult:{hidden:true},lensButton:{}};
   const popup={closed,location:{},close(){this.closed=true;}};
