@@ -75,7 +75,8 @@ test('multi-download oferece colagem normalizada somente no modal em lote', () =
 });
 test('Lens do app envia o frame autenticado e trata popup bloqueado', () => {
   assert.match(app, /function lensDestination\(publicUrl\)/);
-  assert.match(app, /window\.open\('about:blank','_blank'\)/);
+  assert.match(app, /window\.open\('\/lens-wait\.html','_blank'\)/);
+  assert.match(app, /form\.action='https:\/\/lens\.google\.com\/v3\/upload'/);
   assert.match(app, /Permita pop-ups para abrir o Google Lens/);
   assert.match(app, /frame\.lensBusy/);
   assert.match(app, /authenticatedApiFetch\('\/api\/frame'/);

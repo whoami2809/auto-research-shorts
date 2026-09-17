@@ -1796,6 +1796,17 @@ function lensFailure(error){
   return 'Não foi possível enviar a imagem. Confira a conexão ou use Copiar imagem.';
 }
 
+// AbortController sozinho não interrompe promessas de sessão/decodificação.
+// Limite cada espera e ignore conclusões tardias depois do cancelamento.
+function lensWait(promise,signal){
+  return new Promise(function(resolve,reject){
+    function abort(){var error=new Error('Lens timeout');error.name='AbortError';reject(error);}
+    if(signal.aborted){abort();return;}
+    signal.addEventListener('abort',abort,{once:true});
+    Promise.resolve(promise).then(resolve,reject).finally(function(){signal.removeEventListener('abort',abort);});
+  });
+}
+
 // A cópia precisa de um NOVO clique com a página em foco. Não a dispare após
 // um upload demorado e a abertura de outra aba: o navegador pode recusá-la.
 async function copyLensFrame(frame){
@@ -1806,13 +1817,36 @@ async function copyLensFrame(frame){
   }catch(error){lensFeedback(frame,'O navegador não permitiu copiar. Use Baixar frame e envie a imagem no Lens.');}
 }
 
-// Reserva a aba durante o clique e acompanha o envio sem perder os frames.
+// Envia somente o PNG selecionado diretamente ao Google, durante o clique.
+// Não aguarda sessão, servidor intermediário ou publicação de uma URL da imagem.
 async function openLens(blob,idx){
+  var frame=extractedFrames[idx];
+  if(!frame||frame.lensBusy)return;
+  var form;
+  try{
+    if(!blob||blob.type!=='image/png'||typeof DataTransfer==='undefined'||typeof File==='undefined')return openLensViaServer(blob,idx);
+    var files=new DataTransfer();
+    files.items.add(new File([blob],'frame.png',{type:'image/png'}));
+    form=document.createElement('form');
+    form.method='POST';form.action='https://lens.google.com/v3/upload';
+    form.enctype='multipart/form-data';form.target='_blank';form.rel='noopener noreferrer';form.hidden=true;
+    var input=document.createElement('input');input.type='file';input.name='encoded_image';input.files=files.files;
+    if(!input.files||input.files.length!==1)throw new Error('File transfer unavailable');
+    form.appendChild(input);document.body.appendChild(form);
+    form.submit();
+    lensFeedback(frame,'Envio direto ao Google Lens iniciado. Se a aba não abrir, permita pop-ups ou use o envio alternativo.');
+    if(frame.lensFallback)frame.lensFallback.hidden=false;
+  }catch(error){return openLensViaServer(blob,idx);}
+  finally{if(form)form.remove();}
+}
+
+// Alternativa explícita para navegadores que não suportam o envio direto.
+async function openLensViaServer(blob,idx){
   var frame=extractedFrames[idx];
 
   if(!frame||frame.lensBusy)return;
   // Detecte popup bloqueado antes de enviar o frame para fora do app.
-  var newTab=window.open('about:blank','_blank');
+  var newTab=window.open('/lens-wait.html','_blank');
   if(!newTab){
     lensFeedback(frame,'Permita pop-ups para abrir o Google Lens e clique novamente.');
     showToast('\u26a0\uFE0F Permita pop-ups para abrir o Google Lens.','var(--warn)');
@@ -1831,32 +1865,33 @@ async function openLens(blob,idx){
     // O cache do servidor pode desaparecer em um reinício antes do prazo.
     // Confirme que a imagem ainda existe antes de reutilizar seu endereço.
     if(frame.lensUrl&&frame.lensExpiresAt>Date.now()){
-      var cached=await fetch(frame.lensUrl,{signal:controller.signal,cache:'no-store'});
-      if(cached.body)await cached.body.cancel();
+      var cached=await lensWait(fetch(frame.lensUrl,{signal:controller.signal,cache:'no-store'}),controller.signal);
+      if(cached.body)await lensWait(cached.body.cancel(),controller.signal);
       if(!cached.ok){frame.lensUrl=null;frame.lensExpiresAt=0;}
     }
     var publicUrl=frame.lensUrl&&frame.lensExpiresAt>Date.now()?frame.lensUrl:null;
     if(!publicUrl){
     // O frame extraído é PNG; envie exatamente esse formato ao Lens.
-    var pngBlob=await framePng(blob);
-    var ab=await pngBlob.arrayBuffer();
+    var pngBlob=await lensWait(framePng(blob),controller.signal);
+    var ab=await lensWait(pngBlob.arrayBuffer(),controller.signal);
     // Este endpoint exige a sessão; não dependa do interceptor global de fetch.
-    var r=await authenticatedApiFetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:controller.signal});
+    var r=await lensWait(authenticatedApiFetch('/api/frame',{method:'POST',headers:{'Content-Type':'image/png'},body:ab,signal:controller.signal}),controller.signal);
     if(!r.ok){var failure=new Error('frame upload');failure.status=r.status;throw failure;}
-    var data=await r.json();
+    var data=await lensWait(r.json(),controller.signal);
     if(!/^\/api\/frame\/[a-f0-9]{64}$/.test(data.url)||!(Date.parse(data.expires_at)>Date.now()))throw new Error('Invalid frame response');
     publicUrl=window.location.origin+data.url;
     frame.lensUrl=publicUrl;frame.lensExpiresAt=Date.parse(data.expires_at);
     }
+    if(frame.lensResult){frame.lensResult.href=lensDestination(publicUrl);frame.lensResult.hidden=false;}
     if(newTab.closed){lensFeedback(frame,'A aba foi fechada. Clique em Lens para abrir novamente.');return;}
     // Redireciona a aba já aberta (sem precisar de novo window.open)
     if(newTab&&!newTab.closed){
       newTab.location.href=lensDestination(publicUrl);
     }
-    lensFeedback(frame,'Imagem enviada. Pesquisa aberta na aba do Lens.');
+    lensFeedback(frame,'Imagem enviada. Se a outra aba não abrir o Lens, use Abrir pesquisa.');
     showToast('\uD83D\uDD0D Google Lens aberto!','var(--lens)');
   }catch(e){
-    try{if(newTab&&!newTab.closed)newTab.close();}catch(ignored){}
+    try{if(newTab&&!newTab.closed)newTab.location.href='/lens-wait.html#failed';}catch(ignored){}
     lensFeedback(frame,lensFailure(e));
     if(frame.lensFallback)frame.lensFallback.hidden=false;
     showToast(lensFailure(e),'var(--warn)');
@@ -1922,11 +1957,14 @@ extractBtn.addEventListener('click',async function(){
       var lensStatus=document.createElement('p');lensStatus.setAttribute('role','status');
       lensStatus.style.cssText='font-size:12px;padding:0 10px;overflow-wrap:anywhere';card.appendChild(lensStatus);
       var lensFallback=document.createElement('div');lensFallback.hidden=true;
+      var lensResult=document.createElement('a');lensResult.hidden=true;lensResult.target='_blank';lensResult.rel='noopener noreferrer';lensResult.textContent='Abrir pesquisa com este frame';card.appendChild(lensResult);
       var copyFrame=document.createElement('button');copyFrame.type='button';copyFrame.className='lens-btn';copyFrame.textContent='Copiar imagem';
+      var serverLens=document.createElement('button');serverLens.type='button';serverLens.className='lens-btn';serverLens.textContent='Envio alternativo';
       var manualLens=document.createElement('a');manualLens.href='https://lens.google.com/';manualLens.target='_blank';manualLens.rel='noopener noreferrer';manualLens.textContent=' Abrir Lens';
-      lensFallback.append(copyFrame,manualLens);card.appendChild(lensFallback);
-      Object.assign(extractedFrames[fi],{lensStatus:lensStatus,lensFallback:lensFallback,lensButton:card.querySelector('.lens-btn')});
+      lensFallback.append(serverLens,copyFrame,manualLens);card.appendChild(lensFallback);
+      Object.assign(extractedFrames[fi],{lensStatus:lensStatus,lensFallback:lensFallback,lensResult:lensResult,lensButton:card.querySelector('.lens-btn')});
       (function(frame){copyFrame.addEventListener('click',function(){copyLensFrame(frame);});}(extractedFrames[fi]));
+      (function(idx){serverLens.addEventListener('click',function(){openLensViaServer(extractedFrames[idx].blob,idx);});}(fi));
       (function(idx,vIdx,jIdx){
         card.querySelector('.lens-btn').addEventListener('click',function(){openLens(extractedFrames[idx].blob,idx);});
         card.querySelector('.dl-frame-btn').addEventListener('click',function(){
