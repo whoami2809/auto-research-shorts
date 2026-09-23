@@ -1272,6 +1272,7 @@ async function triggerServerDownload(itag, url){
   var log = document.getElementById('multiLog');
   var pasteBtn = document.getElementById('multiPasteBtn');
   var pasteStatus = document.getElementById('multiPasteStatus');
+  var MAX_BATCH_LINKS = 50;
   if(!modal||!openBtn) return;
 
   openBtn.addEventListener('click', function(){ modal.style.display='flex'; });
@@ -1328,8 +1329,7 @@ async function triggerServerDownload(itag, url){
         return;
       }
       var allLinks = linksInTextarea().concat(pastedLinks)
-        .filter(function(link,index,items){ return items.indexOf(link)===index; })
-        .slice(0,25);
+        .filter(function(link,index,items){ return items.indexOf(link)===index; });
       textarea.value = allLinks.join('\n');
       pasteStatus.textContent = allLinks.length + ' link' + (allLinks.length===1?'':'s') + ' pronto' + (allLinks.length===1?'':'s') + ' para o lote.';
       showToast('\u2705 ' + pastedLinks.length + ' link' + (pastedLinks.length===1?'':'s') + ' colado' + (pastedLinks.length===1?'':'s'),'var(--success)');
@@ -1377,7 +1377,7 @@ async function triggerServerDownload(itag, url){
     var raw = textarea.value || '';
     var links = linksFromClipboard(raw);
     if(!links.length){ showToast('Cole ao menos um link válido','var(--warn)'); return; }
-    if(links.length>25){showToast('Use no máximo 25 links por lote.','var(--warn)');return;}
+    if(links.length>MAX_BATCH_LINKS){showToast('Use no máximo '+MAX_BATCH_LINKS+' links por lote.','var(--warn)');return;}
     textarea.value=links.join('\n');
 
     var opt = qualitySelect.value.split('|');
