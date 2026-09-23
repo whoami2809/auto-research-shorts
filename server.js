@@ -10,6 +10,7 @@ const {SupabaseStore}=require('./workflow/store');
 const {Engine}=require('./workflow/engine');
 const {createRouter,dispatchRoute}=require('./workflow/router');
 const {officialUrl}=require('./workflow/contracts');
+const {resolveDownloadUrl,URL_MESSAGE}=require('./workflow/download-sites');
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.disable('x-powered-by');
@@ -290,7 +291,9 @@ ${text.slice(0,3000)}`}]
 app.get('/api/video-dl',async(req,res)=>{
   const {url, quality, mode, audioFormat, audioBitrate, useCookies} = req.query;
   if(!url) return res.status(400).send('URL obrigatória');
-  try {officialUrl(url);}catch{return res.status(400).json({error:'Use uma URL HTTPS oficial de YouTube, TikTok, Instagram ou Facebook.'});}
+  let resolved;
+  try {resolved=await resolveDownloadUrl(url);}catch(error){return res.status(400).json({error:error.message||URL_MESSAGE});}
+  if(res.destroyed)return;
 
   const isAudio = mode==='audio';
   const isMute  = mode==='mute';
@@ -470,7 +473,10 @@ app.get('/api/video-dl',async(req,res)=>{
     // contêiner final, além de preservar o título no nome do arquivo.
     args.push('--merge-output-format','mp4','--remux-video','mp4','--embed-metadata', '-f', fmtStr);
   }
-  args.push('-o', outTemplate, '--',url);
+  // Para as novas plataformas, não deixe conteúdo incorporado acionar extratores
+  // genéricos ou de terceiros. O caminho das quatro plataformas antigas é mantido.
+  if(resolved.extractor)args.push('--use-extractors',resolved.extractor,'--playlist-items','1');
+  args.push('-o', outTemplate, '--',resolved.url);
 
   console.log('[yt-dlp] format=%s job=%s', fmtStr, jobId);
 
@@ -492,7 +498,7 @@ app.get('/api/video-dl',async(req,res)=>{
           error: invalidCookies
             ? 'A sessão do YouTube configurada no servidor expirou. Tente novamente sem autenticação de conta.'
             : isRateLimited || isBotCheck
-              ? 'O YouTube limitou temporariamente o servidor. Aguarde alguns minutos e tente novamente.'
+              ? (videoId?'O YouTube':'A plataforma')+' limitou temporariamente o servidor. Aguarde alguns minutos e tente novamente.'
               : 'Não foi possível baixar este vídeo. Confira a disponibilidade da publicação.'
         });
       }

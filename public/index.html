@@ -1282,8 +1282,10 @@ async function triggerServerDownload(itag, url){
 
   function isSupportedLink(value){
     try{
-      var host = new URL(value).hostname.toLowerCase().replace(/^www\./,'');
-      return ['youtube.com','youtu.be','tiktok.com','vm.tiktok.com','vt.tiktok.com','instagram.com','facebook.com','m.facebook.com','fb.watch'].indexOf(host) !== -1;
+      var parsed = new URL(value);
+      if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.port||/[\\\s]/.test(value))return false;
+      var host = parsed.hostname.toLowerCase();
+      return ['youtube.com','www.youtube.com','m.youtube.com','youtu.be','tiktok.com','www.tiktok.com','vm.tiktok.com','vt.tiktok.com','instagram.com','www.instagram.com','facebook.com','www.facebook.com','m.facebook.com','fb.watch','xhslink.cn','xiaohongshu.com','www.xiaohongshu.com','reddit.com','www.reddit.com','old.reddit.com','pinterest.com','www.pinterest.com','in.pinterest.com'].indexOf(host) !== -1;
     }catch(e){ return false; }
   }
 
