@@ -20,6 +20,23 @@ test('new sites do not authorize workflow and reject malicious URLs in both vali
     assert.throws(()=>downloadUrl(url));assert.equal(context.isSupportedLink(url),false);
   }
 });
+test('batch cleans Chinese share text, Markdown, repeated and adjacent URLs without stripping tokens',()=>{
+  const url='https://xhslink.cn/o/9bGvyBkXDP0';
+  for(const text of ['你的串包浆怎么样 '+url+' Copy and open rednote to view the note','你的串包浆怎么样 ['+url+']('+url+') Copy and open rednote to view the note','【'+url+'】']){
+    assert.deepEqual(Array.from(context.linksFromClipboard(text)),[url]);
+  }
+  const signed='https://www.xiaohongshu.com/explore/abcdef?xsec_token=abc%2Bdef%3D&xsec_source=pc_share';
+  assert.deepEqual(Array.from(context.linksFromClipboard('['+signed+']('+signed+')。'+url)),[signed,url]);
+  assert.match(app,/var links = linksFromClipboard\(raw\)/);
+});
+test('normal paste formats links but never starts a download',()=>{
+  const listeners={};const textarea={value:'',selectionStart:0,selectionEnd:0,addEventListener:(name,handler)=>listeners[name]=handler};
+  const scope=vm.createContext({URL,textarea,pasteStatus:{}});vm.runInContext(parser,scope);
+  const start=app.indexOf("  textarea.addEventListener('paste'");
+  vm.runInContext(app.slice(start,app.indexOf("  pasteBtn.addEventListener('click'",start)),scope);
+  let prevented=false;listeners.paste({clipboardData:{getData:()=> '你的串包浆怎么样 https://xhslink.cn/o/9bGvyBkXDP0 Copy and open rednote to view the note'},preventDefault(){prevented=true;}});
+  assert.equal(prevented,true);assert.equal(textarea.value,'https://xhslink.cn/o/9bGvyBkXDP0');
+});
 function mocked(locations,addresses=['8.8.8.8']){
   let calls=0;
   return {lookup:async()=>addresses.map(address=>({address,family:4})),request(url,options,callback){

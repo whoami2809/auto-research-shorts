@@ -1291,7 +1291,7 @@ async function triggerServerDownload(itag, url){
 
   function linksFromClipboard(value){
     // O lookahead também separa URLs coladas sem quebra de linha (ex.: cópia do histórico do Windows).
-    var found = String(value || '').match(/https?:\/\/[^ \t\r\n<>]+?(?=https?:\/\/|[ \t\r\n<>]|$)/gi) || [];
+    var found = String(value || '').match(/https?:\/\/[^\s<>\[\](){}"'，。！？、【】]+?(?=https?:\/\/|[\s<>\[\](){}"'，。！？、【】]|$)/gi) || [];
     return found.map(function(link){ return link.replace(/[),.;!?\]\}"']+$/g,''); })
       .filter(isSupportedLink)
       .filter(function(link,index,items){ return items.indexOf(link)===index; });
@@ -1300,6 +1300,18 @@ async function triggerServerDownload(itag, url){
   function linksInTextarea(){
     return linksFromClipboard(textarea.value);
   }
+
+  // A colagem normal (Ctrl+V/Windows+V) usa a mesma limpeza do botão.
+  // Não inicia downloads: apenas remove o texto compartilhado e separa os links.
+  textarea.addEventListener('paste', function(event){
+    var text=event.clipboardData&&event.clipboardData.getData('text/plain');
+    if(!text||!linksFromClipboard(text).length)return;
+    event.preventDefault();
+    var combined=textarea.value.slice(0,textarea.selectionStart)+'\n'+text+'\n'+textarea.value.slice(textarea.selectionEnd);
+    var links=linksFromClipboard(combined);
+    textarea.value=links.join('\n');
+    pasteStatus.textContent=links.length+' link(s) pronto(s) para o lote.';
+  });
 
   pasteBtn.addEventListener('click', async function(){
     if(!navigator.clipboard || !navigator.clipboard.readText){
@@ -1363,10 +1375,10 @@ async function triggerServerDownload(itag, url){
 
   startBtn.addEventListener('click', async function(){
     var raw = textarea.value || '';
-    var links = raw.split(/\s+/).map(function(s){ return s.trim(); })
-      .filter(function(s){ return /^https?:\/\//.test(s); });
-    links = links.filter(function(v,i){ return links.indexOf(v)===i; }); // dedupe
+    var links = linksFromClipboard(raw);
     if(!links.length){ showToast('Cole ao menos um link válido','var(--warn)'); return; }
+    if(links.length>25){showToast('Use no máximo 25 links por lote.','var(--warn)');return;}
+    textarea.value=links.join('\n');
 
     var opt = qualitySelect.value.split('|');
     log.innerHTML = '';
