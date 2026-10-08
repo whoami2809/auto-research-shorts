@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Auto Research Shorts">
+  <defs>
+    <linearGradient id="bg" x1="10" y1="8" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6d32e8"/>
+      <stop offset="0.48" stop-color="#26114f"/>
+      <stop offset="1" stop-color="#080810"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="12" y1="8" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d2b5ff"/>
+      <stop offset="0.42" stop-color="#9b4dff"/>
+      <stop offset="1" stop-color="#6b2ee8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="#05050b"/>
+  <rect x="4.5" y="4.5" width="55" height="55" rx="12" fill="url(#bg)" stroke="url(#stroke)"/>
+  <text x="32" y="41.5" fill="#f4efff" text-anchor="middle" font-family="Arial Narrow,Roboto Condensed,Arial,sans-serif" font-size="25" font-weight="900" letter-spacing="-1.5">ARS</text>
+</svg>
