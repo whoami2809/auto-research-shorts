@@ -1364,6 +1364,14 @@ async function triggerServerDownload(itag, url){
     return filename;
   }
 
+  function downloadErrorMessage(error){
+    var message = String(error && error.message || 'Não foi possível baixar.');
+    if(/failed to fetch|fetch failed|network request failed|networkerror/i.test(message)){
+      return 'A conexão com o servidor foi interrompida. Tente novamente.';
+    }
+    return message;
+  }
+
   // O YouTube limita requisições por janela de tempo e recebe uma pausa defensiva.
   // Links das demais plataformas seguem imediatamente, sem espera artificial.
   var YOUTUBE_GAP_MS = 8000;
@@ -1414,7 +1422,7 @@ async function triggerServerDownload(itag, url){
         row.textContent = '✅ ' + filename;
         row.style.color = 'var(--accent2)';
       }catch(e){
-        row.textContent = '❌ ' + links[i].slice(0,40) + '... — ' + e.message;
+        row.textContent = '❌ ' + links[i].slice(0,40) + '... — ' + downloadErrorMessage(e);
         row.style.color = 'var(--danger)';
       }
       log.scrollTop = log.scrollHeight;

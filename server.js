@@ -396,15 +396,22 @@ app.get('/api/video-dl',async(req,res)=>{
   // ─── Caminho 2: yt-dlp (YouTube em qualidades altas / merge, e todas as outras
   // plataformas — TikTok, Instagram, Facebook, Kwai, Threads, etc.) ───────────
 
-  // Seletor de formato único e genérico, funciona igual em qualquer plataforma (YouTube,
-  // TikTok, Instagram, Facebook, Kwai, Threads...). Como sempre baixamos pra arquivo
-  // temporário (em vez de streamar puro pro stdout), o yt-dlp/ffmpeg pode mesclar
-  // vídeo+áudio com segurança em qualquer qualidade — inclusive 4K/8K, se disponível.
+  const resolvedHost = new URL(resolved.url).hostname.toLowerCase().replace(/^www\./,'');
+  // Reels públicos normalmente já oferecem um MP4 progressivo. Enviá-lo pelo stdout
+  // evita deixar Cloudflare e Render sem nenhum byte enquanto um arquivo temporário
+  // inteiro é preparado — a causa das interrupções vistas em lotes do Instagram.
+  const streamInstagram = resolvedHost === 'instagram.com' && !isAudio && !isMute;
+
+  // YouTube e as demais plataformas continuam no caminho de arquivo temporário para
+  // permitir merge/remux quando vídeo e áudio vêm separados. Só o Instagram usa o
+  // formato progressivo e começa a responder assim que o primeiro byte fica disponível.
   let fmtStr;
   if(isAudio){
     fmtStr = 'bestaudio/best';
   } else if(isMute){
     fmtStr = `bestvideo[height<=${h}][ext=mp4]/bestvideo[height<=${h}]/bestvideo`;
+  } else if(streamInstagram){
+    fmtStr = `best[height<=${h}][ext=mp4]/best[height<=${h}]/best`;
   } else {
     fmtStr = `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]/best`;
   }
@@ -468,6 +475,8 @@ app.get('/api/video-dl',async(req,res)=>{
     const fmt = ['mp3','opus','m4a'].includes(audioFormat) ? audioFormat : 'm4a';
     const kbps = parseInt(audioBitrate) || 128;
     args.push('-f', fmtStr, '-x', '--audio-format', fmt, '--audio-quality', `${kbps}K`);
+  } else if(streamInstagram){
+    args.push('-f', fmtStr);
   } else {
     // Mantém título, autor e demais metadados fornecidos pelo extrator no
     // contêiner final, além de preservar o título no nome do arquivo.
@@ -476,20 +485,40 @@ app.get('/api/video-dl',async(req,res)=>{
   // Para as novas plataformas, não deixe conteúdo incorporado acionar extratores
   // genéricos ou de terceiros. O caminho das quatro plataformas antigas é mantido.
   if(resolved.extractor)args.push('--use-extractors',resolved.extractor,'--playlist-items','1');
-  args.push('-o', outTemplate, '--',resolved.url);
+  args.push('-o', streamInstagram ? '-' : outTemplate, '--',resolved.url);
 
   console.log('[yt-dlp] format=%s job=%s', fmtStr, jobId);
 
   const proc = spawn(ytdlpBin, args);
   let stderrBuf = '';
+  let streamedToClient = false;
   proc.stderr.on('data', d => {
     const s = d.toString().trim();
     stderrBuf = (stderrBuf+s+'\n').slice(-8192);
   });
 
+  if(streamInstagram){
+    proc.stdout.once('data', chunk => {
+      proc.stdout.pause();
+      const reelId = new URL(resolved.url).pathname.split('/').filter(Boolean).at(-1);
+      const filename = safeFilename(`Instagram_${reelId||jobId}`, 'mp4');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      res.setHeader('Content-Type','video/mp4');
+      res.setHeader('Cache-Control','private, no-store');
+      streamedToClient = true;
+      res.write(chunk);
+      proc.stdout.pipe(res);
+      proc.stdout.resume();
+    });
+  }
+
   proc.on('close', code => {
     if(code !== 0){
       console.warn('[yt-dlp] falhou code=%d', code);
+      if(streamedToClient){
+        if(!res.writableEnded)res.destroy();
+        return;
+      }
       if(!res.headersSent){
         const isRateLimited = /429|Too Many Requests/i.test(stderrBuf);
         const isBotCheck = /Sign in to confirm|not a bot/i.test(stderrBuf);
@@ -501,6 +530,13 @@ app.get('/api/video-dl',async(req,res)=>{
               ? (videoId?'O YouTube':'A plataforma')+' limitou temporariamente o servidor. Aguarde alguns minutos e tente novamente.'
               : 'Não foi possível baixar este vídeo. Confira a disponibilidade da publicação.'
         });
+      }
+      return;
+    }
+
+    if(streamInstagram){
+      if(!streamedToClient && !res.headersSent){
+        res.status(500).json({error:'O Instagram não retornou dados para este vídeo.'});
       }
       return;
     }

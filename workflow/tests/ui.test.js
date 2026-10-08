@@ -63,6 +63,14 @@ test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.doesNotMatch(app, /showSaveFilePicker/);
   assert.match(server, /--embed-metadata/);
 });
+test('Reels do Instagram são transmitidos cedo sem arquivo temporário', () => {
+  assert.match(server, /const streamInstagram = resolvedHost === 'instagram\.com'/);
+  assert.match(server, /best\[height<=\$\{h\}\]\[ext=mp4\]\/best\[height<=\$\{h\}\]\/best/);
+  assert.match(server, /args\.push\('-o', streamInstagram \? '-' : outTemplate/);
+  assert.match(server, /proc\.stdout\.once\('data', chunk =>/);
+  assert.match(server, /proc\.stdout\.pipe\(res\)/);
+  assert.match(app, /function downloadErrorMessage\(error\)/);
+});
 test('multi-download oferece colagem normalizada somente no modal em lote', () => {
   assert.match(app, /id="multiPasteBtn"/);
   assert.match(app, /id="multiPasteStatus" role="status"/);
@@ -71,7 +79,8 @@ test('multi-download oferece colagem normalizada somente no modal em lote', () =
   assert.match(app, /function isSupportedLink\(value\)/);
   assert.ok(app.includes('(?=https?:\\/\\/'));
   assert.match(app, /allLinks\.join\('\\n'\)/);
-  assert.match(app, /\.slice\(0,25\)/);
+  assert.match(app, /var MAX_BATCH_LINKS = 50/);
+  assert.match(app, /if\(links\.length>MAX_BATCH_LINKS\)/);
 });
 test('Lens do app envia o frame autenticado e trata popup bloqueado', () => {
   assert.match(app, /function lensDestination\(publicUrl\)/);
