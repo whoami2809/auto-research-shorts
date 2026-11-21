@@ -44,8 +44,8 @@ test('DOM: dados externos não viram HTML e não há JavaScript inline', () => {
   for (const match of js.matchAll(/\$\('([^']+)'\)/g)) assert.ok(ids.includes(match[1]), 'ID presente: ' + match[1]);
 });
 test('Supabase fixado na mesma major usada pelo site; sessão padrão e autenticação bearer', () => {
-  assert.match(app, /@supabase\/supabase-js@2(?:\/|\.)/);
-  assert.match(js, /@supabase\/supabase-js@2\.116\.0\/\+esm/);
+  assert.match(app, /import \{ createClient \} from '\/supabase-client\.js'/);
+  assert.match(js, /const SUPABASE_MODULE = '\/supabase-client\.js'/);
   assert.match(js, /createClient\(config\.url, config\.key\)/);
   assert.match(js, /headers\.Authorization = 'Bearer '/);
   assert.match(js, /api\('\/api\/config', \{\}, true\)/);
@@ -54,7 +54,7 @@ test('Supabase fixado na mesma major usada pelo site; sessão padrão e autentic
 });
 test('downloads do app principal enviam a sessão explicitamente', () => {
   assert.match(app, /function authenticatedApiFetch\(input, init\)/);
-  assert.match(app, /@supabase\/supabase-js@2\.116\.0\/\+esm/);
+  assert.match(app, /import \{ createClient \} from '\/supabase-client\.js'/);
   assert.match(app, /Date\.now\(\)-started>=10000/);
   assert.match(app, /headers\.set\('Authorization','Bearer '\+session\.access_token\)/);
   assert.match(app, /var response=await authenticatedApiFetch\(dlUrl\)/);

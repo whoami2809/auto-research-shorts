@@ -1,5 +1,5 @@
-// Same major CDN reference as /app, resolved and pinned on implementation.
-const SUPABASE_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
+// Use the same locally bundled Supabase client as /app.
+const SUPABASE_MODULE = '/supabase-client.js';
 const STAGES = { roteiro: 'Roteiro', titulos: 'Títulos', seo: 'SEO', voz: 'Voz', frames: 'Frames', busca: 'Pesquisa', downloads: 'Downloads', organizar: 'Organização' };
 const STAGE_HELP = {
   roteiro: 'Traduz e remodela o roteiro para português.', titulos: 'Sugere títulos curtos e fortes para o vídeo.',
@@ -735,7 +735,7 @@ async function boot() {
   }
   try {
     const config = publicConfig(await api('/api/config', {}, true));
-    const { createClient } = await import(SUPABASE_CDN);
+    const { createClient } = await import(SUPABASE_MODULE);
     // Default Supabase storage shares /app's session on this origin.
     state.client = createClient(config.url, config.key);
     const { data, error } = await state.client.auth.getSession(); if (error) throw new Error('Não foi possível recuperar sua sessão. Entre em /app.');
