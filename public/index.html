@@ -987,8 +987,10 @@ form.addEventListener('submit', async (event) => {
         message.textContent = 'Usuário criado. Confirme o e-mail recebido e depois entre.';
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      if (!data.session) throw new Error('O login não retornou uma sessão. Tente novamente.');
+      showSession(data.session);
     }
   } catch (error) {
     message.textContent = getAuthErrorMessage(error);
